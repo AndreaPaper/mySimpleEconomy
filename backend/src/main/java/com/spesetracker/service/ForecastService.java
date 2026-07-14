@@ -39,6 +39,11 @@ public class ForecastService {
     // per la media mobile delle spese/entrate variabili (non ricorrenti).
     private static final int VARIABLE_AVERAGE_WINDOW_MONTHS = 6;
 
+    // Sentinella per "nessun checkpoint mai registrato": LocalDate.MIN eccede il range
+    // di date rappresentabile da Postgres (causa un overflow lato driver JDBC), quindi
+    // usiamo una data remota ma valida - nessuna transazione reale precede il 1970 comunque.
+    private static final LocalDate NO_CHECKPOINT_SENTINEL = LocalDate.of(1970, 1, 1);
+
     private final BalanceCheckpointRepository balanceCheckpointRepository;
     private final TransactionRepository transactionRepository;
     private final RecurringTransactionRepository recurringTransactionRepository;
@@ -55,7 +60,7 @@ public class ForecastService {
 
         Optional<BalanceCheckpoint> checkpoint = balanceCheckpointRepository
                 .findFirstByUserIdAndCheckpointDateLessThanEqualOrderByCheckpointDateDesc(userId, today);
-        LocalDate checkpointDate = checkpoint.map(BalanceCheckpoint::getCheckpointDate).orElse(LocalDate.MIN);
+        LocalDate checkpointDate = checkpoint.map(BalanceCheckpoint::getCheckpointDate).orElse(NO_CHECKPOINT_SENTINEL);
         BigDecimal checkpointBalance = checkpoint.map(BalanceCheckpoint::getBalance).orElse(BigDecimal.ZERO);
 
         Map<UUID, Category> categoryLookup = new HashMap<>();

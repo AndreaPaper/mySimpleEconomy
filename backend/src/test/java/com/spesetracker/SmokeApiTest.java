@@ -105,6 +105,27 @@ class SmokeApiTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    // Regressione: un utente appena registrato non ha alcun balance_checkpoint.
+    // ForecastService usava LocalDate.MIN come sentinella in questo caso, che eccede
+    // il range di date rappresentabile da Postgres e mandava in errore ogni richiesta
+    // di previsione per un utente nuovo (scoperto testando l'app reale in un container).
+    @Test
+    void forecastWorksForBrandNewUserWithoutAnyCheckpoint() throws Exception {
+        String email = "smoke-nocp+" + UUID.randomUUID() + "@example.com";
+        MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", email, "password", "password123"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String token = readJson(registerResult).get("token").asText();
+
+        mockMvc.perform(get("/api/forecast").param("months", "4")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.months.length()").value(4))
+                .andExpect(jsonPath("$.startingBalance").value(0));
+    }
+
     private JsonNode readJson(MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }
