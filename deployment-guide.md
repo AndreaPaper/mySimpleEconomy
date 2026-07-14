@@ -1,4 +1,4 @@
-# Guida al deploy di Spesometro (Neon + Render + Vercel)
+# Guida al deploy di MySimpleEconomy (Neon + Render + Vercel)
 
 Questa guida copre i passaggi che devi fare tu (creazione account, configurazione dashboard) — non posso creare account o autenticarmi al posto tuo. Dove serve, dimmi cosa hai ottenuto (URL, connection string) e continuo io da lì (push del codice, verifiche).
 

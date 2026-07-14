@@ -27,7 +27,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold">Accedi a Spesometro</h1>
+        <h1 className="text-xl font-semibold">Accedi a MySimpleEconomy</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div>
           <label className="mb-1 block text-sm text-slate-600" htmlFor="email">Email</label>
