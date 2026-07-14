@@ -15,6 +15,9 @@ public interface RecurringTransactionRepository extends JpaRepository<RecurringT
 
     List<RecurringTransaction> findByUserIdAndActiveTrue(UUID userId);
 
+    // Tutte le regole dell'utente (attive e non), per la schermata di gestione.
+    List<RecurringTransaction> findByUserIdOrderByNextDueDateAsc(UUID userId);
+
     // Prossime scadenze in uscita per la dashboard.
     List<RecurringTransaction> findByUserIdAndActiveTrueAndCategoryTypeOrderByNextDueDateAsc(
             UUID userId, CategoryType categoryType);
