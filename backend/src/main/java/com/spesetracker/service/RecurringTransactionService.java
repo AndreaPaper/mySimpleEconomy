@@ -29,6 +29,7 @@ public class RecurringTransactionService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public List<RecurringTransactionResponse> list(UUID userId) {
         return recurringTransactionRepository.findByUserIdOrderByNextDueDateAsc(userId).stream()
                 .map(RecurringTransactionResponse::from)

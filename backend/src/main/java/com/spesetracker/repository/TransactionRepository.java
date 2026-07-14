@@ -16,4 +16,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findByUserIdAndCategoryIdAndOccurredOnBetween(
             UUID userId, UUID categoryId, LocalDate from, LocalDate to);
+
+    long countByRecurringTransactionId(UUID recurringTransactionId);
 }

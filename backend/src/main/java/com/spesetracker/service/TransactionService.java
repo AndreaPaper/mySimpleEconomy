@@ -28,6 +28,7 @@ public class TransactionService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public List<TransactionResponse> list(UUID userId, LocalDate from, LocalDate to, UUID categoryId) {
         List<Transaction> transactions;
 
