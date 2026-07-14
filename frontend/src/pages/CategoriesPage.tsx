@@ -3,6 +3,7 @@ import { categoriesApi } from '../api/endpoints'
 import type { Category, CategoryType } from '../api/types'
 import Modal from '../components/Modal'
 import CategoryForm from '../components/CategoryForm'
+import { getCategoryIcon } from '../constants/icons'
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -28,9 +29,9 @@ export default function CategoriesPage() {
 
   const closeModal = () => setModalMode(null)
 
-  const handleSubmit = async (data: { name: string; type: CategoryType; color: string | null }) => {
+  const handleSubmit = async (data: { name: string; type: CategoryType; color: string | null; icon: string | null }) => {
     if (modalMode === 'edit' && editing) {
-      await categoriesApi.update(editing.id, { name: data.name, color: data.color })
+      await categoriesApi.update(editing.id, { name: data.name, color: data.color, icon: data.icon })
     } else {
       await categoriesApi.create(data)
     }
@@ -65,10 +66,17 @@ export default function CategoriesPage() {
         <p className="text-slate-500">Nessuna categoria ancora.</p>
       ) : (
         <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
-          {categories.map((c) => (
+          {categories.map((c) => {
+            const Icon = getCategoryIcon(c.icon)
+            return (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: c.color ?? '#94a3b8' }} />
+                <span
+                  className="flex h-7 w-7 items-center justify-center rounded-full"
+                  style={{ backgroundColor: c.color ?? '#94a3b8' }}
+                >
+                  <Icon className="h-4 w-4 text-white" />
+                </span>
                 <span>{c.name}</span>
                 <span className="text-sm text-slate-400">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
               </div>
@@ -81,7 +89,8 @@ export default function CategoriesPage() {
                 </button>
               </div>
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
 

@@ -63,10 +63,15 @@ export default function ImportPage() {
     setPreview({ ...preview, oneOffTransactions })
   }
 
-  const handleNewCategoryCreated = (suggestion: { name: string; type: 'INCOME' | 'EXPENSE'; color: string | null }) => {
+  const handleNewCategoryCreated = (suggestion: {
+    name: string
+    type: 'INCOME' | 'EXPENSE'
+    color: string | null
+    icon: string | null
+  }) => {
     if (!preview || newCategoryTarget === null) return Promise.resolve()
     const tempId = `new-manual-${Date.now()}`
-    const newSuggestion: CategorySuggestion = { tempId, ...suggestion }
+    const newSuggestion: CategorySuggestion = { tempId, name: suggestion.name, type: suggestion.type, color: suggestion.color }
     const oneOffTransactions = [...preview.oneOffTransactions]
     oneOffTransactions[newCategoryTarget] = {
       ...oneOffTransactions[newCategoryTarget],
