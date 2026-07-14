@@ -73,3 +73,19 @@ CREATE TABLE balance_checkpoints (
     UNIQUE (user_id, checkpoint_date)
 );
 CREATE INDEX idx_checkpoints_user_date ON balance_checkpoints (user_id, checkpoint_date DESC);
+
+-- Promemoria di spese fisse future, senza importo: solo un promemoria di "cosa e quando",
+-- per capire quali mesi avranno più uscite fisse. Non genera transazioni né importi.
+CREATE TABLE expense_reminders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    interval_unit interval_unit NOT NULL,
+    interval_value SMALLINT NOT NULL DEFAULT 1 CHECK (interval_value > 0),
+    start_date DATE NOT NULL,
+    next_due_date DATE NOT NULL,
+    end_date DATE,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_expense_reminders_next_due ON expense_reminders (next_due_date) WHERE active = true;

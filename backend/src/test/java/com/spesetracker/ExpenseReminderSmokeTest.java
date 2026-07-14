@@ -1,0 +1,74 @@
+package com.spesetracker;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import java.time.LocalDate;
+import java.util.Map;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+// Promemoria di spesa fissa senza importo: crea una regola mensile e verifica che
+// venga proiettata correttamente nei mesi futuri richiesti.
+@SpringBootTest
+@AutoConfigureMockMvc
+class ExpenseReminderSmokeTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void reminderIsProjectedAcrossUpcomingMonths() throws Exception {
+        String email = "reminder+" + UUID.randomUUID() + "@example.com";
+        MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", email, "password", "password123"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String token = objectMapper.readTree(registerResult.getResponse().getContentAsString()).get("token").asText();
+
+        LocalDate nextDue = LocalDate.now().plusDays(5);
+        mockMvc.perform(post("/api/expense-reminders")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Assicurazione scooter","intervalUnit":"MONTH","intervalValue":1,\
+                                "startDate":"%s","nextDueDate":"%s"}
+                                """.formatted(nextDue, nextDue)))
+                .andExpect(status().isCreated());
+
+        MvcResult upcomingResult = mockMvc.perform(get("/api/expense-reminders/upcoming")
+                        .param("months", "3")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(upcomingResult.getResponse().getContentAsString());
+        assertThat(response.get("months")).hasSize(3);
+
+        int totalOccurrences = 0;
+        for (JsonNode month : response.get("months")) {
+            totalOccurrences += month.get("occurrences").size();
+        }
+        // Un promemoria mensile con prossima scadenza fra 5 giorni deve comparire
+        // almeno 2 volte in un orizzonte di 3 mesi (questo mese + il successivo, a
+        // seconda di dove cade esattamente rispetto alla fine del mese corrente).
+        assertThat(totalOccurrences).isGreaterThanOrEqualTo(2);
+        assertThat(response.get("months").get(0).get("occurrences").get(0).get("name").asText())
+                .isEqualTo("Assicurazione scooter");
+    }
+}
