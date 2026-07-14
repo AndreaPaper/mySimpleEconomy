@@ -1,0 +1,75 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto; -- per gen_random_uuid()
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TYPE category_type AS ENUM ('INCOME', 'EXPENSE');
+
+CREATE TABLE categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    type category_type NOT NULL,
+    color VARCHAR(7),
+    icon VARCHAR(50),
+    archived BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, name)
+);
+
+CREATE TYPE interval_unit AS ENUM ('DAY', 'WEEK', 'MONTH', 'YEAR');
+
+CREATE TABLE recurring_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    name VARCHAR(150) NOT NULL,
+    default_amount NUMERIC(10,2) NOT NULL CHECK (default_amount > 0),
+    interval_unit interval_unit NOT NULL,
+    interval_value SMALLINT NOT NULL DEFAULT 1 CHECK (interval_value > 0),
+    start_date DATE NOT NULL,
+    next_due_date DATE NOT NULL,
+    end_date DATE,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_recurring_next_due ON recurring_transactions (next_due_date) WHERE active = true;
+
+CREATE TABLE recurring_overrides (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recurring_transaction_id UUID NOT NULL REFERENCES recurring_transactions(id) ON DELETE CASCADE,
+    occurrence_date DATE NOT NULL,
+    override_amount NUMERIC(10,2) NOT NULL,
+    note VARCHAR(255),
+    UNIQUE (recurring_transaction_id, occurrence_date)
+);
+
+CREATE TYPE transaction_type AS ENUM ('INCOME', 'EXPENSE');
+
+CREATE TABLE transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    recurring_transaction_id UUID REFERENCES recurring_transactions(id) ON DELETE SET NULL,
+    amount NUMERIC(10,2) NOT NULL,
+    type transaction_type NOT NULL,
+    occurred_on DATE NOT NULL,
+    description VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_transactions_user_date ON transactions (user_id, occurred_on);
+CREATE INDEX idx_transactions_category ON transactions (category_id);
+
+CREATE TABLE balance_checkpoints (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    checkpoint_date DATE NOT NULL,
+    balance NUMERIC(10,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, checkpoint_date)
+);
+CREATE INDEX idx_checkpoints_user_date ON balance_checkpoints (user_id, checkpoint_date DESC);
