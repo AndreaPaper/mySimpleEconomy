@@ -1,22 +1,73 @@
 import { useEffect, useState } from 'react'
-import { transactionsApi } from '../api/endpoints'
-import type { Transaction } from '../api/types'
+import { categoriesApi, transactionsApi } from '../api/endpoints'
+import type { Category, Transaction } from '../api/types'
+import Modal from '../components/Modal'
+import TransactionForm from '../components/TransactionForm'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
+  const [editing, setEditing] = useState<Transaction | null>(null)
+
+  const reloadTransactions = () => transactionsApi.list().then(setTransactions)
 
   useEffect(() => {
-    transactionsApi.list().then(setTransactions).finally(() => setLoading(false))
+    Promise.all([reloadTransactions(), categoriesApi.list().then(setCategories)]).finally(() => setLoading(false))
   }, [])
+
+  const openCreate = () => {
+    setEditing(null)
+    setModalMode('create')
+  }
+
+  const openEdit = (transaction: Transaction) => {
+    setEditing(transaction)
+    setModalMode('edit')
+  }
+
+  const closeModal = () => setModalMode(null)
+
+  const handleSubmit = async (data: {
+    categoryId: string
+    amount: number
+    type: string
+    occurredOn: string
+    description: string | null
+  }) => {
+    if (modalMode === 'edit' && editing) {
+      await transactionsApi.update(editing.id, data)
+    } else {
+      await transactionsApi.create(data)
+    }
+    await reloadTransactions()
+    closeModal()
+  }
+
+  const handleDelete = async (transaction: Transaction) => {
+    if (!window.confirm('Eliminare questa transazione?')) return
+    await transactionsApi.delete(transaction.id)
+    await reloadTransactions()
+  }
 
   if (loading) return <p className="text-slate-500">Caricamento...</p>
 
   return (
     <div>
-      <h1 className="mb-4 text-lg font-semibold">Transazioni</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Transazioni</h1>
+        <button
+          type="button"
+          onClick={openCreate}
+          className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          Nuova transazione
+        </button>
+      </div>
+
       {transactions.length === 0 ? (
         <p className="text-slate-500">Nessuna transazione ancora.</p>
       ) : (
@@ -27,15 +78,34 @@ export default function TransactionsPage() {
                 <p className="font-medium">{t.description || t.categoryName}</p>
                 <p className="text-sm text-slate-500">
                   {t.occurredOn} · {t.categoryName}
+                  {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400">(ricorrente)</span>}
                 </p>
               </div>
-              <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
-                {t.type === 'INCOME' ? '+' : '-'}
-                {currency.format(t.amount)}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
+                  {t.type === 'INCOME' ? '+' : '-'}
+                  {currency.format(t.amount)}
+                </span>
+                <button type="button" onClick={() => openEdit(t)} className="text-sm text-indigo-600 hover:underline">
+                  Modifica
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(t)}
+                  className="text-sm text-slate-500 hover:underline"
+                >
+                  Elimina
+                </button>
+              </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {modalMode && (
+        <Modal title={modalMode === 'edit' ? 'Modifica transazione' : 'Nuova transazione'} onClose={closeModal}>
+          <TransactionForm categories={categories} initial={editing ?? undefined} onSubmit={handleSubmit} onCancel={closeModal} />
+        </Modal>
       )}
     </div>
   )

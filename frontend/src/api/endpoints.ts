@@ -53,12 +53,27 @@ export const recurringApi = {
     nextDueDate: string
     endDate?: string | null
   }) => client.post<RecurringTransaction>('/recurring-transactions', data).then((r) => r.data),
+  update: (
+    id: string,
+    data: {
+      categoryId: string
+      name: string
+      defaultAmount: number
+      intervalUnit: string
+      intervalValue: number
+      startDate: string
+      nextDueDate: string
+      endDate?: string | null
+    },
+  ) => client.put<RecurringTransaction>(`/recurring-transactions/${id}`, data).then((r) => r.data),
   deactivate: (id: string) => client.post(`/recurring-transactions/${id}/deactivate`),
   reactivate: (id: string) => client.post(`/recurring-transactions/${id}/reactivate`),
   listOverrides: (id: string) =>
     client.get<RecurringOverride[]>(`/recurring-transactions/${id}/overrides`).then((r) => r.data),
   createOverride: (id: string, data: { occurrenceDate: string; overrideAmount: number; note?: string | null }) =>
     client.post<RecurringOverride>(`/recurring-transactions/${id}/overrides`, data).then((r) => r.data),
+  deleteOverride: (id: string, overrideId: string) =>
+    client.delete(`/recurring-transactions/${id}/overrides/${overrideId}`),
 }
 
 export const checkpointsApi = {
