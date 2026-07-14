@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { categoriesApi, transactionsApi } from '../api/endpoints'
+import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
 import type { Category, Transaction } from '../api/types'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
@@ -12,6 +12,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Transaction | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   const reloadTransactions = () => transactionsApi.list().then(setTransactions)
 
@@ -53,19 +54,46 @@ export default function TransactionsPage() {
     await reloadTransactions()
   }
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const blob = await excelExportApi.download()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'transazioni.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (loading) return <p className="text-slate-500">Caricamento...</p>
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold">Transazioni</h1>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Nuova transazione
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+          >
+            {exporting ? 'Esportazione...' : 'Esporta in Excel'}
+          </button>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Nuova transazione
+          </button>
+        </div>
       </div>
 
       {transactions.length === 0 ? (

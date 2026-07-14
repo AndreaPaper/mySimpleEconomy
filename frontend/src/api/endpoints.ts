@@ -88,6 +88,11 @@ export const forecastApi = {
   get: (months = 6) => client.get<ForecastResponse>('/forecast', { params: { months } }).then((r) => r.data),
 }
 
+export const excelExportApi = {
+  download: (params?: { from?: string; to?: string; categoryId?: string }) =>
+    client.get<Blob>('/export/excel', { params, responseType: 'blob' }).then((r) => r.data),
+}
+
 export const excelImportApi = {
   analyze: (file: File) => {
     const formData = new FormData()
