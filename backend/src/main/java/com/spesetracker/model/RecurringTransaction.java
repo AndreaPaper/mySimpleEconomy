@@ -75,11 +75,19 @@ public class RecurringTransaction {
      * la transazione corrispondente alla scadenza corrente.
      */
     public void advanceNextDueDate() {
-        this.nextDueDate = switch (this.intervalUnit) {
-            case DAY -> this.nextDueDate.plusDays(this.intervalValue);
-            case WEEK -> this.nextDueDate.plusWeeks(this.intervalValue);
-            case MONTH -> this.nextDueDate.plusMonths(this.intervalValue);
-            case YEAR -> this.nextDueDate.plusYears(this.intervalValue);
+        this.nextDueDate = addInterval(this.nextDueDate);
+    }
+
+    /**
+     * Versione pura (senza side effect) di advanceNextDueDate, usata dal motore
+     * di previsione per proiettare le occorrenze future senza mutare la regola.
+     */
+    public LocalDate addInterval(LocalDate date) {
+        return switch (this.intervalUnit) {
+            case DAY -> date.plusDays(this.intervalValue);
+            case WEEK -> date.plusWeeks(this.intervalValue);
+            case MONTH -> date.plusMonths(this.intervalValue);
+            case YEAR -> date.plusYears(this.intervalValue);
         };
     }
 
