@@ -4,10 +4,12 @@ import type {
   Category,
   ExcelImportPreviewResponse,
   ExcelImportResult,
+  ExpenseReminder,
   ForecastResponse,
   RecurringOverride,
   RecurringTransaction,
   Transaction,
+  UpcomingRemindersResponse,
 } from './types'
 
 export const authApi = {
@@ -91,6 +93,33 @@ export const forecastApi = {
 export const excelExportApi = {
   download: (params?: { from?: string; to?: string; categoryId?: string }) =>
     client.get<Blob>('/export/excel', { params, responseType: 'blob' }).then((r) => r.data),
+}
+
+export const remindersApi = {
+  list: () => client.get<ExpenseReminder[]>('/expense-reminders').then((r) => r.data),
+  upcoming: (months = 3) =>
+    client.get<UpcomingRemindersResponse>('/expense-reminders/upcoming', { params: { months } }).then((r) => r.data),
+  create: (data: {
+    name: string
+    intervalUnit: string
+    intervalValue: number
+    startDate: string
+    nextDueDate: string
+    endDate?: string | null
+  }) => client.post<ExpenseReminder>('/expense-reminders', data).then((r) => r.data),
+  update: (
+    id: string,
+    data: {
+      name: string
+      intervalUnit: string
+      intervalValue: number
+      startDate: string
+      nextDueDate: string
+      endDate?: string | null
+    },
+  ) => client.put<ExpenseReminder>(`/expense-reminders/${id}`, data).then((r) => r.data),
+  deactivate: (id: string) => client.post(`/expense-reminders/${id}/deactivate`),
+  reactivate: (id: string) => client.post(`/expense-reminders/${id}/reactivate`),
 }
 
 export const excelImportApi = {

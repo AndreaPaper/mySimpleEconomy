@@ -8,8 +8,14 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { checkpointsApi, forecastApi, recurringApi, transactionsApi } from '../api/endpoints'
-import type { BalanceCheckpoint, ForecastResponse, RecurringTransaction, Transaction } from '../api/types'
+import { checkpointsApi, forecastApi, recurringApi, remindersApi, transactionsApi } from '../api/endpoints'
+import type {
+  BalanceCheckpoint,
+  ForecastResponse,
+  RecurringTransaction,
+  Transaction,
+  UpcomingRemindersResponse,
+} from '../api/types'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short', year: '2-digit' })
@@ -35,6 +41,7 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
   const [historicalTransactions, setHistoricalTransactions] = useState<Transaction[]>([])
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([])
+  const [upcomingReminders, setUpcomingReminders] = useState<UpcomingRemindersResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -49,13 +56,15 @@ export default function DashboardPage() {
       transactionsApi.list(),
       transactionsApi.list({ from: iso(threeMonthsAgoStart), to: iso(lastMonthEnd) }),
       recurringApi.list(),
+      remindersApi.upcoming(4),
     ])
-      .then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes]) => {
+      .then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
         setForecast(forecastRes)
         setCheckpoints(checkpointsRes)
         setRecentTransactions(recentRes)
         setHistoricalTransactions(historicalRes)
         setRecurring(recurringRes)
+        setUpcomingReminders(remindersRes)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -187,6 +196,40 @@ export default function DashboardPage() {
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <p className="mb-1 text-sm font-medium text-slate-600">Spese fisse nei prossimi mesi</p>
+        <p className="mb-2 text-xs text-slate-400">
+          Promemoria senza importo: utile per capire quali mesi avranno più scadenze.
+        </p>
+        {!upcomingReminders || upcomingReminders.months.every((m) => m.occurrences.length === 0) ? (
+          <p className="text-sm text-slate-400">Nessun promemoria configurato.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {upcomingReminders.months.map((m) => (
+              <div key={m.yearMonth} className="rounded border border-slate-100 bg-slate-50 p-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-sm font-medium">{monthLabel(m.yearMonth)}</span>
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                    {m.occurrences.length}
+                  </span>
+                </div>
+                {m.occurrences.length === 0 ? (
+                  <p className="text-xs text-slate-400">Nessuna scadenza</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {m.occurrences.map((o, i) => (
+                      <li key={i} className="text-xs text-slate-600">
+                        {o.date.slice(8, 10)} · {o.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-4">

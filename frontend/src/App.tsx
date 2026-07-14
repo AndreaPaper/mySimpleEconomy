@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage'
 import TransactionsPage from './pages/TransactionsPage'
 import CategoriesPage from './pages/CategoriesPage'
 import RecurringPage from './pages/RecurringPage'
+import RemindersPage from './pages/RemindersPage'
 import ImportPage from './pages/ImportPage'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
               <Route path="/transazioni" element={<TransactionsPage />} />
               <Route path="/categorie" element={<CategoriesPage />} />
               <Route path="/ricorrenti" element={<RecurringPage />} />
+              <Route path="/promemoria" element={<RemindersPage />} />
               <Route path="/importa" element={<ImportPage />} />
             </Route>
           </Route>

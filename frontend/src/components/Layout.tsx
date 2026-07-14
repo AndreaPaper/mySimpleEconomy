@@ -6,6 +6,7 @@ const navItems = [
   { to: '/transazioni', label: 'Transazioni' },
   { to: '/categorie', label: 'Categorie' },
   { to: '/ricorrenti', label: 'Ricorrenti' },
+  { to: '/promemoria', label: 'Promemoria' },
   { to: '/importa', label: 'Importa' },
 ]
 

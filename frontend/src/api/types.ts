@@ -124,3 +124,29 @@ export interface ExcelImportResult {
   transactionsCreated: number
   checkpointSet: boolean
 }
+
+export interface ExpenseReminder {
+  id: string
+  name: string
+  intervalUnit: IntervalUnit
+  intervalValue: number
+  startDate: string
+  nextDueDate: string
+  endDate: string | null
+  active: boolean
+}
+
+export interface ExpenseReminderOccurrence {
+  reminderId: string
+  name: string
+  date: string
+}
+
+export interface MonthlyReminders {
+  yearMonth: string
+  occurrences: ExpenseReminderOccurrence[]
+}
+
+export interface UpcomingRemindersResponse {
+  months: MonthlyReminders[]
+}
