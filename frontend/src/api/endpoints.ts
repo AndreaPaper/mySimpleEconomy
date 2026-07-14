@@ -2,6 +2,8 @@ import client from './client'
 import type {
   BalanceCheckpoint,
   Category,
+  ExcelImportPreviewResponse,
+  ExcelImportResult,
   ForecastResponse,
   RecurringOverride,
   RecurringTransaction,
@@ -84,4 +86,18 @@ export const checkpointsApi = {
 
 export const forecastApi = {
   get: (months = 6) => client.get<ForecastResponse>('/forecast', { params: { months } }).then((r) => r.data),
+}
+
+export const excelImportApi = {
+  analyze: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return client
+      .post<ExcelImportPreviewResponse>('/import/excel/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data)
+  },
+  commit: (data: ExcelImportPreviewResponse) =>
+    client.post<ExcelImportResult>('/import/excel/commit', data).then((r) => r.data),
 }

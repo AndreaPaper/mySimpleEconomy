@@ -71,3 +71,56 @@ export interface BalanceCheckpoint {
   checkpointDate: string
   balance: number
 }
+
+export interface CategorySuggestion {
+  tempId: string
+  name: string
+  type: CategoryType
+  color: string | null
+}
+
+export interface RecurringImportItem {
+  name: string
+  amount: number
+  startDate: string
+  occurrenceCount: number
+  existingCategoryId: string | null
+  newCategoryTempId: string | null
+}
+
+export interface OneOffImportItem {
+  occurredOn: string
+  name: string
+  amount: number
+  needsCategory: boolean
+  existingCategoryId: string | null
+  newCategoryTempId: string | null
+}
+
+export interface BalanceCheckpointImportItem {
+  checkpointDate: string
+  balance: number
+}
+
+export interface ImportSummary {
+  sheetsProcessed: number
+  recurringDetected: number
+  oneOffDetected: number
+  categoriesToCreate: number
+  itemsNeedingCategory: number
+}
+
+export interface ExcelImportPreviewResponse {
+  newCategorySuggestions: CategorySuggestion[]
+  recurringTransactions: RecurringImportItem[]
+  oneOffTransactions: OneOffImportItem[]
+  balanceCheckpoint: BalanceCheckpointImportItem | null
+  summary: ImportSummary
+}
+
+export interface ExcelImportResult {
+  categoriesCreated: number
+  recurringTransactionsCreated: number
+  transactionsCreated: number
+  checkpointSet: boolean
+}
