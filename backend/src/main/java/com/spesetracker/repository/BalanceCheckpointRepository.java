@@ -17,4 +17,8 @@ public interface BalanceCheckpointRepository extends JpaRepository<BalanceCheckp
     List<BalanceCheckpoint> findByUserIdOrderByCheckpointDateDesc(UUID userId);
 
     Optional<BalanceCheckpoint> findByUserIdAndCheckpointDate(UUID userId, LocalDate checkpointDate);
+
+    long deleteByUserId(UUID userId);
+
+    long deleteByUserIdAndCheckpointDateBetween(UUID userId, LocalDate from, LocalDate to);
 }

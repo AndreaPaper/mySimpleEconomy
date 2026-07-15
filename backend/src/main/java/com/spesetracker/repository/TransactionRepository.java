@@ -18,4 +18,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             UUID userId, UUID categoryId, LocalDate from, LocalDate to);
 
     long countByRecurringTransactionId(UUID recurringTransactionId);
+
+    long deleteByUserId(UUID userId);
+
+    long deleteByUserIdAndOccurredOnBetween(UUID userId, LocalDate from, LocalDate to);
 }

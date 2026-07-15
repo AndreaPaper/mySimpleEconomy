@@ -21,4 +21,6 @@ public interface RecurringTransactionRepository extends JpaRepository<RecurringT
     // Prossime scadenze in uscita per la dashboard.
     List<RecurringTransaction> findByUserIdAndActiveTrueAndCategoryTypeOrderByNextDueDateAsc(
             UUID userId, CategoryType categoryType);
+
+    long deleteByUserId(UUID userId);
 }
