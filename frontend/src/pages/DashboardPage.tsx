@@ -56,7 +56,7 @@ export default function DashboardPage() {
       transactionsApi.list(),
       transactionsApi.list({ from: iso(threeMonthsAgoStart), to: iso(lastMonthEnd) }),
       recurringApi.list(),
-      remindersApi.upcoming(4),
+      remindersApi.upcoming(6),
     ])
       .then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
         setForecast(forecastRes)
@@ -206,7 +206,7 @@ export default function DashboardPage() {
         {!upcomingReminders || upcomingReminders.months.every((m) => m.occurrences.length === 0) ? (
           <p className="text-sm text-slate-400">Nessun promemoria configurato.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-3">
             {upcomingReminders.months.map((m) => (
               <div key={m.yearMonth} className="rounded border border-slate-100 bg-slate-50 p-3">
                 <div className="mb-1 flex items-center justify-between">
