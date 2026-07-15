@@ -47,12 +47,12 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto grid max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
           <span className="flex items-center gap-2 font-semibold">
             <BankIcon className="h-7 w-7 shrink-0" />
             MySimpleEconomy
           </span>
-          <nav className="flex gap-4 text-sm">
+          <nav className="flex flex-wrap justify-center gap-4 text-sm">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -66,7 +66,7 @@ export default function Layout() {
               </NavLink>
             ))}
           </nav>
-          <div className="flex items-center gap-3 text-sm text-slate-600">
+          <div className="flex items-center justify-self-end gap-3 text-sm text-slate-600">
             <span>{email}</span>
             <button
               onClick={logout}
