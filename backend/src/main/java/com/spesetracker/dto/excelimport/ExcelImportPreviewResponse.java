@@ -6,7 +6,7 @@ public record ExcelImportPreviewResponse(
         List<CategorySuggestion> newCategorySuggestions,
         List<RecurringImportItem> recurringTransactions,
         List<OneOffImportItem> oneOffTransactions,
-        BalanceCheckpointImportItem balanceCheckpoint,
+        List<BalanceCheckpointImportItem> balanceCheckpoints,
         ImportSummary summary
 ) {
 }

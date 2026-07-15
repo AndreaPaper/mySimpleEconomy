@@ -34,6 +34,7 @@ public class ExcelSheetParser {
 
             List<ParsedWorkbook.FisseRow> fisseRows = new ArrayList<>();
             List<ParsedWorkbook.NonFisseRow> nonFisseRows = new ArrayList<>();
+            List<ParsedWorkbook.PeriodStart> periodStarts = new ArrayList<>();
             int sheetsProcessed = 0;
 
             for (int sheetIndex = 0; sheetIndex < workbook.getNumberOfSheets(); sheetIndex++) {
@@ -59,6 +60,8 @@ public class ExcelSheetParser {
                     TableHeader nonFisseHeader = headers.get(1);
                     nonFisseRows.addAll(readNonFisseTable(sheet, sheetName, nonFisseHeader, evaluator, legend));
                 }
+
+                readPeriodStart(sheet, evaluator).ifPresent(periodStarts::add);
             }
 
             LocalDate checkpointDate = null;
@@ -72,8 +75,45 @@ public class ExcelSheetParser {
                 }
             }
 
-            return new ParsedWorkbook(fisseRows, nonFisseRows, checkpointDate, checkpointBalance, sheetsProcessed);
+            return new ParsedWorkbook(fisseRows, nonFisseRows, checkpointDate, checkpointBalance, periodStarts, sheetsProcessed);
         }
+    }
+
+    // Cerca le etichette "SALDO INIZIO MESE" e "Stipendio" in colonna A (in qualunque
+    // riga): per l'utente il valore si trova sempre nella riga subito sotto l'etichetta,
+    // stessa colonna per il saldo, colonna A/B (data/importo) per lo stipendio. La data
+    // dello stipendio è anche la data di inizio del "mese" dell'utente (parte il 27 del
+    // mese precedente), quindi è la data che ancora entrambi i valori.
+    private Optional<ParsedWorkbook.PeriodStart> readPeriodStart(Sheet sheet, FormulaEvaluator evaluator) {
+        BigDecimal startBalance = null;
+        LocalDate salaryDate = null;
+        BigDecimal salaryAmount = null;
+
+        for (int r = sheet.getFirstRowNum(); r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) continue;
+            String label = readString(row.getCell(0));
+            if (label == null) continue;
+            String normalized = label.trim().toLowerCase(Locale.ITALIAN);
+
+            if (normalized.equals("saldo inizio mese")) {
+                Row valueRow = sheet.getRow(r + 1);
+                if (valueRow != null) {
+                    startBalance = readNumeric(valueRow.getCell(0), evaluator);
+                }
+            } else if (normalized.equals("stipendio")) {
+                Row valueRow = sheet.getRow(r + 1);
+                if (valueRow != null) {
+                    salaryDate = readDate(valueRow.getCell(0));
+                    salaryAmount = readNumeric(valueRow.getCell(1), evaluator);
+                }
+            }
+        }
+
+        if (salaryDate == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new ParsedWorkbook.PeriodStart(salaryDate, startBalance, salaryAmount));
     }
 
     private record TableHeader(int headerRow, int dataCol, int nomeCol, int costoCol) {

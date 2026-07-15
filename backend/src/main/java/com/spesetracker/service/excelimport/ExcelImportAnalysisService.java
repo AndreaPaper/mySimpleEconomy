@@ -55,7 +55,7 @@ public class ExcelImportAnalysisService {
                         .orElseGet(() -> fallbackAnchor(group, sheetRepresentativeMonth));
 
                 String categoryName = guessRecurringCategoryName(representative.name());
-                var categoryRef = resolveCategory(categoryName, existingByName, newCategoriesByName);
+                var categoryRef = resolveCategory(categoryName, CategoryType.EXPENSE, existingByName, newCategoriesByName);
 
                 recurringItems.add(new RecurringImportItem(
                         representative.name(), representative.amount(), anchor, (int) distinctSheets,
@@ -71,7 +71,7 @@ public class ExcelImportAnalysisService {
 
         for (ParsedWorkbook.NonFisseRow row : parsed.nonFisseRows()) {
             if (row.matchedCategoryLabel() != null) {
-                var categoryRef = resolveCategory(row.matchedCategoryLabel(), existingByName, newCategoriesByName);
+                var categoryRef = resolveCategory(row.matchedCategoryLabel(), CategoryType.EXPENSE, existingByName, newCategoriesByName);
                 oneOffItems.add(new OneOffImportItem(
                         row.date(), row.name(), row.amount(), false, categoryRef.existingId(), categoryRef.tempId()));
             } else {
@@ -79,18 +79,36 @@ public class ExcelImportAnalysisService {
             }
         }
 
-        BalanceCheckpointImportItem checkpoint = parsed.checkpointDate() != null
-                ? new BalanceCheckpointImportItem(parsed.checkpointDate(), parsed.checkpointBalance())
-                : null;
+        // Saldo di inizio periodo + stipendio: per l'utente il "mese" parte il 27 del
+        // mese precedente (giorno di arrivo dello stipendio). Un checkpoint per periodo
+        // dà una cronologia molto più precisa del singolo valore del foglio "Stima".
+        Map<LocalDate, BalanceCheckpointImportItem> checkpointsByDate = new LinkedHashMap<>();
+        if (parsed.checkpointDate() != null) {
+            checkpointsByDate.put(parsed.checkpointDate(),
+                    new BalanceCheckpointImportItem(parsed.checkpointDate(), parsed.checkpointBalance()));
+        }
+        for (ParsedWorkbook.PeriodStart periodStart : parsed.periodStarts()) {
+            if (periodStart.startBalance() != null) {
+                checkpointsByDate.put(periodStart.date(),
+                        new BalanceCheckpointImportItem(periodStart.date(), periodStart.startBalance()));
+            }
+            if (periodStart.salaryAmount() != null) {
+                var categoryRef = resolveCategory("Stipendio", CategoryType.INCOME, existingByName, newCategoriesByName);
+                oneOffItems.add(new OneOffImportItem(
+                        periodStart.date(), "Stipendio", periodStart.salaryAmount(), false,
+                        categoryRef.existingId(), categoryRef.tempId()));
+            }
+        }
+        List<BalanceCheckpointImportItem> checkpoints = new ArrayList<>(checkpointsByDate.values());
 
         long itemsNeedingCategory = oneOffItems.stream().filter(OneOffImportItem::needsCategory).count();
 
         ImportSummary summary = new ImportSummary(
                 parsed.sheetsProcessed(), recurringItems.size(), oneOffItems.size(),
-                newCategoriesByName.size(), (int) itemsNeedingCategory);
+                newCategoriesByName.size(), (int) itemsNeedingCategory, checkpoints.size());
 
         return new ExcelImportPreviewResponse(
-                new ArrayList<>(newCategoriesByName.values()), recurringItems, oneOffItems, checkpoint, summary);
+                new ArrayList<>(newCategoriesByName.values()), recurringItems, oneOffItems, checkpoints, summary);
     }
 
     private Map<String, List<ParsedWorkbook.FisseRow>> groupFisseRows(List<ParsedWorkbook.FisseRow> rows) {
@@ -145,7 +163,8 @@ public class ExcelImportAnalysisService {
     }
 
     private CategoryRef resolveCategory(
-            String categoryName, Map<String, UUID> existingByName, Map<String, CategorySuggestion> newCategoriesByName) {
+            String categoryName, CategoryType type, Map<String, UUID> existingByName,
+            Map<String, CategorySuggestion> newCategoriesByName) {
         String key = categoryName.trim().toLowerCase(Locale.ITALIAN);
 
         UUID existingId = existingByName.get(key);
@@ -154,7 +173,7 @@ public class ExcelImportAnalysisService {
         }
 
         CategorySuggestion suggestion = newCategoriesByName.computeIfAbsent(key,
-                k -> new CategorySuggestion("new-" + k.replaceAll("[^a-z0-9]+", "-"), categoryName.trim(), CategoryType.EXPENSE, null));
+                k -> new CategorySuggestion("new-" + k.replaceAll("[^a-z0-9]+", "-"), categoryName.trim(), type, null));
         return new CategoryRef(null, suggestion.tempId());
     }
 }

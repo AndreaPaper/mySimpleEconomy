@@ -5,6 +5,7 @@ public record ImportSummary(
         int recurringDetected,
         int oneOffDetected,
         int categoriesToCreate,
-        int itemsNeedingCategory
+        int itemsNeedingCategory,
+        int checkpointsDetected
 ) {
 }

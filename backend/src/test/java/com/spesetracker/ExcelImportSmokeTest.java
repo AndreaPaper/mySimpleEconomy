@@ -64,10 +64,27 @@ class ExcelImportSmokeTest {
 
         assertThat(preview.get("summary").get("sheetsProcessed").asInt()).isEqualTo(2);
         assertThat(preview.get("recurringTransactions")).hasSize(2);
-        assertThat(preview.get("oneOffTransactions")).hasSize(6);
+        assertThat(preview.get("oneOffTransactions")).hasSize(8);
         assertThat(preview.get("summary").get("itemsNeedingCategory").asInt()).isEqualTo(2);
-        assertThat(preview.get("balanceCheckpoint").get("balance").asDouble()).isEqualTo(4390.00);
-        assertThat(preview.get("balanceCheckpoint").get("checkpointDate").asText()).isEqualTo("2026-02-01");
+        assertThat(preview.get("summary").get("checkpointsDetected").asInt()).isEqualTo(3);
+
+        JsonNode checkpointsPreview = preview.get("balanceCheckpoints");
+        assertThat(checkpointsPreview).hasSize(3);
+        assertThat(streamOf(checkpointsPreview)
+                .anyMatch(c -> c.get("checkpointDate").asText().equals("2025-12-27") && c.get("balance").asDouble() == 3550.00))
+                .isTrue();
+        assertThat(streamOf(checkpointsPreview)
+                .anyMatch(c -> c.get("checkpointDate").asText().equals("2026-01-27") && c.get("balance").asDouble() == 4390.00))
+                .isTrue();
+
+        // Le due voci "Stipendio" (una per foglio mensile) devono avere già una categoria
+        // auto-risolta (nuova categoria INCOME "Stipendio"), senza bisogno di assegnazione manuale.
+        JsonNode oneOffsPreview = preview.get("oneOffTransactions");
+        long stipendioCount = streamOf(oneOffsPreview).filter(t -> t.get("name").asText().equals("Stipendio")).count();
+        assertThat(stipendioCount).isEqualTo(2);
+        assertThat(streamOf(oneOffsPreview).filter(t -> t.get("name").asText().equals("Stipendio"))
+                .allMatch(t -> !t.get("needsCategory").asBoolean() && t.get("newCategoryTempId") != null && !t.get("newCategoryTempId").isNull()))
+                .isTrue();
 
         // Aggiunge una categoria "Varie" per le voci senza colore (Gennaio/300, Bolletta enel/172).
         var newCategories = (com.fasterxml.jackson.databind.node.ArrayNode) preview.get("newCategorySuggestions");
@@ -90,10 +107,10 @@ class ExcelImportSmokeTest {
                 .andReturn();
 
         JsonNode commitJson = objectMapper.readTree(commitResult.getResponse().getContentAsString());
-        assertThat(commitJson.get("categoriesCreated").asInt()).isEqualTo(4);
+        assertThat(commitJson.get("categoriesCreated").asInt()).isEqualTo(5);
         assertThat(commitJson.get("recurringTransactionsCreated").asInt()).isEqualTo(2);
-        assertThat(commitJson.get("checkpointSet").asBoolean()).isTrue();
-        assertThat(commitJson.get("transactionsCreated").asInt()).isGreaterThanOrEqualTo(8);
+        assertThat(commitJson.get("checkpointsCreated").asInt()).isEqualTo(3);
+        assertThat(commitJson.get("transactionsCreated").asInt()).isGreaterThanOrEqualTo(10);
 
         MvcResult recurringResult = mockMvc.perform(get("/api/recurring-transactions")
                         .header("Authorization", "Bearer " + token))
@@ -108,8 +125,11 @@ class ExcelImportSmokeTest {
                 .andExpect(status().isOk())
                 .andReturn();
         JsonNode checkpoints = objectMapper.readTree(checkpointsResult.getResponse().getContentAsString());
-        assertThat(checkpoints).hasSize(1);
-        assertThat(checkpoints.get(0).get("balance").asDouble()).isEqualTo(4390.00);
+        assertThat(checkpoints).hasSize(3);
+    }
+
+    private java.util.stream.Stream<JsonNode> streamOf(JsonNode arrayNode) {
+        return java.util.stream.StreamSupport.stream(arrayNode.spliterator(), false);
     }
 
     private byte[] buildWorkbook() throws Exception {
@@ -120,7 +140,8 @@ class ExcelImportSmokeTest {
                     LocalDate.of(2026, 1, 25), "Gennaio", 300.00,
                     LocalDate.of(2025, 5, 6),
                     LocalDate.of(2026, 1, 3), "Ekom", 18.00,
-                    LocalDate.of(2026, 1, 5), "Farmacia", 12.00);
+                    LocalDate.of(2026, 1, 5), "Farmacia", 12.00,
+                    LocalDate.of(2025, 12, 27), 3550.00, 1659.00);
 
             buildMonthSheet(workbook, "Febbraio",
                     null, "Spotify", 17.00,
@@ -128,7 +149,8 @@ class ExcelImportSmokeTest {
                     LocalDate.of(2026, 2, 10), "Bolletta enel", 172.00,
                     null,
                     LocalDate.of(2026, 2, 3), "Ekom", 20.00,
-                    LocalDate.of(2026, 2, 6), "Farmacia", 13.00);
+                    LocalDate.of(2026, 2, 6), "Farmacia", 13.00,
+                    LocalDate.of(2026, 1, 27), 4390.00, 2042.00);
 
             Sheet stima = workbook.createSheet("Stima 2026");
             setText(stima, 0, 0, "Mese");
@@ -154,7 +176,8 @@ class ExcelImportSmokeTest {
             LocalDate oneOffDate, String oneOffName, double oneOffAmount,
             LocalDate spotifyAnchorDateOverride,
             LocalDate ekomDate, String ekomName, double ekomAmount,
-            LocalDate farmaciaDate, String farmaciaName, double farmaciaAmount
+            LocalDate farmaciaDate, String farmaciaName, double farmaciaAmount,
+            LocalDate periodStartDate, double startBalance, double salaryAmount
     ) {
         Sheet sheet = workbook.createSheet(sheetName);
 
@@ -195,6 +218,12 @@ class ExcelImportSmokeTest {
         setText(sheet, 2, 16, "Spese cibo");
         setColoredBlank(sheet, 3, 15, "FF8BF1BC");
         setText(sheet, 3, 16, "Farmacia");
+
+        setText(sheet, 8, 0, "SALDO INIZIO MESE");
+        setNumeric(sheet, 9, 0, startBalance);
+        setText(sheet, 10, 0, "Stipendio");
+        setDate(sheet, 11, 0, periodStartDate);
+        setNumeric(sheet, 11, 1, salaryAmount);
     }
 
     private Row row(Sheet sheet, int r) {

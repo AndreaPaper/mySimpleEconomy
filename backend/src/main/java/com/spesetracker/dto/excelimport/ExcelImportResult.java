@@ -4,6 +4,6 @@ public record ExcelImportResult(
         int categoriesCreated,
         int recurringTransactionsCreated,
         int transactionsCreated,
-        boolean checkpointSet
+        int checkpointsCreated
 ) {
 }

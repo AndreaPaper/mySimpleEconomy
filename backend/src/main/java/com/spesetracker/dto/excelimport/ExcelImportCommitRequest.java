@@ -11,6 +11,6 @@ public record ExcelImportCommitRequest(
         @Valid @NotNull List<CategorySuggestion> newCategorySuggestions,
         @Valid @NotNull List<RecurringImportItem> recurringTransactions,
         @Valid @NotNull List<OneOffImportItem> oneOffTransactions,
-        @Valid BalanceCheckpointImportItem balanceCheckpoint
+        @Valid @NotNull List<BalanceCheckpointImportItem> balanceCheckpoints
 ) {
 }

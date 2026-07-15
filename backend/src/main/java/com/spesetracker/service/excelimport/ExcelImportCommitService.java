@@ -81,10 +81,8 @@ public class ExcelImportCommitService {
             oneOffCreated++;
         }
 
-        boolean checkpointSet = false;
-        if (request.balanceCheckpoint() != null) {
-            upsertCheckpoint(userId, request.balanceCheckpoint());
-            checkpointSet = true;
+        for (BalanceCheckpointImportItem checkpoint : request.balanceCheckpoints()) {
+            upsertCheckpoint(userId, checkpoint);
         }
 
         int backfilledCount = request.recurringTransactions().isEmpty()
@@ -93,7 +91,9 @@ public class ExcelImportCommitService {
                         .mapToInt(rt -> (int) transactionRepository.countByRecurringTransactionId(rt.getId()))
                         .sum();
 
-        return new ExcelImportResult(tempIdToCategoryId.size(), recurringCreated, oneOffCreated + backfilledCount, checkpointSet);
+        return new ExcelImportResult(
+                tempIdToCategoryId.size(), recurringCreated, oneOffCreated + backfilledCount,
+                request.balanceCheckpoints().size());
     }
 
     private void validateEveryItemHasCategory(ExcelImportCommitRequest request) {
