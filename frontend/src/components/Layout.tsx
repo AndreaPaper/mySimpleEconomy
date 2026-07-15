@@ -47,7 +47,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
+        <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
           <span className="flex items-center gap-2 font-semibold">
             <BankIcon className="h-7 w-7 shrink-0" />
             MySimpleEconomy
