@@ -180,7 +180,7 @@ public class ForecastService {
             List<CategoryAmount> categoryAmounts = breakdown.entrySet().stream()
                     .map(e -> {
                         Category c = categoryLookup.get(e.getKey());
-                        return new CategoryAmount(e.getKey(), c.getName(), c.getType(), e.getValue());
+                        return new CategoryAmount(e.getKey(), c.getName(), c.getIcon(), c.getColor(), c.getType(), e.getValue());
                     })
                     .toList();
 
