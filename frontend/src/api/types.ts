@@ -110,13 +110,14 @@ export interface ImportSummary {
   oneOffDetected: number
   categoriesToCreate: number
   itemsNeedingCategory: number
+  checkpointsDetected: number
 }
 
 export interface ExcelImportPreviewResponse {
   newCategorySuggestions: CategorySuggestion[]
   recurringTransactions: RecurringImportItem[]
   oneOffTransactions: OneOffImportItem[]
-  balanceCheckpoint: BalanceCheckpointImportItem | null
+  balanceCheckpoints: BalanceCheckpointImportItem[]
   summary: ImportSummary
 }
 
@@ -124,7 +125,7 @@ export interface ExcelImportResult {
   categoriesCreated: number
   recurringTransactionsCreated: number
   transactionsCreated: number
-  checkpointSet: boolean
+  checkpointsCreated: number
 }
 
 export interface ExpenseReminder {

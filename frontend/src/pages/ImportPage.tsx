@@ -120,7 +120,7 @@ export default function ImportPage() {
           <li>Categorie create: {result.categoriesCreated}</li>
           <li>Regole ricorrenti create: {result.recurringTransactionsCreated}</li>
           <li>Transazioni create (incl. storico ricorrenze): {result.transactionsCreated}</li>
-          <li>Saldo di partenza impostato: {result.checkpointSet ? 'sì' : 'no'}</li>
+          <li>Saldi di partenza registrati: {result.checkpointsCreated}</li>
         </ul>
         <div className="flex gap-2">
           <a href="/" className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
@@ -165,20 +165,26 @@ export default function ImportPage() {
 
       {preview && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-3 lg:grid-cols-6">
             <Stat label="Fogli analizzati" value={preview.summary.sheetsProcessed} />
             <Stat label="Regole ricorrenti" value={preview.summary.recurringDetected} />
             <Stat label="Transazioni singole" value={preview.summary.oneOffDetected} />
             <Stat label="Nuove categorie" value={preview.summary.categoriesToCreate} />
             <Stat label="Da categorizzare" value={preview.summary.itemsNeedingCategory} highlight />
+            <Stat label="Saldi rilevati" value={preview.summary.checkpointsDetected} />
           </div>
 
-          {preview.balanceCheckpoint && (
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-              <span className="text-slate-500">Saldo di partenza rilevato: </span>
-              <span className="font-medium">
-                {currency.format(preview.balanceCheckpoint.balance)} al {preview.balanceCheckpoint.checkpointDate}
-              </span>
+          {preview.balanceCheckpoints.length > 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="mb-2 text-sm font-medium text-slate-600">Saldi di partenza rilevati</p>
+              <ul className="space-y-1 text-sm">
+                {preview.balanceCheckpoints.map((c) => (
+                  <li key={c.checkpointDate}>
+                    <span className="font-medium">{currency.format(c.balance)}</span>{' '}
+                    <span className="text-slate-500">al {c.checkpointDate}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
