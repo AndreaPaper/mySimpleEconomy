@@ -8,6 +8,7 @@ const navItems = [
   { to: '/ricorrenti', label: 'Ricorrenti' },
   { to: '/promemoria', label: 'Promemoria' },
   { to: '/importa', label: 'Importa' },
+  { to: '/impostazioni', label: 'Impostazioni' },
 ]
 
 export default function Layout() {

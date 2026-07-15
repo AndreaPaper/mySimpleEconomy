@@ -128,6 +128,13 @@ export interface ExcelImportResult {
   checkpointsCreated: number
 }
 
+export interface DataCleanupResult {
+  transactionsDeleted: number
+  recurringTransactionsDeleted: number
+  balanceCheckpointsDeleted: number
+  expenseRemindersDeleted: number
+}
+
 export interface ExpenseReminder {
   id: string
   name: string

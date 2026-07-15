@@ -10,6 +10,7 @@ import CategoriesPage from './pages/CategoriesPage'
 import RecurringPage from './pages/RecurringPage'
 import RemindersPage from './pages/RemindersPage'
 import ImportPage from './pages/ImportPage'
+import SettingsPage from './pages/SettingsPage'
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
               <Route path="/ricorrenti" element={<RecurringPage />} />
               <Route path="/promemoria" element={<RemindersPage />} />
               <Route path="/importa" element={<ImportPage />} />
+              <Route path="/impostazioni" element={<SettingsPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

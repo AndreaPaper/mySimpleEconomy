@@ -2,6 +2,7 @@ import client from './client'
 import type {
   BalanceCheckpoint,
   Category,
+  DataCleanupResult,
   ExcelImportPreviewResponse,
   ExcelImportResult,
   ExpenseReminder,
@@ -120,6 +121,11 @@ export const remindersApi = {
   ) => client.put<ExpenseReminder>(`/expense-reminders/${id}`, data).then((r) => r.data),
   deactivate: (id: string) => client.post(`/expense-reminders/${id}/deactivate`),
   reactivate: (id: string) => client.post(`/expense-reminders/${id}/reactivate`),
+}
+
+export const dataCleanupApi = {
+  cleanup: (params?: { from?: string; to?: string }) =>
+    client.delete<DataCleanupResult>('/data-cleanup', { params }).then((r) => r.data),
 }
 
 export const excelImportApi = {
