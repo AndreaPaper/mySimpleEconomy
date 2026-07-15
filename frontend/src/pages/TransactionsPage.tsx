@@ -3,6 +3,7 @@ import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints
 import type { Category, Transaction } from '../api/types'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
+import { getCategoryIcon } from '../constants/icons'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -100,14 +101,24 @@ export default function TransactionsPage() {
         <p className="text-slate-500">Nessuna transazione ancora.</p>
       ) : (
         <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
-          {transactions.map((t) => (
+          {transactions.map((t) => {
+            const Icon = getCategoryIcon(t.categoryIcon)
+            return (
             <li key={t.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <p className="font-medium">{t.description || t.categoryName}</p>
-                <p className="text-sm text-slate-500">
-                  {t.occurredOn} · {t.categoryName}
-                  {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400">(ricorrente)</span>}
-                </p>
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                  style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
+                >
+                  <Icon className="h-4 w-4 text-white" />
+                </span>
+                <div>
+                  <p className="font-medium">{t.description || t.categoryName}</p>
+                  <p className="text-sm text-slate-500">
+                    {t.occurredOn} · {t.categoryName}
+                    {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400">(ricorrente)</span>}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
@@ -126,7 +137,8 @@ export default function TransactionsPage() {
                 </button>
               </div>
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
 

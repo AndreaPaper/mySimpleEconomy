@@ -15,6 +15,8 @@ export interface Transaction {
   id: string
   categoryId: string
   categoryName: string
+  categoryIcon: string | null
+  categoryColor: string | null
   amount: number
   type: TransactionType
   occurredOn: string
