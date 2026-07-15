@@ -49,6 +49,8 @@ export interface RecurringOverride {
 export interface CategoryAmount {
   categoryId: string
   categoryName: string
+  categoryIcon: string | null
+  categoryColor: string | null
   type: CategoryType
   amount: number
 }

@@ -9,6 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import { checkpointsApi, forecastApi, recurringApi, remindersApi, transactionsApi } from '../api/endpoints'
+import { getCategoryIcon } from '../constants/icons'
 import type {
   BalanceCheckpoint,
   ForecastResponse,
@@ -105,6 +106,7 @@ export default function DashboardPage() {
   const categoryBreakdown = (currentMonth?.categoryBreakdown ?? [])
     .filter((c) => c.type === 'EXPENSE')
     .sort((a, b) => b.amount - a.amount)
+  const maxCategoryAmount = categoryBreakdown[0]?.amount ?? 0
 
   return (
     <div className="space-y-6">
@@ -169,13 +171,33 @@ export default function DashboardPage() {
           {categoryBreakdown.length === 0 ? (
             <p className="text-sm text-slate-400">Nessuna spesa registrata questo mese.</p>
           ) : (
-            <ul className="space-y-2">
-              {categoryBreakdown.map((c) => (
-                <li key={c.categoryId} className="flex items-center justify-between text-sm">
-                  <span>{c.categoryName}</span>
-                  <span className="font-medium">{currency.format(c.amount)}</span>
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {categoryBreakdown.map((c) => {
+                const Icon = getCategoryIcon(c.categoryIcon)
+                const widthPct = maxCategoryAmount > 0 ? (c.amount / maxCategoryAmount) * 100 : 0
+                return (
+                  <li key={c.categoryId} className="text-sm">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                          style={{ backgroundColor: c.categoryColor ?? '#94a3b8' }}
+                        >
+                          <Icon className="h-3.5 w-3.5 text-white" />
+                        </span>
+                        <span className="truncate">{c.categoryName}</span>
+                      </span>
+                      <span className="shrink-0 font-medium">{currency.format(c.amount)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100">
+                      <div
+                        className="h-2 rounded-full"
+                        style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}
+                      />
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
