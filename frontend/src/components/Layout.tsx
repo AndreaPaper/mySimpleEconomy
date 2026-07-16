@@ -16,8 +16,8 @@ export default function Layout() {
   const { email, logout } = useAuth()
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <aside className="fixed inset-y-0 left-0 flex w-56 flex-col overflow-y-auto border-r border-slate-200 bg-white">
         <div className="flex items-center gap-2 px-4 py-4 font-semibold">
           <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
           MySimpleEconomy
@@ -50,8 +50,10 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-      <main className="mx-auto w-full max-w-5xl px-4 py-6">
-        <Outlet />
+      <main className="ml-56 px-4 py-6">
+        <div className="mx-auto w-full max-w-5xl">
+          <Outlet />
+        </div>
       </main>
     </div>
   )
