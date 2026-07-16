@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
+import BottomNav from './BottomNav'
 
 const navItems = [
   { to: '/', label: 'Dashboard' },
@@ -17,7 +18,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <aside className="fixed inset-y-0 left-0 flex w-56 flex-col overflow-y-auto border-r border-slate-200 bg-white">
+      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2 px-4 py-4 font-semibold">
           <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
           MySimpleEconomy
@@ -55,11 +56,12 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-      <main className="ml-56 px-4 py-6">
+      <main className="px-4 pb-20 pt-6 md:ml-56 md:pb-6">
         <div className="mx-auto w-full max-w-5xl">
           <Outlet />
         </div>
       </main>
+      <BottomNav nickname={nickname} email={email} onLogout={logout} />
     </div>
   )
 }

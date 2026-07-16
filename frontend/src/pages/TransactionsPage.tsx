@@ -125,13 +125,17 @@ export default function TransactionsPage() {
                   {t.type === 'INCOME' ? '+' : '-'}
                   {currency.format(t.amount)}
                 </span>
-                <button type="button" onClick={() => openEdit(t)} className="text-sm text-indigo-600 hover:underline">
+                <button
+                  type="button"
+                  onClick={() => openEdit(t)}
+                  className="-m-1 p-1 text-sm text-indigo-600 hover:underline"
+                >
                   Modifica
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(t)}
-                  className="text-sm text-slate-500 hover:underline"
+                  className="-m-1 p-1 text-sm text-slate-500 hover:underline"
                 >
                   Elimina
                 </button>

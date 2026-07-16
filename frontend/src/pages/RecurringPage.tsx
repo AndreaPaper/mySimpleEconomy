@@ -99,17 +99,21 @@ export default function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    className="text-sm text-indigo-600 hover:underline"
+                    className="-m-1 p-1 text-sm text-indigo-600 hover:underline"
                   >
                     Eccezioni
                   </button>
-                  <button type="button" onClick={() => openEdit(r)} className="text-sm text-indigo-600 hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(r)}
+                    className="-m-1 p-1 text-sm text-indigo-600 hover:underline"
+                  >
                     Modifica
                   </button>
                   <button
                     type="button"
                     onClick={() => handleToggleActive(r)}
-                    className="text-sm text-slate-500 hover:underline"
+                    className="-m-1 p-1 text-sm text-slate-500 hover:underline"
                   >
                     {r.active ? 'Disattiva' : 'Riattiva'}
                   </button>

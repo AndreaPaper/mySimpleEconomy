@@ -89,13 +89,13 @@ export default function RemindersPage() {
                 </p>
               </div>
               <div className="flex gap-3 text-sm">
-                <button type="button" onClick={() => openEdit(r)} className="text-indigo-600 hover:underline">
+                <button type="button" onClick={() => openEdit(r)} className="-m-1 p-1 text-indigo-600 hover:underline">
                   Modifica
                 </button>
                 <button
                   type="button"
                   onClick={() => handleToggleActive(r)}
-                  className="text-slate-500 hover:underline"
+                  className="-m-1 p-1 text-slate-500 hover:underline"
                 >
                   {r.active ? 'Disattiva' : 'Riattiva'}
                 </button>
