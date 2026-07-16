@@ -11,6 +11,7 @@ import RecurringPage from './pages/RecurringPage'
 import RemindersPage from './pages/RemindersPage'
 import ImportPage from './pages/ImportPage'
 import SettingsPage from './pages/SettingsPage'
+import ProfilePage from './pages/ProfilePage'
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
               <Route path="/promemoria" element={<RemindersPage />} />
               <Route path="/importa" element={<ImportPage />} />
               <Route path="/impostazioni" element={<SettingsPage />} />
+              <Route path="/profilo" element={<ProfilePage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

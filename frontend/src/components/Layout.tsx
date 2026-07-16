@@ -10,6 +10,7 @@ const navItems = [
   { to: '/promemoria', label: 'Promemoria' },
   { to: '/importa', label: 'Importa' },
   { to: '/impostazioni', label: 'Impostazioni' },
+  { to: '/profilo', label: 'Profilo' },
 ]
 
 export default function Layout() {

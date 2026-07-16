@@ -162,3 +162,10 @@ export interface MonthlyReminders {
 export interface UpcomingRemindersResponse {
   months: MonthlyReminders[]
 }
+
+export interface Profile {
+  email: string
+  nickname: string | null
+  defaultSalaryAmount: number | null
+  salaryDay: number | null
+}

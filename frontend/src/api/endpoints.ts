@@ -7,6 +7,7 @@ import type {
   ExcelImportResult,
   ExpenseReminder,
   ForecastResponse,
+  Profile,
   RecurringOverride,
   RecurringTransaction,
   Transaction,
@@ -121,6 +122,12 @@ export const remindersApi = {
   ) => client.put<ExpenseReminder>(`/expense-reminders/${id}`, data).then((r) => r.data),
   deactivate: (id: string) => client.post(`/expense-reminders/${id}/deactivate`),
   reactivate: (id: string) => client.post(`/expense-reminders/${id}/reactivate`),
+}
+
+export const profileApi = {
+  get: () => client.get<Profile>('/profile').then((r) => r.data),
+  update: (data: { nickname?: string | null; defaultSalaryAmount?: number | null; salaryDay?: number | null }) =>
+    client.put<Profile>('/profile', data).then((r) => r.data),
 }
 
 export const dataCleanupApi = {
