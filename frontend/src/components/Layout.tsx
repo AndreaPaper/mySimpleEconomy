@@ -33,7 +33,7 @@ export default function Layout() {
               end={item.to === '/'}
               className={({ isActive }) =>
                 `rounded px-3 py-2 ${
-                  isActive ? 'bg-green-50 font-medium text-green-600' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  isActive ? 'bg-green-50 font-medium text-green-600' : 'text-slate-600 hover:bg-green-700 hover:text-white'
                 }`
               }
             >
