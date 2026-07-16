@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { profileApi } from '../api/endpoints'
+import { useAuth } from '../context/AuthContext'
 
 export default function ProfilePage() {
+  const { setNickname: setGlobalNickname } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +39,7 @@ export default function ProfilePage() {
       setNickname(profile.nickname ?? '')
       setDefaultSalaryAmount(profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '')
       setSalaryDay(profile.salaryDay != null ? String(profile.salaryDay) : '')
+      setGlobalNickname(profile.nickname)
       setSaved(true)
     } catch {
       setError('Salvataggio non riuscito. Controlla i valori inseriti.')

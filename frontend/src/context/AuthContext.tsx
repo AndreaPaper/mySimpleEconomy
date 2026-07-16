@@ -1,9 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
-import { authApi } from '../api/endpoints'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { authApi, profileApi } from '../api/endpoints'
 
 interface AuthContextValue {
   token: string | null
   email: string | null
+  nickname: string | null
+  setNickname: (nickname: string | null) => void
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -14,6 +16,15 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [email, setEmail] = useState<string | null>(localStorage.getItem('email'))
+  const [nickname, setNickname] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!token) return
+    profileApi
+      .get()
+      .then((profile) => setNickname(profile.nickname))
+      .catch(() => {})
+  }, [token])
 
   const persist = (nextToken: string, nextEmail: string) => {
     localStorage.setItem('token', nextToken)
@@ -37,10 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('email')
     setToken(null)
     setEmail(null)
+    setNickname(null)
   }
 
   return (
-    <AuthContext.Provider value={{ token, email, login, register, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ token, email, nickname, setNickname, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
   )
 }
 

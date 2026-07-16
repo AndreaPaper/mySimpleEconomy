@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 
@@ -14,7 +14,7 @@ const navItems = [
 ]
 
 export default function Layout() {
-  const { email, logout } = useAuth()
+  const { email, nickname, logout } = useAuth()
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -41,7 +41,9 @@ export default function Layout() {
           ))}
         </nav>
         <div className="mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
-          <p className="truncate">{email}</p>
+          <Link to="/profilo" className="block truncate hover:text-slate-900 hover:underline">
+            {nickname || email}
+          </Link>
           <button
             onClick={logout}
             className="mt-2 w-full rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
