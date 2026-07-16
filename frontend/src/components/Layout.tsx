@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 import BottomNav from './BottomNav'
@@ -11,7 +11,6 @@ const navItems = [
   { to: '/ricorrenti', label: 'Ricorrenti' },
   { to: '/promemoria', label: 'Promemoria' },
   { to: '/importa', label: 'Importa' },
-  { to: '/impostazioni', label: 'Impostazioni' },
 ]
 
 export default function Layout() {
@@ -48,6 +47,18 @@ export default function Layout() {
           >
             {nickname || email}
           </Link>
+          <NavLink
+            to="/impostazioni"
+            className={({ isActive }) =>
+              `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                isActive ? 'bg-green-50 text-green-600' : 'text-slate-600 hover:bg-slate-100'
+              }`
+            }
+            aria-label="Impostazioni"
+            title="Impostazioni"
+          >
+            <Settings className="h-5 w-5" />
+          </NavLink>
           <button
             onClick={logout}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
