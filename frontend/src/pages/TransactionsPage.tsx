@@ -90,7 +90,7 @@ export default function TransactionsPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
           >
             Nuova transazione
           </button>
@@ -128,7 +128,7 @@ export default function TransactionsPage() {
                 <button
                   type="button"
                   onClick={() => openEdit(t)}
-                  className="-m-1 p-1 text-sm text-indigo-600 hover:underline"
+                  className="-m-1 p-1 text-sm text-green-600 hover:underline"
                 >
                   Modifica
                 </button>

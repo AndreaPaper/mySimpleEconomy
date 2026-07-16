@@ -123,7 +123,7 @@ export default function ImportPage() {
           <li>Saldi di partenza registrati: {result.checkpointsCreated}</li>
         </ul>
         <div className="flex gap-2">
-          <a href="/" className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          <a href="/" className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
             Vai alla Dashboard
           </a>
           <button type="button" onClick={resetAll} className="rounded border border-slate-300 px-3 py-2 text-sm">
@@ -156,7 +156,7 @@ export default function ImportPage() {
             type="button"
             disabled={!file || analyzing}
             onClick={handleAnalyze}
-            className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
           >
             {analyzing ? 'Analisi in corso...' : 'Analizza'}
           </button>
@@ -243,7 +243,7 @@ export default function ImportPage() {
               type="button"
               disabled={!allResolved || committing}
               onClick={handleCommit}
-              className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
             >
               {committing ? 'Importazione in corso...' : 'Conferma importazione'}
             </button>

@@ -63,7 +63,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
             end={item.to === '/'}
             className={({ isActive }) =>
               `flex flex-1 flex-col items-center gap-1 py-2 text-xs ${
-                isActive ? 'text-indigo-600' : 'text-slate-500'
+                isActive ? 'text-green-600' : 'text-slate-500'
               }`
             }
           >
@@ -107,7 +107,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
                     onClick={() => setMoreOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded px-3 py-3 text-sm ${
-                        isActive ? 'bg-indigo-50 font-medium text-indigo-600' : 'text-slate-600 hover:bg-slate-100'
+                        isActive ? 'bg-green-50 font-medium text-green-600' : 'text-slate-600 hover:bg-slate-100'
                       }`
                     }
                   >

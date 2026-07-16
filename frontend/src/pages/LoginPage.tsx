@@ -54,12 +54,12 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="w-full rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
         >
           {loading ? 'Accesso in corso...' : 'Accedi'}
         </button>
         <p className="text-center text-sm text-slate-600">
-          Non hai un account? <Link to="/register" className="text-indigo-600">Registrati</Link>
+          Non hai un account? <Link to="/register" className="text-green-600">Registrati</Link>
         </p>
       </form>
     </div>
