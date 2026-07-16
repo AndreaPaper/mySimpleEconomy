@@ -3,6 +3,7 @@ package com.spesetracker.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -24,6 +25,17 @@ public class User {
 
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
+
+    @Column(length = 100)
+    private String nickname;
+
+    @Column(name = "default_salary_amount")
+    private BigDecimal defaultSalaryAmount;
+
+    // Giorno del mese in cui arriva lo stipendio (1-31): ancora il "mese" personale
+    // dell'utente, che per lui parte da questo giorno invece che dal 1° del mese.
+    @Column(name = "salary_day")
+    private Short salaryDay;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

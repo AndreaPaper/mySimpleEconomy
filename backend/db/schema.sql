@@ -4,6 +4,9 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    nickname VARCHAR(100),
+    default_salary_amount NUMERIC(10,2) CHECK (default_salary_amount IS NULL OR default_salary_amount > 0),
+    salary_day SMALLINT CHECK (salary_day IS NULL OR salary_day BETWEEN 1 AND 31),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
