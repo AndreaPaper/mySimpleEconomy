@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 import BottomNav from './BottomNav'
@@ -40,19 +41,21 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+        <div className="mt-auto flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
           <Link
             to="/profilo"
-            className="block truncate rounded-lg bg-white px-3 py-2 text-center shadow-md hover:bg-slate-50 hover:text-slate-900"
+            className="block flex-1 truncate rounded-lg bg-white px-3 py-2 text-center shadow-md hover:bg-slate-50 hover:text-slate-900"
           >
             {nickname || email}
           </Link>
           <button
             onClick={logout}
-            className="mt-2 w-full rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
             type="button"
+            aria-label="Esci"
+            title="Esci"
           >
-            Esci
+            <LogOut className="h-5 w-5" />
           </button>
         </div>
       </aside>
