@@ -10,7 +10,6 @@ const navItems = [
   { to: '/promemoria', label: 'Promemoria' },
   { to: '/importa', label: 'Importa' },
   { to: '/impostazioni', label: 'Impostazioni' },
-  { to: '/profilo', label: 'Profilo' },
 ]
 
 export default function Layout() {
@@ -41,7 +40,10 @@ export default function Layout() {
           ))}
         </nav>
         <div className="mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
-          <Link to="/profilo" className="block truncate hover:text-slate-900 hover:underline">
+          <Link
+            to="/profilo"
+            className="block truncate rounded-lg bg-white px-3 py-2 text-center shadow-md hover:bg-slate-50 hover:text-slate-900"
+          >
             {nickname || email}
           </Link>
           <button
