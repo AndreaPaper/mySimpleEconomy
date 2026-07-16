@@ -43,7 +43,7 @@ export default function Layout() {
         <div className="mt-auto flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
           <Link
             to="/profilo"
-            className="block flex-1 truncate rounded-lg border border-transparent px-3 py-2 text-center hover:border-green-500 hover:text-slate-900"
+            className="block flex-1 truncate rounded-lg border border-transparent px-3 py-2 text-center font-bold hover:border-green-500 hover:text-slate-900 hover:shadow-sm"
           >
             {nickname || email}
           </Link>
