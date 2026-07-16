@@ -16,40 +16,41 @@ export default function Layout() {
   const { email, logout } = useAuth()
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
-          <span className="flex items-center gap-2 font-semibold">
-            <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
-            MySimpleEconomy
-          </span>
-          <nav className="flex flex-wrap justify-center gap-4 text-sm">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                className={({ isActive }) =>
-                  isActive ? 'font-medium text-indigo-600' : 'text-slate-600 hover:text-slate-900'
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="flex items-center justify-self-end gap-3 text-sm text-slate-600">
-            <span>{email}</span>
-            <button
-              onClick={logout}
-              className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
-              type="button"
-            >
-              Esci
-            </button>
-          </div>
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
+        <div className="flex items-center gap-2 px-4 py-4 font-semibold">
+          <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
+          MySimpleEconomy
         </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">
+        <div className="border-t border-slate-200" />
+        <nav className="flex flex-col gap-1 px-2 py-3 text-sm">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) =>
+                `rounded px-3 py-2 ${
+                  isActive ? 'bg-indigo-50 font-medium text-indigo-600' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+          <p className="truncate">{email}</p>
+          <button
+            onClick={logout}
+            className="mt-2 w-full rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
+            type="button"
+          >
+            Esci
+          </button>
+        </div>
+      </aside>
+      <main className="mx-auto w-full max-w-5xl px-4 py-6">
         <Outlet />
       </main>
     </div>
