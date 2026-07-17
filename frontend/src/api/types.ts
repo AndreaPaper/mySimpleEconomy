@@ -29,6 +29,8 @@ export interface RecurringTransaction {
   categoryId: string
   categoryName: string
   categoryType: CategoryType
+  categoryIcon: string
+  categoryColor: string
   name: string
   defaultAmount: number
   intervalUnit: IntervalUnit

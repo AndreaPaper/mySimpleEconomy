@@ -24,6 +24,7 @@ const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: '
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short', year: '2-digit' })
 const monthLabelFullFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 const dayBadgeMonthFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short' })
+const fullDateFormatter = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 interface ChartPoint {
   label: string
@@ -49,6 +50,11 @@ function monthNameCapitalized(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number)
   const name = monthLabelFullFormatter.formatToParts(new Date(year, month - 1, 1)).find((p) => p.type === 'month')!.value
   return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
+function fullDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return fullDateFormatter.format(new Date(year, month - 1, day))
 }
 
 function dayBadge(dateStr: string): { day: string; month: string } {
@@ -349,15 +355,27 @@ export default function DashboardPage() {
         {upcomingExpenses.length === 0 ? (
           <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa ricorrente in scadenza.</p>
         ) : (
-          <ul className="space-y-2">
-            {upcomingExpenses.map((r) => (
-              <li key={r.id} className="flex items-center justify-between text-sm">
-                <span>
-                  {r.name} <span className="text-slate-400 dark:text-slate-500">· {r.nextDueDate}</span>
-                </span>
-                <span className="font-medium">{currency.format(r.defaultAmount)}</span>
-              </li>
-            ))}
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {upcomingExpenses.map((r) => {
+              const Icon = getCategoryIcon(r.categoryIcon)
+              return (
+                <li key={r.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                      style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
+                    >
+                      <Icon className="h-4 w-4 text-white" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold capitalize">{r.name}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{fullDate(r.nextDueDate)}</p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-sm font-medium">{currency.format(r.defaultAmount)}</span>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
