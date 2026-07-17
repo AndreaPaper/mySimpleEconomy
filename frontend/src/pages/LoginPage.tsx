@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import logo from '../assets/mySimpleEconomyIcon.png'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -25,7 +26,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 px-4">
+      <img src={logo} alt="MySimpleEconomy" className="h-16 w-16" />
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold">Accedi a MySimpleEconomy</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
