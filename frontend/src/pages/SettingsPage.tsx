@@ -82,12 +82,12 @@ export default function SettingsPage() {
           role="switch"
           aria-checked={theme === 'dark'}
           onClick={toggleTheme}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+          className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
             theme === 'dark' ? 'bg-green-600' : 'bg-slate-300'
           }`}
         >
           <span
-            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
               theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
             }`}
           />
