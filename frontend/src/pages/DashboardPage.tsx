@@ -153,10 +153,10 @@ export default function DashboardPage() {
     ...futureMonths.map((m) => ({ label: monthLabel(m.yearMonth), actual: null, projected: m.runningBalance })),
   ]
 
+  const currentMonthKey = new Date().toISOString().slice(0, 7)
   const upcomingExpenses = recurring
-    .filter((r) => r.active && r.categoryType === 'EXPENSE')
+    .filter((r) => r.active && r.categoryType === 'EXPENSE' && r.nextDueDate.slice(0, 7) === currentMonthKey)
     .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
-    .slice(0, 5)
 
   // Mesi sfogliabili nella card "Spese per categoria": solo mesi con spesa
   // effettiva, cioè i mesi storici (aggregati qui dalle transazioni reali) e
@@ -353,7 +353,7 @@ export default function DashboardPage() {
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
         <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Prossime scadenze ricorrenti</p>
         {upcomingExpenses.length === 0 ? (
-          <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa ricorrente in scadenza.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa ricorrente in scadenza questo mese.</p>
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {upcomingExpenses.map((r) => {
