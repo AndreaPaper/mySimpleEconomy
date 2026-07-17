@@ -45,6 +45,12 @@ function monthLabelFull(yearMonth: string): string {
   return monthLabelFullFormatter.format(new Date(year, month - 1, 1))
 }
 
+function monthNameCapitalized(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-').map(Number)
+  const name = monthLabelFullFormatter.formatToParts(new Date(year, month - 1, 1)).find((p) => p.type === 'month')!.value
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
 function dayBadge(dateStr: string): { day: string; month: string } {
   const [year, month, day] = dateStr.split('-').map(Number)
   return {
@@ -310,10 +316,8 @@ export default function DashboardPage() {
               {upcomingReminders.months.map((m) => (
                 <div key={m.yearMonth} className="rounded border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-zinc-900 p-3">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium">{monthLabelFull(m.yearMonth)}</span>
-                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:text-slate-300">
-                      {m.occurrences.length}
-                    </span>
+                    <span className="text-sm font-medium">{monthNameCapitalized(m.yearMonth)}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">{m.yearMonth.slice(0, 4)}</span>
                   </div>
                   {m.occurrences.length === 0 ? (
                     <p className="text-xs text-slate-400 dark:text-slate-500">Nessuna scadenza</p>
