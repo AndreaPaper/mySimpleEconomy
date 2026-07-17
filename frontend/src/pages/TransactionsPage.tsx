@@ -6,6 +6,28 @@ import TransactionForm from '../components/TransactionForm'
 import { getCategoryIcon } from '../constants/icons'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
+
+function monthLabel(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-').map(Number)
+  return monthLabelFormatter.format(new Date(year, month - 1, 1))
+}
+
+// Le transazioni arrivano già ordinate per data decrescente, quindi quelle
+// dello stesso mese sono sempre adiacenti: basta accumularle in gruppi.
+function groupByMonth(transactions: Transaction[]): { key: string; items: Transaction[] }[] {
+  const groups: { key: string; items: Transaction[] }[] = []
+  for (const t of transactions) {
+    const key = t.occurredOn.slice(0, 7)
+    const lastGroup = groups[groups.length - 1]
+    if (lastGroup && lastGroup.key === key) {
+      lastGroup.items.push(t)
+    } else {
+      groups.push({ key, items: [t] })
+    }
+  }
+  return groups
+}
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -100,50 +122,59 @@ export default function TransactionsPage() {
       {transactions.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400">Nessuna transazione ancora.</p>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
-          {transactions.map((t) => {
-            const Icon = getCategoryIcon(t.categoryIcon)
-            return (
-            <li key={t.id} className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
-                >
-                  <Icon className="h-4 w-4 text-white" />
-                </span>
-                <div>
-                  <p className="font-medium">{t.description || t.categoryName}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {t.occurredOn} · {t.categoryName}
-                    {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">(ricorrente)</span>}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
-                  {t.type === 'INCOME' ? '+' : '-'}
-                  {currency.format(t.amount)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => openEdit(t)}
-                  className="-m-1 p-1 text-sm text-green-600 hover:underline"
-                >
-                  Modifica
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(t)}
-                  className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
-                >
-                  Elimina
-                </button>
-              </div>
-            </li>
-            )
-          })}
-        </ul>
+        <div className="space-y-6">
+          {groupByMonth(transactions).map((group) => (
+            <div key={group.key}>
+              <p className="mb-2 text-sm font-medium capitalize text-slate-600 dark:text-slate-300">
+                {monthLabel(group.key)}
+              </p>
+              <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
+                {group.items.map((t) => {
+                  const Icon = getCategoryIcon(t.categoryIcon)
+                  return (
+                    <li key={t.id} className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                          style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
+                        >
+                          <Icon className="h-4 w-4 text-white" />
+                        </span>
+                        <div>
+                          <p className="font-medium">{t.description || t.categoryName}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {t.occurredOn} · {t.categoryName}
+                            {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">(ricorrente)</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
+                          {t.type === 'INCOME' ? '+' : '-'}
+                          {currency.format(t.amount)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(t)}
+                          className="-m-1 p-1 text-sm text-green-600 hover:underline"
+                        >
+                          Modifica
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(t)}
+                          className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
+                        >
+                          Elimina
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
 
       {modalMode && (
