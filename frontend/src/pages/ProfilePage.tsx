@@ -48,32 +48,32 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) return <p className="text-slate-500">Caricamento...</p>
+  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
 
   return (
     <div className="max-w-lg space-y-6">
       <h1 className="text-lg font-semibold">Profilo</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
         <div>
-          <p className="mb-1 text-xs text-slate-500">Email</p>
+          <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Email</p>
           <p className="text-sm">{email}</p>
         </div>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-slate-600">Nickname</span>
+          <span className="mb-1 block text-slate-600 dark:text-slate-300">Nickname</span>
           <input
             type="text"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             maxLength={100}
             placeholder="Come vuoi essere chiamato"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
           />
         </label>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-slate-600">Stipendio di default</span>
+          <span className="mb-1 block text-slate-600 dark:text-slate-300">Stipendio di default</span>
           <input
             type="number"
             step="0.01"
@@ -81,13 +81,13 @@ export default function ProfilePage() {
             value={defaultSalaryAmount}
             onChange={(e) => setDefaultSalaryAmount(e.target.value)}
             placeholder="Es. 1800.00"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
           />
-          <span className="mt-1 block text-xs text-slate-400">Quanto ti entra di base ogni mese.</span>
+          <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">Quanto ti entra di base ogni mese.</span>
         </label>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-slate-600">Giorno di arrivo dello stipendio</span>
+          <span className="mb-1 block text-slate-600 dark:text-slate-300">Giorno di arrivo dello stipendio</span>
           <input
             type="number"
             min="1"
@@ -96,9 +96,9 @@ export default function ProfilePage() {
             value={salaryDay}
             onChange={(e) => setSalaryDay(e.target.value)}
             placeholder="Es. 27"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
           />
-          <span className="mt-1 block text-xs text-slate-400">Giorno del mese (1-31) in cui ricevi lo stipendio.</span>
+          <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">Giorno del mese (1-31) in cui ricevi lo stipendio.</span>
         </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

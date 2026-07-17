@@ -56,7 +56,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="er-name">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-name">
           Nome
         </label>
         <input
@@ -65,12 +65,12 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           placeholder="es. Assicurazione scooter, IMU, Bollo auto..."
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         />
       </div>
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-sm text-slate-600" htmlFor="er-interval-value">
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-interval-value">
             Ogni
           </label>
           <input
@@ -80,18 +80,18 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
             required
             value={intervalValue}
             onChange={(e) => setIntervalValue(e.target.value)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
           />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-sm text-slate-600" htmlFor="er-interval-unit">
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-interval-unit">
             Unità
           </label>
           <select
             id="er-interval-unit"
             value={intervalUnit}
             onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
           >
             {(Object.keys(INTERVAL_LABELS) as IntervalUnit[]).map((unit) => (
               <option key={unit} value={unit}>
@@ -102,7 +102,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
         </div>
       </div>
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="er-start">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-start">
           Data di inizio
         </label>
         <input
@@ -111,11 +111,11 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           required
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="er-next">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-next">
           Prossima scadenza
         </label>
         <input
@@ -124,11 +124,11 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           required
           value={nextDueDate}
           onChange={(e) => setNextDueDate(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="er-end">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-end">
           Data di fine (opzionale)
         </label>
         <input
@@ -136,11 +136,11 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         />
       </div>
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onCancel} className="rounded border border-slate-300 px-3 py-2 text-sm">
+        <button type="button" onClick={onCancel} className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">
           Annulla
         </button>
         <button

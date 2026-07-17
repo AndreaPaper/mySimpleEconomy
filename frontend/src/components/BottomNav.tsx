@@ -53,7 +53,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-black pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Navigazione principale"
       >
         {primaryItems.map((item) => (
@@ -63,7 +63,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
             end={item.to === '/'}
             className={({ isActive }) =>
               `flex flex-1 flex-col items-center gap-1 py-2 text-xs ${
-                isActive ? 'text-green-600' : 'text-slate-500'
+                isActive ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'
               }`
             }
           >
@@ -74,7 +74,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className="flex flex-1 flex-col items-center gap-1 py-2 text-xs text-slate-500"
+          className="flex flex-1 flex-col items-center gap-1 py-2 text-xs text-slate-500 dark:text-slate-400"
         >
           <MoreHorizontal className="h-5 w-5" />
           Altro
@@ -87,7 +87,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
           onClick={() => setMoreOpen(false)}
         >
           <div
-            className="w-full rounded-t-2xl bg-white pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-lg"
+            className="w-full rounded-t-2xl bg-white dark:bg-black pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" />
@@ -95,7 +95,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
               <Link
                 to="/profilo"
                 onClick={() => setMoreOpen(false)}
-                className="mb-3 block truncate rounded-lg bg-slate-50 px-3 py-2 text-center font-medium shadow-sm"
+                className="mb-3 block truncate rounded-lg bg-slate-50 dark:bg-zinc-900 px-3 py-2 text-center font-medium shadow-sm"
               >
                 {nickname || email}
               </Link>
@@ -107,7 +107,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
                     onClick={() => setMoreOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded px-3 py-3 text-sm ${
-                        isActive ? 'bg-green-50 font-medium text-green-600' : 'text-slate-600 hover:bg-slate-100'
+                        isActive ? 'bg-green-50 font-medium text-green-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-zinc-800'
                       }`
                     }
                   >
@@ -121,7 +121,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
                     setMoreOpen(false)
                     onLogout()
                   }}
-                  className="flex items-center gap-3 rounded px-3 py-3 text-left text-sm text-slate-600 hover:bg-slate-100"
+                  className="flex items-center gap-3 rounded px-3 py-3 text-left text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-zinc-800"
                 >
                   <LogOut className="h-5 w-5" />
                   Esci

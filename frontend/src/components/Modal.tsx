@@ -21,7 +21,7 @@ export default function Modal({ title, onClose, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg"
+        className="w-full max-w-md rounded-lg bg-white dark:bg-black p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -29,7 +29,7 @@ export default function Modal({ title, onClose, children }: ModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-slate-400 dark:text-slate-500 hover:text-slate-600 hover:dark:text-slate-300"
             aria-label="Chiudi"
           >
             ✕

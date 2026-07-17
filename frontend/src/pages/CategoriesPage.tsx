@@ -47,7 +47,7 @@ export default function CategoriesPage() {
     await reload()
   }
 
-  if (loading) return <p className="text-slate-500">Caricamento...</p>
+  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
 
   return (
     <div>
@@ -63,9 +63,9 @@ export default function CategoriesPage() {
       </div>
 
       {categories.length === 0 ? (
-        <p className="text-slate-500">Nessuna categoria ancora.</p>
+        <p className="text-slate-500 dark:text-slate-400">Nessuna categoria ancora.</p>
       ) : (
-        <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
           {categories.map((c) => {
             const Icon = getCategoryIcon(c.icon)
             return (
@@ -78,13 +78,13 @@ export default function CategoriesPage() {
                   <Icon className="h-4 w-4 text-white" />
                 </span>
                 <span>{c.name}</span>
-                <span className="text-sm text-slate-400">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
+                <span className="text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
               </div>
               <div className="flex gap-3 text-sm">
                 <button type="button" onClick={() => openEdit(c)} className="text-green-600 hover:underline">
                   Modifica
                 </button>
-                <button type="button" onClick={() => handleArchive(c)} className="text-slate-500 hover:underline">
+                <button type="button" onClick={() => handleArchive(c)} className="text-slate-500 dark:text-slate-400 hover:underline">
                   Archivia
                 </button>
               </div>

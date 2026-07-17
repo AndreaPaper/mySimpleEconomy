@@ -17,13 +17,13 @@ export default function Layout() {
   const { email, nickname, logout } = useAuth()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-white text-slate-900">
-      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-gradient-to-t from-green-400 via-green-100 to-white md:flex">
-        <div className="flex items-center gap-2 px-4 py-4 font-semibold">
+    <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-white text-slate-900 dark:from-green-950 dark:via-black dark:to-black dark:text-white">
+      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-gradient-to-t from-green-400 via-green-100 to-white dark:border-slate-800 dark:from-green-600 dark:via-green-950 dark:to-black md:flex">
+        <div className="flex items-center gap-2 px-4 py-4 font-semibold dark:text-white">
           <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
           MySimpleEconomy
         </div>
-        <div className="border-t border-slate-200" />
+        <div className="border-t border-slate-200 dark:border-slate-800" />
         <nav className="flex flex-col gap-1 px-2 py-3 text-sm">
           {navItems.map((item) => (
             <NavLink
@@ -32,7 +32,9 @@ export default function Layout() {
               end={item.to === '/'}
               className={({ isActive }) =>
                 `rounded px-3 py-2 ${
-                  isActive ? 'bg-green-50 font-medium text-green-600' : 'text-slate-600 hover:bg-green-500/80 hover:text-white'
+                  isActive
+                    ? 'bg-green-50 font-medium text-green-600 dark:bg-black dark:text-green-400'
+                    : 'text-slate-600 hover:bg-green-500/80 hover:text-white dark:text-slate-200'
                 }`
               }
             >
@@ -40,10 +42,10 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+        <div className="mt-auto flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-200">
           <Link
             to="/profilo"
-            className="block flex-1 truncate rounded-lg border border-transparent px-3 py-2 text-center font-bold hover:border-green-500 hover:text-slate-900 hover:shadow-sm"
+            className="block flex-1 truncate rounded-lg border border-transparent px-3 py-2 text-center font-bold hover:border-green-500 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
           >
             {nickname || email}
           </Link>
@@ -51,7 +53,9 @@ export default function Layout() {
             to="/impostazioni"
             className={({ isActive }) =>
               `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                isActive ? 'bg-green-50 text-green-600' : 'text-slate-600 hover:bg-slate-100'
+                isActive
+                  ? 'bg-green-50 text-green-600 dark:bg-black dark:text-green-400'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-black'
               }`
             }
             aria-label="Impostazioni"
@@ -61,7 +65,7 @@ export default function Layout() {
           </NavLink>
           <button
             onClick={logout}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-black"
             type="button"
             aria-label="Esci"
             title="Esci"

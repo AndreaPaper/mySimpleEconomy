@@ -45,22 +45,22 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
     await reload()
   }
 
-  if (loading) return <p className="text-sm text-slate-400">Caricamento eccezioni...</p>
+  if (loading) return <p className="text-sm text-slate-400 dark:text-slate-500">Caricamento eccezioni...</p>
 
   return (
-    <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+    <div className="mt-3 space-y-3 border-t border-slate-100 dark:border-slate-800 pt-3">
       {overrides.length === 0 ? (
-        <p className="text-sm text-slate-400">Nessuna eccezione per questa regola.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna eccezione per questa regola.</p>
       ) : (
         <ul className="space-y-1">
           {overrides.map((o) => (
             <li key={o.id} className="flex items-center justify-between text-sm">
               <span>
-                {o.occurrenceDate} {o.note && <span className="text-slate-400">· {o.note}</span>}
+                {o.occurrenceDate} {o.note && <span className="text-slate-400 dark:text-slate-500">· {o.note}</span>}
               </span>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{currency.format(o.overrideAmount)}</span>
-                <button type="button" onClick={() => handleDelete(o.id)} className="text-xs text-slate-500 hover:underline">
+                <button type="button" onClick={() => handleDelete(o.id)} className="text-xs text-slate-500 dark:text-slate-400 hover:underline">
                   Elimina
                 </button>
               </div>
@@ -72,7 +72,7 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-2">
         {error && <p className="w-full text-xs text-red-600">{error}</p>}
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor={`occ-${recurringTransactionId}`}>
+          <label className="mb-1 block text-xs text-slate-500 dark:text-slate-400" htmlFor={`occ-${recurringTransactionId}`}>
             Data
           </label>
           <input
@@ -81,11 +81,11 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
             required
             value={occurrenceDate}
             onChange={(e) => setOccurrenceDate(e.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-slate-300 dark:border-slate-700 px-2 py-1 text-sm"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor={`amt-${recurringTransactionId}`}>
+          <label className="mb-1 block text-xs text-slate-500 dark:text-slate-400" htmlFor={`amt-${recurringTransactionId}`}>
             Importo eccezione
           </label>
           <input
@@ -96,18 +96,18 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
             required
             value={overrideAmount}
             onChange={(e) => setOverrideAmount(e.target.value)}
-            className="w-28 rounded border border-slate-300 px-2 py-1 text-sm"
+            className="w-28 rounded border border-slate-300 dark:border-slate-700 px-2 py-1 text-sm"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor={`note-${recurringTransactionId}`}>
+          <label className="mb-1 block text-xs text-slate-500 dark:text-slate-400" htmlFor={`note-${recurringTransactionId}`}>
             Nota (opzionale)
           </label>
           <input
             id={`note-${recurringTransactionId}`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-slate-300 dark:border-slate-700 px-2 py-1 text-sm"
           />
         </div>
         <button type="submit" className="rounded bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-900">

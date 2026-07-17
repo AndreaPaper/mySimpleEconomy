@@ -51,9 +51,9 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
   if (categories.length === 0) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-slate-500">Crea prima almeno una categoria.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Crea prima almeno una categoria.</p>
         <div className="flex justify-end">
-          <button type="button" onClick={onCancel} className="rounded border border-slate-300 px-3 py-2 text-sm">
+          <button type="button" onClick={onCancel} className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">
             Chiudi
           </button>
         </div>
@@ -65,14 +65,14 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="category">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="category">
           Categoria
         </label>
         <select
           id="category"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         >
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
@@ -82,7 +82,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="amount">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="amount">
           Importo
         </label>
         <input
@@ -93,11 +93,11 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
           required
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="occurredOn">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="occurredOn">
           Data
         </label>
         <input
@@ -106,22 +106,22 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
           required
           value={occurredOn}
           onChange={(e) => setOccurredOn(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm text-slate-600" htmlFor="description">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="description">
           Descrizione (opzionale)
         </label>
         <input
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
         />
       </div>
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onCancel} className="rounded border border-slate-300 px-3 py-2 text-sm">
+        <button type="button" onClick={onCancel} className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">
           Annulla
         </button>
         <button

@@ -102,7 +102,7 @@ export default function DashboardPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="text-slate-500">Caricamento...</p>
+  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
 
   const latestCheckpoint = checkpoints[0] ?? null
   const currentMonth = forecast?.months[0] ?? null
@@ -167,20 +167,20 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Saldo attuale{latestCheckpoint ? ` (${latestCheckpoint.checkpointDate})` : ''}</p>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Saldo attuale{latestCheckpoint ? ` (${latestCheckpoint.checkpointDate})` : ''}</p>
           <p className="text-2xl font-semibold">{currency.format(currentBalance)}</p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Saldo previsto a fine mese</p>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Saldo previsto a fine mese</p>
           <p className="text-2xl font-semibold">
             {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
           </p>
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <p className="mb-2 text-sm font-medium text-slate-600">Andamento saldo</p>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -203,39 +203,39 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Entrate (mese corrente)</p>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Entrate (mese corrente)</p>
           <p className="text-xl font-semibold text-emerald-600">
             {currentMonth ? currency.format(currentMonth.projectedIncome) : '-'}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Uscite (mese corrente)</p>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Uscite (mese corrente)</p>
           <p className="text-xl font-semibold text-red-600">
             {currentMonth ? currency.format(currentMonth.projectedExpense) : '-'}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Saldo netto (mese corrente)</p>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Saldo netto (mese corrente)</p>
           <p className="text-xl font-semibold">{currentMonth ? currency.format(currentMonth.netBalance) : '-'}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-slate-600">Spese per categoria</p>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Spese per categoria</p>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setMonthCursor((c) => c - 1)}
                 disabled={!canGoPrevMonth}
-                className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                className="rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:dark:bg-zinc-800 disabled:opacity-30"
                 aria-label="Mese precedente"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="min-w-[7.5rem] text-center text-xs font-medium text-slate-600">
+              <span className="min-w-[7.5rem] text-center text-xs font-medium text-slate-600 dark:text-slate-300">
                 {selectedBreakdownMonthKey ? monthLabelFull(selectedBreakdownMonthKey) : '-'}
                 {selectedBreakdownIndex === currentMonthBreakdownIndex ? ' · corrente' : ''}
               </span>
@@ -243,7 +243,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setMonthCursor((c) => c + 1)}
                 disabled={!canGoNextMonth}
-                className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                className="rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:dark:bg-zinc-800 disabled:opacity-30"
                 aria-label="Mese successivo"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -251,7 +251,7 @@ export default function DashboardPage() {
             </div>
           </div>
           {categoryBreakdown.length === 0 ? (
-            <p className="text-sm text-slate-400">Nessuna spesa registrata in questo mese.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa registrata in questo mese.</p>
           ) : (
             <ul className="space-y-3">
               {categoryBreakdown.map((c) => {
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                       </span>
                       <span className="shrink-0 font-medium">{currency.format(c.amount)}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-100">
+                    <div className="h-2 rounded-full bg-slate-100 dark:bg-zinc-800">
                       <div
                         className="h-2 rounded-full"
                         style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}
@@ -283,29 +283,29 @@ export default function DashboardPage() {
             </ul>
           )}
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="mb-1 text-sm font-medium text-slate-600">Spese fisse nei prossimi mesi</p>
-          <p className="mb-2 text-xs text-slate-400">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <p className="mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Spese fisse nei prossimi mesi</p>
+          <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">
             Promemoria senza importo: utile per capire quali mesi avranno più scadenze.
           </p>
           {!upcomingReminders || upcomingReminders.months.every((m) => m.occurrences.length === 0) ? (
-            <p className="text-sm text-slate-400">Nessun promemoria configurato.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">Nessun promemoria configurato.</p>
           ) : (
             <div className="flex flex-col gap-3">
               {upcomingReminders.months.map((m) => (
-                <div key={m.yearMonth} className="rounded border border-slate-100 bg-slate-50 p-3">
+                <div key={m.yearMonth} className="rounded border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-zinc-900 p-3">
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium">{monthLabelFull(m.yearMonth)}</span>
-                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:text-slate-300">
                       {m.occurrences.length}
                     </span>
                   </div>
                   {m.occurrences.length === 0 ? (
-                    <p className="text-xs text-slate-400">Nessuna scadenza</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Nessuna scadenza</p>
                   ) : (
                     <ul className="space-y-1">
                       {m.occurrences.map((o, i) => (
-                        <li key={i} className="text-xs text-slate-600">
+                        <li key={i} className="text-xs text-slate-600 dark:text-slate-300">
                           {o.date.slice(8, 10)} · {o.name}
                         </li>
                       ))}
@@ -318,16 +318,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <p className="mb-2 text-sm font-medium text-slate-600">Prossime scadenze ricorrenti</p>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Prossime scadenze ricorrenti</p>
         {upcomingExpenses.length === 0 ? (
-          <p className="text-sm text-slate-400">Nessuna spesa ricorrente in scadenza.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa ricorrente in scadenza.</p>
         ) : (
           <ul className="space-y-2">
             {upcomingExpenses.map((r) => (
               <li key={r.id} className="flex items-center justify-between text-sm">
                 <span>
-                  {r.name} <span className="text-slate-400">· {r.nextDueDate}</span>
+                  {r.name} <span className="text-slate-400 dark:text-slate-500">· {r.nextDueDate}</span>
                 </span>
                 <span className="font-medium">{currency.format(r.defaultAmount)}</span>
               </li>
@@ -336,17 +336,17 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <p className="mb-2 text-sm font-medium text-slate-600">Ultime transazioni</p>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Ultime transazioni</p>
         {recentTransactions.length === 0 ? (
-          <p className="text-sm text-slate-400">Nessuna transazione ancora.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna transazione ancora.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {recentTransactions.slice(0, 8).map((t) => (
               <li key={t.id} className="flex items-center justify-between py-2 text-sm">
                 <div>
                   <p>{t.description || t.categoryName}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     {t.occurredOn} · {t.categoryName}
                   </p>
                 </div>

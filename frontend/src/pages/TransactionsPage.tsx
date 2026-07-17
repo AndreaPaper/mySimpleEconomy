@@ -72,7 +72,7 @@ export default function TransactionsPage() {
     }
   }
 
-  if (loading) return <p className="text-slate-500">Caricamento...</p>
+  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
 
   return (
     <div>
@@ -83,7 +83,7 @@ export default function TransactionsPage() {
             type="button"
             onClick={handleExport}
             disabled={exporting}
-            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+            className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm hover:bg-slate-50 hover:dark:bg-zinc-900 disabled:opacity-50"
           >
             {exporting ? 'Esportazione...' : 'Esporta in Excel'}
           </button>
@@ -98,9 +98,9 @@ export default function TransactionsPage() {
       </div>
 
       {transactions.length === 0 ? (
-        <p className="text-slate-500">Nessuna transazione ancora.</p>
+        <p className="text-slate-500 dark:text-slate-400">Nessuna transazione ancora.</p>
       ) : (
-        <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
           {transactions.map((t) => {
             const Icon = getCategoryIcon(t.categoryIcon)
             return (
@@ -114,9 +114,9 @@ export default function TransactionsPage() {
                 </span>
                 <div>
                   <p className="font-medium">{t.description || t.categoryName}</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     {t.occurredOn} · {t.categoryName}
-                    {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400">(ricorrente)</span>}
+                    {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">(ricorrente)</span>}
                   </p>
                 </div>
               </div>
@@ -135,7 +135,7 @@ export default function TransactionsPage() {
                 <button
                   type="button"
                   onClick={() => handleDelete(t)}
-                  className="-m-1 p-1 text-sm text-slate-500 hover:underline"
+                  className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
                 >
                   Elimina
                 </button>

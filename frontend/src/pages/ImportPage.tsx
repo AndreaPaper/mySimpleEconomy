@@ -114,9 +114,9 @@ export default function ImportPage() {
 
   if (result) {
     return (
-      <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+      <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
         <h1 className="text-lg font-semibold">Importazione completata</h1>
-        <ul className="space-y-1 text-sm text-slate-600">
+        <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
           <li>Categorie create: {result.categoriesCreated}</li>
           <li>Regole ricorrenti create: {result.recurringTransactionsCreated}</li>
           <li>Transazioni create (incl. storico ricorrenze): {result.transactionsCreated}</li>
@@ -126,7 +126,7 @@ export default function ImportPage() {
           <a href="/" className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
             Vai alla Dashboard
           </a>
-          <button type="button" onClick={resetAll} className="rounded border border-slate-300 px-3 py-2 text-sm">
+          <button type="button" onClick={resetAll} className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">
             Importa un altro file
           </button>
         </div>
@@ -139,8 +139,8 @@ export default function ImportPage() {
       <h1 className="text-lg font-semibold">Importa da Excel</h1>
 
       {!preview && (
-        <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-          <p className="text-sm text-slate-600">
+        <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             Carica il tuo diario spese in formato .xlsx. Verrà analizzato senza salvare nulla: potrai controllare e
             correggere le categorie prima di confermare.
           </p>
@@ -165,7 +165,7 @@ export default function ImportPage() {
 
       {preview && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4 sm:grid-cols-3 lg:grid-cols-6">
             <Stat label="Fogli analizzati" value={preview.summary.sheetsProcessed} />
             <Stat label="Regole ricorrenti" value={preview.summary.recurringDetected} />
             <Stat label="Transazioni singole" value={preview.summary.oneOffDetected} />
@@ -175,29 +175,29 @@ export default function ImportPage() {
           </div>
 
           {preview.balanceCheckpoints.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="mb-2 text-sm font-medium text-slate-600">Saldi di partenza rilevati</p>
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+              <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Saldi di partenza rilevati</p>
               <ul className="space-y-1 text-sm">
                 {preview.balanceCheckpoints.map((c) => (
                   <li key={c.checkpointDate}>
                     <span className="font-medium">{currency.format(c.balance)}</span>{' '}
-                    <span className="text-slate-500">al {c.checkpointDate}</span>
+                    <span className="text-slate-500 dark:text-slate-400">al {c.checkpointDate}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="mb-2 text-sm font-medium text-slate-600">Regole ricorrenti rilevate</p>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+            <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Regole ricorrenti rilevate</p>
             {preview.recurringTransactions.length === 0 ? (
-              <p className="text-sm text-slate-400">Nessuna.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna.</p>
             ) : (
               <ul className="space-y-1 text-sm">
                 {preview.recurringTransactions.map((r, i) => (
                   <li key={i} className="flex items-center justify-between">
                     <span>
-                      {r.name} <span className="text-slate-400">· {r.occurrenceCount} fogli</span>
+                      {r.name} <span className="text-slate-400 dark:text-slate-500">· {r.occurrenceCount} fogli</span>
                     </span>
                     <span>
                       {currency.format(r.amount)} ·{' '}
@@ -209,8 +209,8 @@ export default function ImportPage() {
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="mb-2 text-sm font-medium text-slate-600">Transazioni singole</p>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+            <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Transazioni singole</p>
             <ul className="max-h-96 space-y-2 overflow-y-auto text-sm">
               {preview.oneOffTransactions.map((t, i) => (
                 <li key={i} className="flex items-center justify-between gap-2">
@@ -218,7 +218,7 @@ export default function ImportPage() {
                     {t.occurredOn} · {t.name} · {currency.format(t.amount)}
                   </span>
                   {t.existingCategoryId || t.newCategoryTempId ? (
-                    <span className="whitespace-nowrap text-slate-500">
+                    <span className="whitespace-nowrap text-slate-500 dark:text-slate-400">
                       {categoryLabel(t.existingCategoryId, t.newCategoryTempId, existingCategories, preview.newCategorySuggestions)}
                     </span>
                   ) : (
@@ -247,12 +247,12 @@ export default function ImportPage() {
             >
               {committing ? 'Importazione in corso...' : 'Conferma importazione'}
             </button>
-            <button type="button" onClick={resetAll} className="rounded border border-slate-300 px-4 py-2 text-sm">
+            <button type="button" onClick={resetAll} className="rounded border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm">
               Annulla
             </button>
           </div>
           {!allResolved && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Assegna una categoria a tutte le transazioni evidenziate prima di confermare.
             </p>
           )}
@@ -271,7 +271,7 @@ export default function ImportPage() {
 function Stat({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
     <div>
-      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
       <p className={`text-lg font-semibold ${highlight && value > 0 ? 'text-amber-600' : ''}`}>{value}</p>
     </div>
   )

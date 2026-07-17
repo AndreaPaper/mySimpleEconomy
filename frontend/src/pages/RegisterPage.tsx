@@ -26,24 +26,24 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-green-100 via-green-50 to-white px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-green-100 via-green-50 to-white px-4 dark:from-green-950 dark:via-black dark:to-black">
       <img src={logo} alt="MySimpleEconomy" className="h-16 w-16" />
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold">Crea il tuo account</h1>
+      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-black">
+        <h1 className="text-xl font-semibold dark:text-white">Crea il tuo account</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div>
-          <label className="mb-1 block text-sm text-slate-600" htmlFor="email">Email</label>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="email">Email</label>
           <input
             id="email"
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-black dark:text-white"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600" htmlFor="password">Password (min. 8 caratteri)</label>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="password">Password (min. 8 caratteri)</label>
           <input
             id="password"
             type="password"
@@ -51,7 +51,7 @@ export default function RegisterPage() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-black dark:text-white"
           />
         </div>
         <button
@@ -61,7 +61,7 @@ export default function RegisterPage() {
         >
           {loading ? 'Registrazione in corso...' : 'Registrati'}
         </button>
-        <p className="text-center text-sm text-slate-600">
+        <p className="text-center text-sm text-slate-600 dark:text-slate-300">
           Hai già un account? <Link to="/login" className="text-green-600">Accedi</Link>
         </p>
       </form>

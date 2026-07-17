@@ -61,7 +61,7 @@ export default function RecurringPage() {
     await reload()
   }
 
-  if (loading) return <p className="text-slate-500">Caricamento...</p>
+  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
 
   return (
     <div>
@@ -77,17 +77,17 @@ export default function RecurringPage() {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-slate-500">Nessuna regola ricorrente ancora.</p>
+        <p className="text-slate-500 dark:text-slate-400">Nessuna regola ricorrente ancora.</p>
       ) : (
-        <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
           {items.map((r) => (
             <li key={r.id} className="px-4 py-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">
-                    {r.name} {!r.active && <span className="text-xs text-slate-400">(disattivata)</span>}
+                    {r.name} {!r.active && <span className="text-xs text-slate-400 dark:text-slate-500">(disattivata)</span>}
                   </p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     {r.categoryName} · ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima:{' '}
                     {r.nextDueDate}
                   </p>
@@ -113,7 +113,7 @@ export default function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => handleToggleActive(r)}
-                    className="-m-1 p-1 text-sm text-slate-500 hover:underline"
+                    className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
                   >
                     {r.active ? 'Disattiva' : 'Riattiva'}
                   </button>

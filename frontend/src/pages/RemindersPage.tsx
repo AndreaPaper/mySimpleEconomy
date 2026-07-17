@@ -54,14 +54,14 @@ export default function RemindersPage() {
     await reload()
   }
 
-  if (loading) return <p className="text-slate-500">Caricamento...</p>
+  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold">Promemoria spese fisse</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Senza importo: servono solo a ricordarti quando ricorrono, per capire quali mesi saranno più pesanti.
           </p>
         </div>
@@ -75,16 +75,16 @@ export default function RemindersPage() {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-slate-500">Nessun promemoria ancora.</p>
+        <p className="text-slate-500 dark:text-slate-400">Nessun promemoria ancora.</p>
       ) : (
-        <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
           {items.map((r) => (
             <li key={r.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <p className="font-medium">
-                  {r.name} {!r.active && <span className="text-xs text-slate-400">(disattivato)</span>}
+                  {r.name} {!r.active && <span className="text-xs text-slate-400 dark:text-slate-500">(disattivato)</span>}
                 </p>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima: {r.nextDueDate}
                 </p>
               </div>
@@ -95,7 +95,7 @@ export default function RemindersPage() {
                 <button
                   type="button"
                   onClick={() => handleToggleActive(r)}
-                  className="-m-1 p-1 text-slate-500 hover:underline"
+                  className="-m-1 p-1 text-slate-500 dark:text-slate-400 hover:underline"
                 >
                   {r.active ? 'Disattiva' : 'Riattiva'}
                 </button>
