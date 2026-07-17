@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   CartesianGrid,
   Line,
@@ -12,6 +13,7 @@ import { checkpointsApi, forecastApi, recurringApi, remindersApi, transactionsAp
 import { getCategoryIcon } from '../constants/icons'
 import type {
   BalanceCheckpoint,
+  CategoryAmount,
   ForecastResponse,
   RecurringTransaction,
   Transaction,
@@ -42,6 +44,29 @@ function monthLabelFull(yearMonth: string): string {
   return monthLabelFullFormatter.format(new Date(year, month - 1, 1))
 }
 
+// Aggrega le transazioni di spesa di un mese per categoria, per i mesi passati
+// dove non abbiamo un forecast.categoryBreakdown già pronto dal backend.
+function buildCategoryBreakdown(transactions: Transaction[]): CategoryAmount[] {
+  const byCategory = new Map<string, CategoryAmount>()
+  for (const t of transactions) {
+    if (t.type !== 'EXPENSE') continue
+    const existing = byCategory.get(t.categoryId)
+    if (existing) {
+      byCategory.set(t.categoryId, { ...existing, amount: existing.amount + t.amount })
+    } else {
+      byCategory.set(t.categoryId, {
+        categoryId: t.categoryId,
+        categoryName: t.categoryName,
+        categoryIcon: t.categoryIcon,
+        categoryColor: t.categoryColor,
+        type: 'EXPENSE',
+        amount: t.amount,
+      })
+    }
+  }
+  return Array.from(byCategory.values()).sort((a, b) => b.amount - a.amount)
+}
+
 export default function DashboardPage() {
   const [forecast, setForecast] = useState<ForecastResponse | null>(null)
   const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
@@ -50,6 +75,7 @@ export default function DashboardPage() {
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([])
   const [upcomingReminders, setUpcomingReminders] = useState<UpcomingRemindersResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [monthCursor, setMonthCursor] = useState(0)
 
   useEffect(() => {
     const today = new Date()
@@ -109,10 +135,34 @@ export default function DashboardPage() {
     .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
     .slice(0, 5)
 
-  const categoryBreakdown = (currentMonth?.categoryBreakdown ?? [])
-    .filter((c) => c.type === 'EXPENSE')
-    .sort((a, b) => b.amount - a.amount)
+  // Mesi sfogliabili nella card "Spese per categoria": i mesi storici (spese
+  // effettive, aggregate qui) seguiti dai mesi del forecast (mese corrente,
+  // anch'esso effettivo, e i mesi futuri, proiettati).
+  const forecastMonths = forecast?.months ?? []
+  const breakdownMonthKeys = [...historicalKeys, ...forecastMonths.map((m) => m.yearMonth)]
+  const breakdownByMonth = new Map<string, CategoryAmount[]>()
+  for (const key of historicalKeys) {
+    breakdownByMonth.set(
+      key,
+      buildCategoryBreakdown(historicalTransactions.filter((t) => monthKey(t.occurredOn) === key)),
+    )
+  }
+  for (const m of forecastMonths) {
+    breakdownByMonth.set(
+      m.yearMonth,
+      m.categoryBreakdown.filter((c) => c.type === 'EXPENSE').sort((a, b) => b.amount - a.amount),
+    )
+  }
+  const currentMonthBreakdownIndex = historicalKeys.length
+  const selectedBreakdownIndex = Math.min(
+    Math.max(currentMonthBreakdownIndex + monthCursor, 0),
+    breakdownMonthKeys.length - 1,
+  )
+  const selectedBreakdownMonthKey = breakdownMonthKeys[selectedBreakdownIndex]
+  const categoryBreakdown = selectedBreakdownMonthKey ? breakdownByMonth.get(selectedBreakdownMonthKey) ?? [] : []
   const maxCategoryAmount = categoryBreakdown[0]?.amount ?? 0
+  const canGoPrevMonth = selectedBreakdownIndex > 0
+  const canGoNextMonth = selectedBreakdownIndex < breakdownMonthKeys.length - 1
 
   return (
     <div className="space-y-6">
@@ -173,9 +223,35 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="mb-2 text-sm font-medium text-slate-600">Spese per categoria (mese corrente)</p>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-slate-600">Spese per categoria</p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setMonthCursor((c) => c - 1)}
+                disabled={!canGoPrevMonth}
+                className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                aria-label="Mese precedente"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="min-w-[7.5rem] text-center text-xs font-medium text-slate-600">
+                {selectedBreakdownMonthKey ? monthLabelFull(selectedBreakdownMonthKey) : '-'}
+                {selectedBreakdownIndex === currentMonthBreakdownIndex ? ' · corrente' : ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMonthCursor((c) => c + 1)}
+                disabled={!canGoNextMonth}
+                className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                aria-label="Mese successivo"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
           {categoryBreakdown.length === 0 ? (
-            <p className="text-sm text-slate-400">Nessuna spesa registrata questo mese.</p>
+            <p className="text-sm text-slate-400">Nessuna spesa registrata in questo mese.</p>
           ) : (
             <ul className="space-y-3">
               {categoryBreakdown.map((c) => {
