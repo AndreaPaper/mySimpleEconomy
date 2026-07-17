@@ -170,7 +170,7 @@ export default function SettingsPage() {
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder={CONFIRM_WORD}
-              className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
             />
             <div className="flex gap-2">
               <button

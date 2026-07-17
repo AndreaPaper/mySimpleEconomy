@@ -72,7 +72,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
           id="category"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         >
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
@@ -93,7 +93,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
           required
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -106,7 +106,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
           required
           value={occurredOn}
           onChange={(e) => setOccurredOn(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -117,7 +117,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCance
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div className="flex justify-end gap-2 pt-2">

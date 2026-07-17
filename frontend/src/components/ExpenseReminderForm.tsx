@@ -65,7 +65,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           placeholder="es. Assicurazione scooter, IMU, Bollo auto..."
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div className="flex gap-2">
@@ -80,7 +80,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
             required
             value={intervalValue}
             onChange={(e) => setIntervalValue(e.target.value)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
         </div>
         <div className="flex-1">
@@ -91,7 +91,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
             id="er-interval-unit"
             value={intervalUnit}
             onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           >
             {(Object.keys(INTERVAL_LABELS) as IntervalUnit[]).map((unit) => (
               <option key={unit} value={unit}>
@@ -111,7 +111,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           required
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -124,7 +124,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           required
           value={nextDueDate}
           onChange={(e) => setNextDueDate(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -136,7 +136,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div className="flex justify-end gap-2 pt-2">

@@ -42,7 +42,7 @@ export default function CategoryForm({ initial, onSubmit, onCancel }: CategoryFo
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>

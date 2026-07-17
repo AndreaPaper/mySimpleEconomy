@@ -68,7 +68,7 @@ export default function ProfilePage() {
             onChange={(e) => setNickname(e.target.value)}
             maxLength={100}
             placeholder="Come vuoi essere chiamato"
-            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
         </label>
 
@@ -81,7 +81,7 @@ export default function ProfilePage() {
             value={defaultSalaryAmount}
             onChange={(e) => setDefaultSalaryAmount(e.target.value)}
             placeholder="Es. 1800.00"
-            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
           <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">Quanto ti entra di base ogni mese.</span>
         </label>
@@ -96,7 +96,7 @@ export default function ProfilePage() {
             value={salaryDay}
             onChange={(e) => setSalaryDay(e.target.value)}
             placeholder="Es. 27"
-            className="w-full rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
           <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">Giorno del mese (1-31) in cui ricevi lo stipendio.</span>
         </label>
