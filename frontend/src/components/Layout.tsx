@@ -17,7 +17,7 @@ export default function Layout() {
   const { email, nickname, logout } = useAuth()
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-white text-slate-900">
       <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-gradient-to-t from-green-400 via-green-100 to-white md:flex">
         <div className="flex items-center gap-2 px-4 py-4 font-semibold">
           <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
