@@ -23,6 +23,7 @@ import type {
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short', year: '2-digit' })
 const monthLabelFullFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
+const dayBadgeMonthFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short' })
 
 interface ChartPoint {
   label: string
@@ -42,6 +43,14 @@ function monthLabel(yearMonth: string): string {
 function monthLabelFull(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number)
   return monthLabelFullFormatter.format(new Date(year, month - 1, 1))
+}
+
+function dayBadge(dateStr: string): { day: string; month: string } {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return {
+    day: String(day).padStart(2, '0'),
+    month: dayBadgeMonthFormatter.format(new Date(year, month - 1, day)).replace('.', '').toUpperCase(),
+  }
 }
 
 // Aggrega le transazioni di spesa di un mese per categoria, per i mesi passati
@@ -309,12 +318,19 @@ export default function DashboardPage() {
                   {m.occurrences.length === 0 ? (
                     <p className="text-xs text-slate-400 dark:text-slate-500">Nessuna scadenza</p>
                   ) : (
-                    <ul className="space-y-1">
-                      {m.occurrences.map((o, i) => (
-                        <li key={i} className="text-xs text-slate-600 dark:text-slate-300">
-                          {o.date.slice(8, 10)} · {o.name}
-                        </li>
-                      ))}
+                    <ul className="space-y-2">
+                      {m.occurrences.map((o, i) => {
+                        const badge = dayBadge(o.date)
+                        return (
+                          <li key={i} className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-800 dark:bg-zinc-800 text-white">
+                              <span className="text-xs font-bold leading-none">{badge.day}</span>
+                              <span className="text-[9px] leading-none">{badge.month}</span>
+                            </div>
+                            <span className="text-sm font-medium">{o.name}</span>
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                 </div>
