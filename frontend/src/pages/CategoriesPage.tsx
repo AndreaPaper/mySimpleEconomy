@@ -4,6 +4,7 @@ import type { Category, CategoryType } from '../api/types'
 import Modal from '../components/Modal'
 import CategoryForm from '../components/CategoryForm'
 import { getCategoryIcon } from '../constants/icons'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -47,7 +48,7 @@ export default function CategoriesPage() {
     await reload()
   }
 
-  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
+  if (loading) return <ListPageSkeleton />
 
   return (
     <div>

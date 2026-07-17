@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { profileApi } from '../api/endpoints'
 import { useAuth } from '../context/AuthContext'
+import { ProfilePageSkeleton } from '../components/Skeleton'
 
 export default function ProfilePage() {
   const { setNickname: setGlobalNickname } = useAuth()
@@ -48,7 +49,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
+  if (loading) return <ProfilePageSkeleton />
 
   return (
     <div className="max-w-lg space-y-6">

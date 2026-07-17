@@ -4,6 +4,7 @@ import type { Category, IntervalUnit, RecurringTransaction } from '../api/types'
 import Modal from '../components/Modal'
 import RecurringTransactionForm from '../components/RecurringTransactionForm'
 import OverridesPanel from '../components/OverridesPanel'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -61,7 +62,7 @@ export default function RecurringPage() {
     await reload()
   }
 
-  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
+  if (loading) return <ListPageSkeleton />
 
   return (
     <div>

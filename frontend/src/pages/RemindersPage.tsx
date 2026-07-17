@@ -3,6 +3,7 @@ import { remindersApi } from '../api/endpoints'
 import type { ExpenseReminder, IntervalUnit } from '../api/types'
 import Modal from '../components/Modal'
 import ExpenseReminderForm from '../components/ExpenseReminderForm'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 export default function RemindersPage() {
   const [items, setItems] = useState<ExpenseReminder[]>([])
@@ -54,7 +55,7 @@ export default function RemindersPage() {
     await reload()
   }
 
-  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
+  if (loading) return <ListPageSkeleton />
 
   return (
     <div>

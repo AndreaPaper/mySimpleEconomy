@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { checkpointsApi, forecastApi, recurringApi, remindersApi, transactionsApi } from '../api/endpoints'
 import { getCategoryIcon } from '../constants/icons'
+import { DashboardPageSkeleton } from '../components/Skeleton'
 import type {
   BalanceCheckpoint,
   CategoryAmount,
@@ -125,7 +126,7 @@ export default function DashboardPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
+  if (loading) return <DashboardPageSkeleton />
 
   const latestCheckpoint = checkpoints[0] ?? null
   const currentMonth = forecast?.months[0] ?? null

@@ -4,6 +4,7 @@ import type { Category, Transaction } from '../api/types'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
 import { getCategoryIcon } from '../constants/icons'
+import { TransactionsPageSkeleton } from '../components/Skeleton'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
@@ -94,7 +95,7 @@ export default function TransactionsPage() {
     }
   }
 
-  if (loading) return <p className="text-slate-500 dark:text-slate-400">Caricamento...</p>
+  if (loading) return <TransactionsPageSkeleton />
 
   return (
     <div>
