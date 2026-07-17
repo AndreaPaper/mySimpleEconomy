@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (loginEmail: string, password: string) => {
     const result = await authApi.login(loginEmail, password)
     persist(result.token, result.email)
+    window.dispatchEvent(new Event('auth:login-success'))
   }
 
   const register = async (registerEmail: string, password: string) => {
