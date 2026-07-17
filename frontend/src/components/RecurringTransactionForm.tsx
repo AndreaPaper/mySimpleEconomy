@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import type { Category, IntervalUnit, RecurringTransaction } from '../api/types'
+import type { Category, IntervalUnit, RecurringTransaction, TransactionType } from '../api/types'
 
 interface RecurringTransactionFormProps {
   categories: Category[]
@@ -31,7 +31,9 @@ export default function RecurringTransactionForm({
   onCancel,
 }: RecurringTransactionFormProps) {
   const today = new Date().toISOString().slice(0, 10)
-  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? categories[0]?.id ?? '')
+  const [type, setType] = useState<TransactionType>(initial?.categoryType ?? 'EXPENSE')
+  const categoriesForType = categories.filter((c) => c.type === type)
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? categoriesForType[0]?.id ?? '')
   const [name, setName] = useState(initial?.name ?? '')
   const [defaultAmount, setDefaultAmount] = useState(initial?.defaultAmount?.toString() ?? '')
   const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>(initial?.intervalUnit ?? 'MONTH')
@@ -41,6 +43,11 @@ export default function RecurringTransactionForm({
   const [endDate, setEndDate] = useState(initial?.endDate ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const handleTypeChange = (newType: TransactionType) => {
+    setType(newType)
+    setCategoryId(categories.find((c) => c.type === newType)?.id ?? '')
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -93,21 +100,54 @@ export default function RecurringTransactionForm({
         />
       </div>
       <div>
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300">Tipo</label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleTypeChange('EXPENSE')}
+            className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
+              type === 'EXPENSE'
+                ? 'border-green-600 bg-green-600 text-white'
+                : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
+            }`}
+          >
+            Uscita
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTypeChange('INCOME')}
+            className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
+              type === 'INCOME'
+                ? 'border-green-600 bg-green-600 text-white'
+                : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
+            }`}
+          >
+            Entrata
+          </button>
+        </div>
+      </div>
+      <div>
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-category">
           Categoria
         </label>
-        <select
-          id="rt-category"
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-        >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} ({c.type === 'INCOME' ? 'Entrata' : 'Uscita'})
-            </option>
-          ))}
-        </select>
+        {categoriesForType.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Nessuna categoria {type === 'INCOME' ? 'di entrata' : 'di uscita'}. Creane una prima.
+          </p>
+        ) : (
+          <select
+            id="rt-category"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          >
+            {categoriesForType.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       <div>
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-amount">
@@ -201,7 +241,7 @@ export default function RecurringTransactionForm({
         </button>
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || categoriesForType.length === 0}
           className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
