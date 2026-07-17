@@ -26,7 +26,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-green-100 via-green-50 to-white px-4">
       <img src={logo} alt="MySimpleEconomy" className="h-16 w-16" />
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold">Accedi a MySimpleEconomy</h1>
