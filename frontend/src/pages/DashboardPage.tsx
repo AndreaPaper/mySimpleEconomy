@@ -79,7 +79,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const today = new Date()
-    const threeMonthsAgoStart = new Date(today.getFullYear(), today.getMonth() - 3, 1)
+    // Finestra ampia (2 anni) per lo storico: copre praticamente qualsiasi
+    // utente senza dover sapere in anticipo da quando ha dati reali.
+    const historyStart = new Date(today.getFullYear() - 2, today.getMonth(), 1)
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
     const iso = (d: Date) => d.toISOString().slice(0, 10)
 
@@ -87,7 +89,7 @@ export default function DashboardPage() {
       forecastApi.get(4),
       checkpointsApi.list(),
       transactionsApi.list(),
-      transactionsApi.list({ from: iso(threeMonthsAgoStart), to: iso(lastMonthEnd) }),
+      transactionsApi.list({ from: iso(historyStart), to: iso(lastMonthEnd) }),
       recurringApi.list(),
       remindersApi.upcoming(6),
     ])
@@ -135,11 +137,15 @@ export default function DashboardPage() {
     .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
     .slice(0, 5)
 
-  // Mesi sfogliabili nella card "Spese per categoria": i mesi storici (spese
-  // effettive, aggregate qui) seguiti dai mesi del forecast (mese corrente,
-  // anch'esso effettivo, e i mesi futuri, proiettati).
-  const forecastMonths = forecast?.months ?? []
-  const breakdownMonthKeys = [...historicalKeys, ...forecastMonths.map((m) => m.yearMonth)]
+  // Mesi sfogliabili nella card "Spese per categoria": solo mesi con spesa
+  // effettiva, cioè i mesi storici (aggregati qui dalle transazioni reali) e
+  // il mese corrente (già effettivo, non proiettato, nel forecast). I mesi
+  // futuri sono proiezioni statistiche, non spese avvenute, quindi non
+  // vengono mostrati in questa card.
+  const currentForecastMonth = forecast?.months[0] ?? null
+  const breakdownMonthKeys = currentForecastMonth
+    ? [...historicalKeys, currentForecastMonth.yearMonth]
+    : historicalKeys
   const breakdownByMonth = new Map<string, CategoryAmount[]>()
   for (const key of historicalKeys) {
     breakdownByMonth.set(
@@ -147,10 +153,10 @@ export default function DashboardPage() {
       buildCategoryBreakdown(historicalTransactions.filter((t) => monthKey(t.occurredOn) === key)),
     )
   }
-  for (const m of forecastMonths) {
+  if (currentForecastMonth) {
     breakdownByMonth.set(
-      m.yearMonth,
-      m.categoryBreakdown.filter((c) => c.type === 'EXPENSE').sort((a, b) => b.amount - a.amount),
+      currentForecastMonth.yearMonth,
+      currentForecastMonth.categoryBreakdown.filter((c) => c.type === 'EXPENSE').sort((a, b) => b.amount - a.amount),
     )
   }
   const currentMonthBreakdownIndex = historicalKeys.length
