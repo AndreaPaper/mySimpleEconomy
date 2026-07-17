@@ -7,7 +7,6 @@ import {
   Bell,
   MoreHorizontal,
   Repeat,
-  Upload,
   Settings,
   LogOut,
   type LucideIcon,
@@ -28,7 +27,6 @@ const primaryItems: NavItem[] = [
 
 const moreItems: NavItem[] = [
   { to: '/ricorrenti', label: 'Ricorrenti', icon: Repeat },
-  { to: '/importa', label: 'Importa', icon: Upload },
   { to: '/impostazioni', label: 'Impostazioni', icon: Settings },
 ]
 

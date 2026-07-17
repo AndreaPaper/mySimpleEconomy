@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { categoriesApi, excelImportApi } from '../api/endpoints'
 import type {
   Category,
@@ -136,7 +137,12 @@ export default function ImportPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold">Importa da Excel</h1>
+      <div>
+        <Link to="/impostazioni" className="text-sm text-green-600 hover:underline">
+          ← Impostazioni
+        </Link>
+        <h1 className="text-lg font-semibold">Importa da Excel</h1>
+      </div>
 
       {!preview && (
         <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">

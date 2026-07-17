@@ -10,7 +10,6 @@ const navItems = [
   { to: '/categorie', label: 'Categorie' },
   { to: '/ricorrenti', label: 'Ricorrenti' },
   { to: '/promemoria', label: 'Promemoria' },
-  { to: '/importa', label: 'Importa' },
 ]
 
 export default function Layout() {

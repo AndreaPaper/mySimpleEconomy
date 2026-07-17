@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { dataCleanupApi } from '../api/endpoints'
 import type { DataCleanupResult } from '../api/types'
 import Modal from '../components/Modal'
@@ -91,6 +92,21 @@ export default function SettingsPage() {
             }`}
           />
         </button>
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+        <div>
+          <h2 className="font-medium dark:text-white">Importa da Excel</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Carica un diario spese in formato .xlsx per importare transazioni, regole ricorrenti e saldi.
+          </p>
+        </div>
+        <Link
+          to="/importa"
+          className="shrink-0 rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+        >
+          Importa
+        </Link>
       </div>
 
       <div className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
