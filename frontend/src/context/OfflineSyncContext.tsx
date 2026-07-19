@@ -1,10 +1,15 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { transactionsApi } from '../api/endpoints'
+import { categoriesApi, transactionsApi } from '../api/endpoints'
 import type { TransactionType } from '../api/types'
 import { count, dequeue, enqueue, getQueue, type QueuedTransaction } from '../offline/queue'
 
+// Ogni quanto ricontrollare se il backend è tornato raggiungibile, una volta
+// rilevato un timeout (vedi api/client.ts).
+const BACKEND_POLL_INTERVAL_MS = 5000
+
 interface OfflineSyncContextValue {
   isOnline: boolean
+  backendReachable: boolean
   pendingCount: number
   addOfflineTransaction: (data: {
     categoryId: string
@@ -20,8 +25,10 @@ const OfflineSyncContext = createContext<OfflineSyncContextValue | undefined>(un
 
 export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [backendReachable, setBackendReachable] = useState(true)
   const [pendingCount, setPendingCount] = useState(count())
   const isSyncing = useRef(false)
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const syncPending = async () => {
     if (isSyncing.current) return
@@ -66,18 +73,42 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
     const handleOffline = () => setIsOnline(false)
     const handleLoginSuccess = () => syncPending()
 
+    // Rilevato un timeout verso il backend (vedi api/client.ts): comincia a
+    // ricontrollare in background finché non torna raggiungibile, poi
+    // ricarica la pagina per riottenere tutte le funzionalità con dati
+    // freschi, senza dover chiedere all'utente di farlo manualmente.
+    const handleBackendUnreachable = () => {
+      if (pollTimer.current) return
+      setBackendReachable(false)
+      pollTimer.current = setInterval(async () => {
+        try {
+          await categoriesApi.list()
+          if (pollTimer.current) clearInterval(pollTimer.current)
+          pollTimer.current = null
+          setBackendReachable(true)
+          await syncPending()
+          window.location.reload()
+        } catch {
+          // Ancora irraggiungibile: il prossimo tick riprova.
+        }
+      }, BACKEND_POLL_INTERVAL_MS)
+    }
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
     window.addEventListener('auth:login-success', handleLoginSuccess)
+    window.addEventListener('backend:unreachable', handleBackendUnreachable)
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
       window.removeEventListener('auth:login-success', handleLoginSuccess)
+      window.removeEventListener('backend:unreachable', handleBackendUnreachable)
+      if (pollTimer.current) clearInterval(pollTimer.current)
     }
   }, [])
 
   return (
-    <OfflineSyncContext.Provider value={{ isOnline, pendingCount, addOfflineTransaction, syncPending }}>
+    <OfflineSyncContext.Provider value={{ isOnline, backendReachable, pendingCount, addOfflineTransaction, syncPending }}>
       {children}
     </OfflineSyncContext.Provider>
   )

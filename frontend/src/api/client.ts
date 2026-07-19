@@ -5,7 +5,9 @@ import axios from 'axios'
 // URL baked in at build time via VITE_API_BASE_URL.
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
-const client = axios.create({ baseURL })
+// 10s: se Render è "addormentato" (cold start fino a ~60s), non ha senso far
+// aspettare l'utente per un minuto prima di poter usare l'app offline.
+const client = axios.create({ baseURL, timeout: 10000 })
 
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
@@ -24,6 +26,10 @@ client.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
+    } else if (error.response === undefined && navigator.onLine) {
+      // Rete presente ma nessuna risposta (timeout o connessione rifiutata):
+      // il backend, non la rete, è irraggiungibile — es. Render in cold start.
+      window.dispatchEvent(new Event('backend:unreachable'))
     }
     return Promise.reject(error)
   },

@@ -40,8 +40,9 @@ interface BottomNavProps {
 
 export default function BottomNav({ nickname, email, onLogout }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false)
-  const { isOnline, pendingCount } = useOfflineSync()
-  const showOfflineBadge = !isOnline || pendingCount > 0
+  const { isOnline, backendReachable, pendingCount } = useOfflineSync()
+  const showOfflineBadge = !isOnline || !backendReachable || pendingCount > 0
+  const offlineBadgeLabel = !isOnline ? 'Offline' : !backendReachable ? 'Server non raggiungibile' : 'Sincronizzazione'
 
   useEffect(() => {
     if (!moreOpen) return
@@ -57,7 +58,7 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
       {showOfflineBadge && (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+56px)] z-40 flex items-center justify-center gap-1.5 bg-amber-100 py-1 text-xs text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 md:hidden">
           <WifiOff className="h-3.5 w-3.5 shrink-0" />
-          {!isOnline ? 'Offline' : 'Sincronizzazione'}
+          {offlineBadgeLabel}
           {pendingCount > 0 && ` · ${pendingCount} in attesa`}
         </div>
       )}

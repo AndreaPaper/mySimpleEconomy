@@ -18,8 +18,9 @@ const navItems = [
 
 export default function Layout() {
   const { email, nickname, logout } = useAuth()
-  const { isOnline, pendingCount } = useOfflineSync()
-  const showOfflineBadge = !isOnline || pendingCount > 0
+  const { isOnline, backendReachable, pendingCount } = useOfflineSync()
+  const showOfflineBadge = !isOnline || !backendReachable || pendingCount > 0
+  const offlineBadgeLabel = !isOnline ? 'Offline' : !backendReachable ? 'Server non raggiungibile' : 'Sincronizzazione'
 
   // Tiene la cache delle categorie sempre aggiornata quando si è online, non
   // solo quando si visita la pagina Transazioni: così il form "Nuova
@@ -59,7 +60,7 @@ export default function Layout() {
         {showOfflineBadge && (
           <div className="mx-2 mb-1 flex items-center gap-1.5 rounded bg-amber-100 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
             <WifiOff className="h-3.5 w-3.5 shrink-0" />
-            {!isOnline ? 'Offline' : 'Sincronizzazione'}
+            {offlineBadgeLabel}
             {pendingCount > 0 && ` · ${pendingCount} in attesa`}
           </div>
         )}

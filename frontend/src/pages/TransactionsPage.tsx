@@ -53,7 +53,8 @@ function toDisplayTransaction(q: QueuedTransaction, categories: Category[]): Dis
 }
 
 export default function TransactionsPage() {
-  const { isOnline, pendingCount, addOfflineTransaction } = useOfflineSync()
+  const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
+  const offlineLike = !isOnline || !backendReachable
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [pendingItems, setPendingItems] = useState<QueuedTransaction[]>(() => getQueue())
@@ -112,7 +113,7 @@ export default function TransactionsPage() {
       return
     }
 
-    if (!isOnline) {
+    if (offlineLike) {
       addOfflineTransaction({ ...data, type: data.type as TransactionType })
       closeModal()
       return
@@ -197,7 +198,7 @@ export default function TransactionsPage() {
               <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
                 {group.items.map((t) => {
                   const Icon = getCategoryIcon(t.categoryIcon)
-                  const actionsDisabled = !isOnline || t.pending
+                  const actionsDisabled = offlineLike || t.pending
                   return (
                     <li key={t.id} className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -225,7 +226,7 @@ export default function TransactionsPage() {
                           type="button"
                           onClick={() => openEdit(t)}
                           disabled={actionsDisabled}
-                          title={!isOnline ? 'Non disponibile offline' : undefined}
+                          title={offlineLike ? 'Non disponibile offline' : undefined}
                           className="-m-1 p-1 text-sm text-green-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                         >
                           Modifica
@@ -234,7 +235,7 @@ export default function TransactionsPage() {
                           type="button"
                           onClick={() => handleDelete(t)}
                           disabled={actionsDisabled}
-                          title={!isOnline ? 'Non disponibile offline' : undefined}
+                          title={offlineLike ? 'Non disponibile offline' : undefined}
                           className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                         >
                           Elimina
