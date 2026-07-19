@@ -148,6 +148,7 @@ export interface ExpenseReminder {
   nextDueDate: string
   endDate: string | null
   active: boolean
+  notifyDaysBefore: number | null
 }
 
 export interface ExpenseReminderOccurrence {

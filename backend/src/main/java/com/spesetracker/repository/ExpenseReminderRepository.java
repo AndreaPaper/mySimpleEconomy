@@ -16,5 +16,8 @@ public interface ExpenseReminderRepository extends JpaRepository<ExpenseReminder
     // Promemoria scaduti da avanzare nel job giornaliero (sfrutta l'indice parziale).
     List<ExpenseReminder> findByActiveTrueAndNextDueDateLessThanEqual(LocalDate date);
 
+    // Candidati per il job di notifica: promemoria attivi con preavviso configurato.
+    List<ExpenseReminder> findByActiveTrueAndNotifyDaysBeforeIsNotNull();
+
     long deleteByUserId(UUID userId);
 }

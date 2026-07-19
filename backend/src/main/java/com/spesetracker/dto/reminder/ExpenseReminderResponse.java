@@ -14,7 +14,8 @@ public record ExpenseReminderResponse(
         LocalDate startDate,
         LocalDate nextDueDate,
         LocalDate endDate,
-        boolean active
+        boolean active,
+        Short notifyDaysBefore
 ) {
     public static ExpenseReminderResponse from(ExpenseReminder reminder) {
         return new ExpenseReminderResponse(
@@ -25,7 +26,8 @@ public record ExpenseReminderResponse(
                 reminder.getStartDate(),
                 reminder.getNextDueDate(),
                 reminder.getEndDate(),
-                Boolean.TRUE.equals(reminder.getActive())
+                Boolean.TRUE.equals(reminder.getActive()),
+                reminder.getNotifyDaysBefore()
         );
     }
 }

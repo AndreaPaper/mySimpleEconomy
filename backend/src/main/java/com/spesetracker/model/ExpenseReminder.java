@@ -53,6 +53,12 @@ public class ExpenseReminder {
     @Column(nullable = false)
     private Boolean active;
 
+    @Column(name = "notify_days_before")
+    private Short notifyDaysBefore;
+
+    @Column(name = "last_notified_due_date")
+    private LocalDate lastNotifiedDueDate;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -84,5 +90,15 @@ public class ExpenseReminder {
     public boolean isCurrentlyActive(LocalDate today) {
         return Boolean.TRUE.equals(this.active)
                 && (this.endDate == null || !this.endDate.isBefore(today));
+    }
+
+    // Vero se oggi rientra nella finestra di preavviso configurata e non è
+    // già stata inviata una notifica per questa specifica scadenza.
+    public boolean shouldNotify(LocalDate today) {
+        if (this.notifyDaysBefore == null) return false;
+        LocalDate notifyOn = this.nextDueDate.minusDays(this.notifyDaysBefore);
+        return !today.isBefore(notifyOn)
+                && !today.isAfter(this.nextDueDate)
+                && !this.nextDueDate.equals(this.lastNotifiedDueDate);
     }
 }

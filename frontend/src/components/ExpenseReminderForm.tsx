@@ -10,6 +10,7 @@ interface ExpenseReminderFormProps {
     startDate: string
     nextDueDate: string
     endDate: string | null
+    notifyDaysBefore: number | null
   }) => Promise<void>
   onCancel: () => void
 }
@@ -29,6 +30,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
   const [startDate, setStartDate] = useState(initial?.startDate ?? today)
   const [nextDueDate, setNextDueDate] = useState(initial?.nextDueDate ?? today)
   const [endDate, setEndDate] = useState(initial?.endDate ?? '')
+  const [notifyDaysBefore, setNotifyDaysBefore] = useState(initial?.notifyDaysBefore?.toString() ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -44,6 +46,7 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
         startDate,
         nextDueDate,
         endDate: endDate || null,
+        notifyDaysBefore: notifyDaysBefore === '' ? null : Number(notifyDaysBefore),
       })
     } catch {
       setError('Salvataggio non riuscito')
@@ -138,6 +141,23 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           onChange={(e) => setEndDate(e.target.value)}
           className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-notify">
+          Avvisami quanti giorni prima (opzionale)
+        </label>
+        <input
+          id="er-notify"
+          type="number"
+          min="0"
+          placeholder="es. 3"
+          value={notifyDaysBefore}
+          onChange={(e) => setNotifyDaysBefore(e.target.value)}
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+        />
+        <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
+          Se vuoto, non riceverai email per questo promemoria.
+        </span>
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel} className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">

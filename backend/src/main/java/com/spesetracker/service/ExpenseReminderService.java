@@ -46,6 +46,7 @@ public class ExpenseReminderService {
                 .startDate(request.startDate())
                 .nextDueDate(request.nextDueDate())
                 .endDate(request.endDate())
+                .notifyDaysBefore(request.notifyDaysBefore())
                 .build();
 
         return ExpenseReminderResponse.from(expenseReminderRepository.save(reminder));
@@ -61,6 +62,7 @@ public class ExpenseReminderService {
         reminder.setStartDate(request.startDate());
         reminder.setNextDueDate(request.nextDueDate());
         reminder.setEndDate(request.endDate());
+        reminder.setNotifyDaysBefore(request.notifyDaysBefore());
 
         return ExpenseReminderResponse.from(reminder);
     }

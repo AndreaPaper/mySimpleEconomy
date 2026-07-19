@@ -89,6 +89,8 @@ CREATE TABLE expense_reminders (
     next_due_date DATE NOT NULL,
     end_date DATE,
     active BOOLEAN NOT NULL DEFAULT true,
+    notify_days_before SMALLINT CHECK (notify_days_before IS NULL OR notify_days_before >= 0),
+    last_notified_due_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_expense_reminders_next_due ON expense_reminders (next_due_date) WHERE active = true;

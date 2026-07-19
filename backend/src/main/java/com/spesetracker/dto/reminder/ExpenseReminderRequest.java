@@ -1,6 +1,7 @@
 package com.spesetracker.dto.reminder;
 
 import com.spesetracker.model.enums.IntervalUnit;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -13,6 +14,7 @@ public record ExpenseReminderRequest(
         @NotNull @Positive Short intervalValue,
         @NotNull LocalDate startDate,
         @NotNull LocalDate nextDueDate,
-        LocalDate endDate
+        LocalDate endDate,
+        @Min(0) Short notifyDaysBefore
 ) {
 }

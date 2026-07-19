@@ -108,6 +108,7 @@ export const remindersApi = {
     startDate: string
     nextDueDate: string
     endDate?: string | null
+    notifyDaysBefore?: number | null
   }) => client.post<ExpenseReminder>('/expense-reminders', data).then((r) => r.data),
   update: (
     id: string,
@@ -118,6 +119,7 @@ export const remindersApi = {
       startDate: string
       nextDueDate: string
       endDate?: string | null
+      notifyDaysBefore?: number | null
     },
   ) => client.put<ExpenseReminder>(`/expense-reminders/${id}`, data).then((r) => r.data),
   deactivate: (id: string) => client.post(`/expense-reminders/${id}/deactivate`),
