@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LogOut, Settings } from 'lucide-react'
+import { LogOut, Settings, WifiOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useOfflineSync } from '../context/OfflineSyncContext'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 import BottomNav from './BottomNav'
 
@@ -14,6 +15,8 @@ const navItems = [
 
 export default function Layout() {
   const { email, nickname, logout } = useAuth()
+  const { isOnline, pendingCount } = useOfflineSync()
+  const showOfflineBadge = !isOnline || pendingCount > 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-white text-slate-900 dark:from-green-950 dark:via-black dark:to-black dark:text-white">
@@ -41,6 +44,13 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        {showOfflineBadge && (
+          <div className="mx-2 mb-1 flex items-center gap-1.5 rounded bg-amber-100 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+            <WifiOff className="h-3.5 w-3.5 shrink-0" />
+            {!isOnline ? 'Offline' : 'Sincronizzazione'}
+            {pendingCount > 0 && ` · ${pendingCount} in attesa`}
+          </div>
+        )}
         <div className="mt-auto flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-200">
           <Link
             to="/profilo"

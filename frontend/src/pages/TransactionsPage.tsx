@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
-import type { Category, Transaction } from '../api/types'
+import type { Category, Transaction, TransactionType } from '../api/types'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
 import { getCategoryIcon } from '../constants/icons'
 import { TransactionsPageSkeleton } from '../components/Skeleton'
+import { useOfflineSync } from '../context/OfflineSyncContext'
+import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
+import { getQueue, type QueuedTransaction } from '../offline/queue'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
@@ -16,8 +19,8 @@ function monthLabel(yearMonth: string): string {
 
 // Le transazioni arrivano già ordinate per data decrescente, quindi quelle
 // dello stesso mese sono sempre adiacenti: basta accumularle in gruppi.
-function groupByMonth(transactions: Transaction[]): { key: string; items: Transaction[] }[] {
-  const groups: { key: string; items: Transaction[] }[] = []
+function groupByMonth(transactions: DisplayTransaction[]): { key: string; items: DisplayTransaction[] }[] {
+  const groups: { key: string; items: DisplayTransaction[] }[] = []
   for (const t of transactions) {
     const key = t.occurredOn.slice(0, 7)
     const lastGroup = groups[groups.length - 1]
@@ -30,19 +33,58 @@ function groupByMonth(transactions: Transaction[]): { key: string; items: Transa
   return groups
 }
 
+type DisplayTransaction = Transaction & { pending?: boolean }
+
+function toDisplayTransaction(q: QueuedTransaction, categories: Category[]): DisplayTransaction {
+  const category = categories.find((c) => c.id === q.categoryId)
+  return {
+    id: q.localId,
+    categoryId: q.categoryId,
+    categoryName: category?.name ?? '—',
+    categoryIcon: category?.icon ?? null,
+    categoryColor: category?.color ?? null,
+    amount: q.amount,
+    type: q.type,
+    occurredOn: q.occurredOn,
+    description: q.description,
+    recurringTransactionId: null,
+    pending: true,
+  }
+}
+
 export default function TransactionsPage() {
+  const { isOnline, pendingCount, addOfflineTransaction } = useOfflineSync()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [pendingItems, setPendingItems] = useState<QueuedTransaction[]>(() => getQueue())
   const [loading, setLoading] = useState(true)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [exporting, setExporting] = useState(false)
+  const prevPendingCount = useRef(pendingCount)
 
-  const reloadTransactions = () => transactionsApi.list().then(setTransactions)
+  const reloadTransactions = () => transactionsApi.list().then(setTransactions).catch(() => {})
 
   useEffect(() => {
-    Promise.all([reloadTransactions(), categoriesApi.list().then(setCategories)]).finally(() => setLoading(false))
+    Promise.all([
+      reloadTransactions(),
+      categoriesApi
+        .list()
+        .then((cats) => {
+          cacheCategories(cats)
+          setCategories(cats)
+        })
+        .catch(() => setCategories(loadCachedCategories())),
+    ]).finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    setPendingItems(getQueue())
+    if (prevPendingCount.current > 0 && pendingCount === 0) {
+      reloadTransactions()
+    }
+    prevPendingCount.current = pendingCount
+  }, [pendingCount])
 
   const openCreate = () => {
     setEditing(null)
@@ -65,8 +107,26 @@ export default function TransactionsPage() {
   }) => {
     if (modalMode === 'edit' && editing) {
       await transactionsApi.update(editing.id, data)
-    } else {
+      await reloadTransactions()
+      closeModal()
+      return
+    }
+
+    if (!isOnline) {
+      addOfflineTransaction({ ...data, type: data.type as TransactionType })
+      closeModal()
+      return
+    }
+
+    try {
       await transactionsApi.create(data)
+    } catch (err) {
+      if ((err as { response?: unknown }).response === undefined) {
+        addOfflineTransaction({ ...data, type: data.type as TransactionType })
+        closeModal()
+        return
+      }
+      throw err
     }
     await reloadTransactions()
     closeModal()
@@ -97,6 +157,11 @@ export default function TransactionsPage() {
 
   if (loading) return <TransactionsPageSkeleton />
 
+  const displayTransactions: DisplayTransaction[] = [
+    ...pendingItems.map((q) => toDisplayTransaction(q, categories)),
+    ...transactions,
+  ].sort((a, b) => b.occurredOn.localeCompare(a.occurredOn))
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -120,11 +185,11 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {transactions.length === 0 ? (
+      {displayTransactions.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400">Nessuna transazione ancora.</p>
       ) : (
         <div className="space-y-6">
-          {groupByMonth(transactions).map((group) => (
+          {groupByMonth(displayTransactions).map((group) => (
             <div key={group.key}>
               <p className="mb-2 text-sm font-medium capitalize text-slate-600 dark:text-slate-300">
                 {monthLabel(group.key)}
@@ -132,6 +197,7 @@ export default function TransactionsPage() {
               <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
                 {group.items.map((t) => {
                   const Icon = getCategoryIcon(t.categoryIcon)
+                  const actionsDisabled = !isOnline || t.pending
                   return (
                     <li key={t.id} className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -146,6 +212,7 @@ export default function TransactionsPage() {
                           <p className="text-sm text-slate-500 dark:text-slate-400">
                             {t.occurredOn} · {t.categoryName}
                             {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">(ricorrente)</span>}
+                            {t.pending && <span className="ml-1 text-xs text-amber-600">(in attesa di sincronizzazione)</span>}
                           </p>
                         </div>
                       </div>
@@ -157,14 +224,18 @@ export default function TransactionsPage() {
                         <button
                           type="button"
                           onClick={() => openEdit(t)}
-                          className="-m-1 p-1 text-sm text-green-600 hover:underline"
+                          disabled={actionsDisabled}
+                          title={!isOnline ? 'Non disponibile offline' : undefined}
+                          className="-m-1 p-1 text-sm text-green-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                         >
                           Modifica
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(t)}
-                          className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
+                          disabled={actionsDisabled}
+                          title={!isOnline ? 'Non disponibile offline' : undefined}
+                          className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                         >
                           Elimina
                         </button>
