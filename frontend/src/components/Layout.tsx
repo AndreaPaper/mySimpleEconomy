@@ -1,7 +1,10 @@
+import { useEffect } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { LogOut, Settings, WifiOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
+import { categoriesApi } from '../api/endpoints'
+import { cacheCategories } from '../offline/categoriesCache'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 import BottomNav from './BottomNav'
 
@@ -17,6 +20,15 @@ export default function Layout() {
   const { email, nickname, logout } = useAuth()
   const { isOnline, pendingCount } = useOfflineSync()
   const showOfflineBadge = !isOnline || pendingCount > 0
+
+  // Tiene la cache delle categorie sempre aggiornata quando si è online, non
+  // solo quando si visita la pagina Transazioni: così il form "Nuova
+  // transazione" funziona offline anche se l'ultima pagina visitata online
+  // era la Dashboard o un'altra sezione.
+  useEffect(() => {
+    if (!isOnline) return
+    categoriesApi.list().then(cacheCategories).catch(() => {})
+  }, [isOnline])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-white text-slate-900 dark:from-green-950 dark:via-black dark:to-black dark:text-white">
