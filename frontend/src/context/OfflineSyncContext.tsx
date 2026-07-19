@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { categoriesApi, transactionsApi } from '../api/endpoints'
+import client from '../api/client'
+import { transactionsApi } from '../api/endpoints'
 import type { TransactionType } from '../api/types'
 import { count, dequeue, enqueue, getQueue, type QueuedTransaction } from '../offline/queue'
 
@@ -82,7 +83,9 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       setBackendReachable(false)
       pollTimer.current = setInterval(async () => {
         try {
-          await categoriesApi.list()
+          // skipUnreachableCheck: il poll è l'unica chiamata che deve davvero
+          // raggiungere il backend anche mentre il fail-fast è attivo.
+          await client.get('/categories', { skipUnreachableCheck: true })
           if (pollTimer.current) clearInterval(pollTimer.current)
           pollTimer.current = null
           setBackendReachable(true)

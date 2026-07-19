@@ -17,11 +17,15 @@ import type {
 export const authApi = {
   // Senza login non c'è modalità offline che tenga: qui si aspetta davvero
   // che il backend risponda (anche se Render è in cold start), niente
-  // timeout di 10s come per le altre chiamate.
+  // timeout di 10s né fail-fast come per le altre chiamate.
   register: (email: string, password: string) =>
-    client.post<{ token: string; email: string }>('/auth/register', { email, password }, { timeout: 0 }).then((r) => r.data),
+    client
+      .post<{ token: string; email: string }>('/auth/register', { email, password }, { timeout: 0, skipUnreachableCheck: true })
+      .then((r) => r.data),
   login: (email: string, password: string) =>
-    client.post<{ token: string; email: string }>('/auth/login', { email, password }, { timeout: 0 }).then((r) => r.data),
+    client
+      .post<{ token: string; email: string }>('/auth/login', { email, password }, { timeout: 0, skipUnreachableCheck: true })
+      .then((r) => r.data),
 }
 
 export const categoriesApi = {
