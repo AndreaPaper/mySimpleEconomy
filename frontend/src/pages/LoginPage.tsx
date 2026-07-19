@@ -18,8 +18,12 @@ export default function LoginPage() {
     try {
       await login(email, password)
       navigate('/')
-    } catch {
-      setError('Credenziali non valide')
+    } catch (err) {
+      if ((err as { response?: unknown }).response === undefined) {
+        setError('Nessuna connessione. Riprova quando torni online.')
+      } else {
+        setError('Credenziali non valide')
+      }
     } finally {
       setLoading(false)
     }
