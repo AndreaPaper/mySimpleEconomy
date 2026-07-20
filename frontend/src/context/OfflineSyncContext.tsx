@@ -97,6 +97,13 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       }, BACKEND_POLL_INTERVAL_MS)
     }
 
+    // Coda non vuota già all'avvio (es. transazione creata offline in una
+    // sessione precedente, poi l'app è stata ricaricata/riaperta senza che
+    // in QUESTA sessione scattasse mai il rilevamento "backend irraggiungibile"):
+    // senza questo tentativo iniziale nessun trigger farebbe mai partire la
+    // sincronizzazione, anche a backend ormai di nuovo raggiungibile.
+    if (count() > 0) syncPending()
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
     window.addEventListener('auth:login-success', handleLoginSuccess)
