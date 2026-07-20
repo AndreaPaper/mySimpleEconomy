@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   CartesianGrid,
   Line,
@@ -9,11 +9,16 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { checkpointsApi, forecastApi, recurringApi, remindersApi, transactionsApi } from '../api/endpoints'
+import { categoriesApi, checkpointsApi, forecastApi, recurringApi, remindersApi, transactionsApi } from '../api/endpoints'
 import { getCategoryIcon } from '../constants/icons'
 import { DashboardPageSkeleton } from '../components/Skeleton'
+import Modal from '../components/Modal'
+import TransactionForm from '../components/TransactionForm'
+import { useOfflineSync } from '../context/OfflineSyncContext'
+import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import type {
   BalanceCheckpoint,
+  Category,
   CategoryAmount,
   ForecastResponse,
   RecurringTransaction,
@@ -90,16 +95,19 @@ function buildCategoryBreakdown(transactions: Transaction[]): CategoryAmount[] {
 }
 
 export default function DashboardPage() {
+  const { isOnline, backendReachable, addOfflineTransaction } = useOfflineSync()
   const [forecast, setForecast] = useState<ForecastResponse | null>(null)
   const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
   const [historicalTransactions, setHistoricalTransactions] = useState<Transaction[]>([])
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([])
   const [upcomingReminders, setUpcomingReminders] = useState<UpcomingRemindersResponse | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [monthCursor, setMonthCursor] = useState(0)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
 
-  useEffect(() => {
+  const reload = () => {
     const today = new Date()
     // Finestra ampia (2 anni) per lo storico: copre praticamente qualsiasi
     // utente senza dover sapere in anticipo da quando ha dati reali.
@@ -107,24 +115,62 @@ export default function DashboardPage() {
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
     const iso = (d: Date) => d.toISOString().slice(0, 10)
 
-    Promise.all([
+    return Promise.all([
       forecastApi.get(4),
       checkpointsApi.list(),
       transactionsApi.list(),
       transactionsApi.list({ from: iso(historyStart), to: iso(lastMonthEnd) }),
       recurringApi.list(),
       remindersApi.upcoming(6),
-    ])
-      .then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
-        setForecast(forecastRes)
-        setCheckpoints(checkpointsRes)
-        setRecentTransactions(recentRes)
-        setHistoricalTransactions(historicalRes)
-        setRecurring(recurringRes)
-        setUpcomingReminders(remindersRes)
-      })
-      .finally(() => setLoading(false))
+      categoriesApi
+        .list()
+        .then((cats) => {
+          cacheCategories(cats)
+          setCategories(cats)
+        })
+        .catch(() => setCategories(loadCachedCategories())),
+    ]).then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
+      setForecast(forecastRes)
+      setCheckpoints(checkpointsRes)
+      setRecentTransactions(recentRes)
+      setHistoricalTransactions(historicalRes)
+      setRecurring(recurringRes)
+      setUpcomingReminders(remindersRes)
+    })
+  }
+
+  useEffect(() => {
+    reload().finally(() => setLoading(false))
   }, [])
+
+  const closeQuickAdd = () => setQuickAddOpen(false)
+
+  const handleQuickAdd = async (data: {
+    categoryId: string
+    amount: number
+    type: string
+    occurredOn: string
+    description: string | null
+  }) => {
+    if (!isOnline || !backendReachable) {
+      addOfflineTransaction({ ...data, type: data.type as 'INCOME' | 'EXPENSE' })
+      closeQuickAdd()
+      return
+    }
+
+    try {
+      await transactionsApi.create(data)
+    } catch (err) {
+      if ((err as { response?: unknown }).response === undefined) {
+        addOfflineTransaction({ ...data, type: data.type as 'INCOME' | 'EXPENSE' })
+        closeQuickAdd()
+        return
+      }
+      throw err
+    }
+    closeQuickAdd()
+    reload()
+  }
 
   if (loading) return <DashboardPageSkeleton />
 
@@ -404,6 +450,21 @@ export default function DashboardPage() {
           </ul>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setQuickAddOpen(true)}
+        aria-label="Nuova transazione"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+72px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-white shadow-lg hover:bg-green-700 md:hidden"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      {quickAddOpen && (
+        <Modal title="Nuova transazione" onClose={closeQuickAdd}>
+          <TransactionForm categories={categories} onSubmit={handleQuickAdd} onCancel={closeQuickAdd} />
+        </Modal>
+      )}
     </div>
   )
 }
