@@ -34,7 +34,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-white text-slate-900 dark:from-green-950 dark:via-black dark:to-black dark:text-white">
       <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-gradient-to-t from-green-400 via-green-100 to-white dark:border-slate-800 dark:from-green-600 dark:via-green-950 dark:to-black md:flex">
-        <div className="flex items-center gap-2 px-4 py-4 font-semibold dark:text-white">
+        <div className="app-brand flex items-center gap-2 px-4 py-4 font-semibold dark:text-white">
           <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
           MySimpleEconomy
         </div>
