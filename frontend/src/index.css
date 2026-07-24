@@ -2,19 +2,6 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-@font-face {
-  font-family: "Boring Time";
-  src: url("./assets/fonts/BoringTime.otf") format("opentype");
-  font-display: swap;
-}
-
 body {
   margin: 0;
-}
-
-/* Solo titoli di pagina e nome dell'app: font decorativo, non adatto a
-   cifre/liste lunghe. */
-h1,
-.app-brand {
-  font-family: "Boring Time", ui-sans-serif, system-ui, sans-serif;
 }
