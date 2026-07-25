@@ -3,16 +3,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @font-face {
-  font-family: "Coolvetica";
-  src: url("./assets/fonts/coolvetica/Coolvetica Rg.otf") format("opentype");
+  font-family: "Lemon Milk";
+  src: url("./assets/fonts/lemonMilk/LEMONMILK-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lemon Milk";
+  src: url("./assets/fonts/lemonMilk/LEMONMILK-Bold.otf") format("opentype");
+  font-weight: 700;
   font-display: swap;
 }
 
 /* Cifre in Roboto per leggibilità (importi, date, ecc.): il browser sceglie
    automaticamente questo font per i caratteri 0-9 pur restando nella
-   famiglia "Coolvetica" usata in tutta l'app. */
+   famiglia "Lemon Milk" usata in tutta l'app. */
 @font-face {
-  font-family: "Coolvetica";
+  font-family: "Lemon Milk";
   src: url("./assets/fonts/roboto/Roboto-Regular.ttf") format("truetype");
   font-weight: 400;
   unicode-range: U+0030-0039;
@@ -20,7 +28,7 @@
 }
 
 @font-face {
-  font-family: "Coolvetica";
+  font-family: "Lemon Milk";
   src: url("./assets/fonts/roboto/Roboto-Bold.ttf") format("truetype");
   font-weight: 700;
   unicode-range: U+0030-0039;
@@ -29,5 +37,5 @@
 
 body {
   margin: 0;
-  font-family: "Coolvetica", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Lemon Milk", ui-sans-serif, system-ui, sans-serif;
 }
