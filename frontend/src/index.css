@@ -2,6 +2,13 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@font-face {
+  font-family: "Comic Neue Sans";
+  src: url("./assets/fonts/ComicNeueSansID.ttf") format("truetype");
+  font-display: swap;
+}
+
 body {
   margin: 0;
+  font-family: "Comic Neue Sans", ui-sans-serif, system-ui, sans-serif;
 }
