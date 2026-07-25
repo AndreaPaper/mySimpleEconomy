@@ -343,7 +343,7 @@ export default function DashboardPage() {
                         </span>
                         <span className="truncate">{c.categoryName}</span>
                       </span>
-                      <span className="shrink-0 font-medium">{currency.format(c.amount)}</span>
+                      <span className="shrink-0 font-bold">{currency.format(c.amount)}</span>
                     </div>
                     <div className="h-2 rounded-full bg-slate-100 dark:bg-zinc-800">
                       <div
