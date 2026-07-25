@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LogOut, Settings, WifiOff } from 'lucide-react'
+import { LayoutDashboard, LogOut, Receipt, Repeat, Settings, Tags, Bell, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { categoriesApi } from '../api/endpoints'
@@ -8,12 +8,12 @@ import { cacheCategories } from '../offline/categoriesCache'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 import BottomNav from './BottomNav'
 
-const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/transazioni', label: 'Transazioni' },
-  { to: '/categorie', label: 'Categorie' },
-  { to: '/ricorrenti', label: 'Ricorrenti' },
-  { to: '/promemoria', label: 'Promemoria' },
+const navItems: { to: string; label: string; icon: LucideIcon }[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/transazioni', label: 'Transazioni', icon: Receipt },
+  { to: '/categorie', label: 'Categorie', icon: Tags },
+  { to: '/ricorrenti', label: 'Ricorrenti', icon: Repeat },
+  { to: '/promemoria', label: 'Promemoria', icon: Bell },
 ]
 
 export default function Layout() {
@@ -46,13 +46,14 @@ export default function Layout() {
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `rounded px-3 py-2 ${
+                `flex items-center gap-2.5 rounded px-3 py-2 ${
                   isActive
                     ? 'bg-green-50 font-medium text-green-600 dark:bg-black dark:text-green-400'
                     : 'text-slate-600 hover:bg-green-500/80 hover:text-white dark:text-slate-200'
                 }`
               }
             >
+              <item.icon className="h-4 w-4 shrink-0" />
               {item.label}
             </NavLink>
           ))}
