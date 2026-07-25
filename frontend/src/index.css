@@ -16,14 +16,14 @@
   font-display: swap;
 }
 
-/* Cifre in Roboto per leggibilità (importi, date, ecc.): il browser sceglie
-   automaticamente questo font per i caratteri 0-9 pur restando nella
-   famiglia "Lemon Milk" usata in tutta l'app. */
+/* Cifre e simbolo dell'euro in Roboto per leggibilità (importi, date, ecc.):
+   il browser sceglie automaticamente questo font per questi caratteri pur
+   restando nella famiglia "Lemon Milk" usata in tutta l'app. */
 @font-face {
   font-family: "Lemon Milk";
   src: url("./assets/fonts/roboto/Roboto-Regular.ttf") format("truetype");
   font-weight: 400;
-  unicode-range: U+0030-0039;
+  unicode-range: U+0030-0039, U+20AC;
   font-display: swap;
 }
 
@@ -31,7 +31,7 @@
   font-family: "Lemon Milk";
   src: url("./assets/fonts/roboto/Roboto-Bold.ttf") format("truetype");
   font-weight: 700;
-  unicode-range: U+0030-0039;
+  unicode-range: U+0030-0039, U+20AC;
   font-display: swap;
 }
 
