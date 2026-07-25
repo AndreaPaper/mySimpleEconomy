@@ -8,6 +8,25 @@
   font-display: swap;
 }
 
+/* Cifre in Roboto per leggibilità (importi, date, ecc.): il browser sceglie
+   automaticamente questo font per i caratteri 0-9 pur restando nella
+   famiglia "Comic Neue Sans" usata in tutta l'app. */
+@font-face {
+  font-family: "Comic Neue Sans";
+  src: url("./assets/fonts/roboto/Roboto-Regular.ttf") format("truetype");
+  font-weight: 400;
+  unicode-range: U+0030-0039;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Comic Neue Sans";
+  src: url("./assets/fonts/roboto/Roboto-Bold.ttf") format("truetype");
+  font-weight: 700;
+  unicode-range: U+0030-0039;
+  font-display: swap;
+}
+
 body {
   margin: 0;
   font-family: "Comic Neue Sans", ui-sans-serif, system-ui, sans-serif;
