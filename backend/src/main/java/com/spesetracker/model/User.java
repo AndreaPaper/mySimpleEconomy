@@ -37,6 +37,11 @@ public class User {
     @Column(name = "salary_day")
     private Short salaryDay;
 
+    // Chiave di uno degli avatar (animali) offerti dall'app - vedi AvatarCatalog.
+    // NULL = nessun avatar scelto, il frontend mostra l'icona utente di default.
+    @Column(name = "avatar_key", length = 30)
+    private String avatarKey;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

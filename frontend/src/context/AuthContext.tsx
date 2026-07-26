@@ -6,6 +6,8 @@ interface AuthContextValue {
   email: string | null
   nickname: string | null
   setNickname: (nickname: string | null) => void
+  avatarKey: string | null
+  setAvatarKey: (avatarKey: string | null) => void
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -17,12 +19,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [email, setEmail] = useState<string | null>(localStorage.getItem('email'))
   const [nickname, setNickname] = useState<string | null>(null)
+  const [avatarKey, setAvatarKey] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) return
     profileApi
       .get()
-      .then((profile) => setNickname(profile.nickname))
+      .then((profile) => {
+        setNickname(profile.nickname)
+        setAvatarKey(profile.avatarKey)
+      })
       .catch(() => {})
   }, [token])
 
@@ -50,10 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setEmail(null)
     setNickname(null)
+    setAvatarKey(null)
   }
 
   return (
-    <AuthContext.Provider value={{ token, email, nickname, setNickname, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ token, email, nickname, setNickname, avatarKey, setAvatarKey, login, register, logout }}
+    >
       {children}
     </AuthContext.Provider>
   )

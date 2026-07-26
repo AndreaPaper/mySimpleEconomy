@@ -7,6 +7,10 @@ CREATE TABLE users (
     nickname VARCHAR(100),
     default_salary_amount NUMERIC(10,2) CHECK (default_salary_amount IS NULL OR default_salary_amount > 0),
     salary_day SMALLINT CHECK (salary_day IS NULL OR salary_day BETWEEN 1 AND 31),
+    -- Avatar scelto da un set fisso (animali) offerto dall'app, non una foto
+    -- caricata dall'utente: NULL = icona utente generica di default.
+    avatar_key VARCHAR(30) CHECK (avatar_key IS NULL OR avatar_key IN
+        ('cat', 'dog', 'rabbit', 'bird', 'fish', 'turtle', 'squirrel', 'panda', 'mouse', 'snail')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

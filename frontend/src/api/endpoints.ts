@@ -135,8 +135,12 @@ export const remindersApi = {
 
 export const profileApi = {
   get: () => client.get<Profile>('/profile').then((r) => r.data),
-  update: (data: { nickname?: string | null; defaultSalaryAmount?: number | null; salaryDay?: number | null }) =>
-    client.put<Profile>('/profile', data).then((r) => r.data),
+  update: (data: {
+    nickname?: string | null
+    defaultSalaryAmount?: number | null
+    salaryDay?: number | null
+    avatarKey?: string | null
+  }) => client.put<Profile>('/profile', data).then((r) => r.data),
 }
 
 export const dataCleanupApi = {

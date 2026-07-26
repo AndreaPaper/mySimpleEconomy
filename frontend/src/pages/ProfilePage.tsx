@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { profileApi } from '../api/endpoints'
 import { useAuth } from '../context/AuthContext'
 import { ProfilePageSkeleton } from '../components/Skeleton'
+import { AVATAR_OPTIONS, getAvatarIcon } from '../constants/avatars'
 
 export default function ProfilePage() {
-  const { setNickname: setGlobalNickname } = useAuth()
+  const { setNickname: setGlobalNickname, setAvatarKey: setGlobalAvatarKey } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -13,6 +14,7 @@ export default function ProfilePage() {
   const [nickname, setNickname] = useState('')
   const [defaultSalaryAmount, setDefaultSalaryAmount] = useState('')
   const [salaryDay, setSalaryDay] = useState('')
+  const [avatarKey, setAvatarKey] = useState<string | null>(null)
 
   useEffect(() => {
     profileApi
@@ -22,6 +24,7 @@ export default function ProfilePage() {
         setNickname(profile.nickname ?? '')
         setDefaultSalaryAmount(profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '')
         setSalaryDay(profile.salaryDay != null ? String(profile.salaryDay) : '')
+        setAvatarKey(profile.avatarKey)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -36,11 +39,14 @@ export default function ProfilePage() {
         nickname: nickname.trim() || null,
         defaultSalaryAmount: defaultSalaryAmount ? Number(defaultSalaryAmount) : null,
         salaryDay: salaryDay ? Number(salaryDay) : null,
+        avatarKey,
       })
       setNickname(profile.nickname ?? '')
       setDefaultSalaryAmount(profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '')
       setSalaryDay(profile.salaryDay != null ? String(profile.salaryDay) : '')
+      setAvatarKey(profile.avatarKey)
       setGlobalNickname(profile.nickname)
+      setGlobalAvatarKey(profile.avatarKey)
       setSaved(true)
     } catch {
       setError('Salvataggio non riuscito. Controlla i valori inseriti.')
@@ -59,6 +65,44 @@ export default function ProfilePage() {
         <div>
           <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Email</p>
           <p className="text-sm">{email}</p>
+        </div>
+
+        <div>
+          <span className="mb-2 block text-sm text-slate-600 dark:text-slate-300">Avatar</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setAvatarKey(null)}
+              className={`flex h-11 w-11 items-center justify-center rounded-full border-2 ${
+                avatarKey === null
+                  ? 'border-green-600 bg-green-50 dark:bg-green-950'
+                  : 'border-slate-300 dark:border-slate-700'
+              }`}
+              aria-label="Nessun avatar (icona di default)"
+              title="Default"
+            >
+              {(() => {
+                const DefaultIcon = getAvatarIcon(null)
+                return <DefaultIcon className="h-6 w-6 text-slate-500 dark:text-slate-400" />
+              })()}
+            </button>
+            {AVATAR_OPTIONS.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setAvatarKey(key)}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border-2 ${
+                  avatarKey === key
+                    ? 'border-green-600 bg-green-50 dark:bg-green-950'
+                    : 'border-slate-300 dark:border-slate-700'
+                }`}
+                aria-label={label}
+                title={label}
+              >
+                <Icon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+              </button>
+            ))}
+          </div>
         </div>
 
         <label className="block text-sm">

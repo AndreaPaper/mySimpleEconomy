@@ -171,4 +171,5 @@ export interface Profile {
   nickname: string | null
   defaultSalaryAmount: number | null
   salaryDay: number | null
+  avatarKey: string | null
 }

@@ -2,6 +2,7 @@ package com.spesetracker.service;
 
 import com.spesetracker.dto.profile.ProfileResponse;
 import com.spesetracker.dto.profile.ProfileUpdateRequest;
+import com.spesetracker.model.AvatarCatalog;
 import com.spesetracker.model.User;
 import com.spesetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class ProfileService {
         user.setNickname(request.nickname());
         user.setDefaultSalaryAmount(request.defaultSalaryAmount());
         user.setSalaryDay(request.salaryDay());
+        user.setAvatarKey(validateAvatarKey(request.avatarKey()));
         return toResponse(user);
     }
 
@@ -37,8 +39,18 @@ public class ProfileService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utente non trovato"));
     }
 
+    // L'utente può solo scegliere tra gli avatar offerti dall'app (AvatarCatalog),
+    // non caricare un'immagine propria: qualsiasi altro valore è rifiutato.
+    private String validateAvatarKey(String avatarKey) {
+        if (avatarKey == null) return null;
+        if (!AvatarCatalog.VALID_KEYS.contains(avatarKey)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Avatar non valido");
+        }
+        return avatarKey;
+    }
+
     private ProfileResponse toResponse(User user) {
         return new ProfileResponse(
-                user.getEmail(), user.getNickname(), user.getDefaultSalaryAmount(), user.getSalaryDay());
+                user.getEmail(), user.getNickname(), user.getDefaultSalaryAmount(), user.getSalaryDay(), user.getAvatarKey());
     }
 }

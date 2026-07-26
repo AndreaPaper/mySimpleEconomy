@@ -6,6 +6,7 @@ public record ProfileResponse(
         String email,
         String nickname,
         BigDecimal defaultSalaryAmount,
-        Short salaryDay
+        Short salaryDay,
+        String avatarKey
 ) {
 }

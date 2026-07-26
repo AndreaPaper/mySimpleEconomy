@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useOfflineSync } from '../context/OfflineSyncContext'
+import { getAvatarIcon } from '../constants/avatars'
 
 interface NavItem {
   to: string
@@ -35,11 +36,13 @@ const moreItems: NavItem[] = [
 interface BottomNavProps {
   nickname: string | null
   email: string | null
+  avatarKey: string | null
   onLogout: () => void
 }
 
-export default function BottomNav({ nickname, email, onLogout }: BottomNavProps) {
+export default function BottomNav({ nickname, email, avatarKey, onLogout }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false)
+  const AvatarIcon = getAvatarIcon(avatarKey)
   const { isOnline, backendReachable, pendingCount } = useOfflineSync()
   const showOfflineBadge = !isOnline || !backendReachable || pendingCount > 0
   const offlineBadgeLabel = !isOnline ? 'Offline' : !backendReachable ? 'Server non raggiungibile' : 'Sincronizzazione'
@@ -105,9 +108,10 @@ export default function BottomNav({ nickname, email, onLogout }: BottomNavProps)
               <Link
                 to="/profilo"
                 onClick={() => setMoreOpen(false)}
-                className="mb-3 block truncate rounded-lg bg-slate-50 dark:bg-zinc-900 px-3 py-2 text-center font-medium shadow-sm"
+                className="mb-3 flex min-w-0 items-center justify-center gap-2 truncate rounded-lg bg-slate-50 dark:bg-zinc-900 px-3 py-2 font-medium shadow-sm"
               >
-                {nickname || email}
+                <AvatarIcon className="h-6 w-6 shrink-0 text-slate-500 dark:text-slate-400" />
+                <span className="truncate">{nickname || email}</span>
               </Link>
               <div className="flex flex-col gap-1">
                 {moreItems.map((item) => (
