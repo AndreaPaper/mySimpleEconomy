@@ -67,37 +67,39 @@ export default function Layout() {
             {pendingCount > 0 && ` · ${pendingCount} in attesa`}
           </div>
         )}
-        <div className="mt-auto flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-200">
+        <div className="mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-200">
           <Link
             to="/profilo"
-            className="flex min-w-0 flex-1 items-center gap-2 truncate rounded-lg border border-transparent px-3 py-2 font-bold hover:border-green-500 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
+            className="flex min-w-0 items-center gap-2 rounded-lg border border-transparent px-3 py-2 font-bold hover:border-green-500 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
           >
             <AvatarIcon className="h-6 w-6 shrink-0 text-slate-500 dark:text-slate-400" />
-            <span className="truncate">{nickname || email}</span>
+            <span className="min-w-0 break-words">{nickname || email}</span>
           </Link>
-          <NavLink
-            to="/impostazioni"
-            className={({ isActive }) =>
-              `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                isActive
-                  ? 'bg-green-50 text-green-600 dark:bg-black dark:text-green-400'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-black'
-              }`
-            }
-            aria-label="Impostazioni"
-            title="Impostazioni"
-          >
-            <Settings className="h-5 w-5" />
-          </NavLink>
-          <button
-            onClick={logout}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-black"
-            type="button"
-            aria-label="Esci"
-            title="Esci"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="mt-1 flex items-center justify-end gap-1">
+            <NavLink
+              to="/impostazioni"
+              className={({ isActive }) =>
+                `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                  isActive
+                    ? 'bg-green-50 text-green-600 dark:bg-black dark:text-green-400'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-black'
+                }`
+              }
+              aria-label="Impostazioni"
+              title="Impostazioni"
+            >
+              <Settings className="h-5 w-5" />
+            </NavLink>
+            <button
+              onClick={logout}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-black"
+              type="button"
+              aria-label="Esci"
+              title="Esci"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </aside>
       <main className="px-4 pb-20 pt-6 md:ml-56 md:pb-6">
