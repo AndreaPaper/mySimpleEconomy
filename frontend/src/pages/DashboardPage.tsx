@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,6 +19,7 @@ import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
 import type {
@@ -99,6 +103,7 @@ function buildCategoryBreakdown(transactions: Transaction[]): CategoryAmount[] {
 export default function DashboardPage() {
   const { salaryDay } = useAuth()
   const { isOnline, backendReachable, addOfflineTransaction } = useOfflineSync()
+  const isMobile = useIsMobile()
   const [forecast, setForecast] = useState<ForecastResponse | null>(null)
   const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
@@ -272,214 +277,271 @@ export default function DashboardPage() {
     .reduce((sum, t) => sum + t.amount, 0)
   const currentPeriodNet = currentPeriodIncome - currentPeriodExpense
 
+  const summaryCards = (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo attuale{latestCheckpoint ? ` (${latestCheckpoint.checkpointDate})` : ''}</p>
+        <p className="text-2xl font-semibold">{currency.format(currentBalance)}</p>
+      </div>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo previsto a fine mese</p>
+        <p className="text-2xl font-semibold">
+          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
+        </p>
+      </div>
+    </div>
+  )
+
+  const balanceChartCard = (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
+      <ResponsiveContainer width="100%" height={260}>
+        <LineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+          <YAxis tick={{ fontSize: 12 }} width={70} />
+          <Tooltip formatter={(value) => currency.format(Number(value))} />
+          <Line type="monotone" dataKey="actual" name="Storico" stroke="#16a34a" strokeWidth={2} connectNulls={false} dot={false} />
+          <Line
+            type="monotone"
+            dataKey="projected"
+            name="Previsto"
+            stroke="#16a34a"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            connectNulls={false}
+            dot={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+
+  const periodCards = (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Entrate (mese corrente)</p>
+        <p className="text-xl font-semibold text-emerald-600">{currency.format(currentPeriodIncome)}</p>
+      </div>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Uscite (mese corrente)</p>
+        <p className="text-xl font-semibold text-red-600">{currency.format(currentPeriodExpense)}</p>
+      </div>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo netto (mese corrente)</p>
+        <p className="text-xl font-semibold">{currency.format(currentPeriodNet)}</p>
+      </div>
+    </div>
+  )
+
+  const categoryCard = (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      {isMobile && categoryBreakdown.length > 0 && (
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie
+              data={categoryBreakdown}
+              dataKey="amount"
+              nameKey="categoryName"
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={80}
+              paddingAngle={2}
+            >
+              {categoryBreakdown.map((c) => (
+                <Cell key={c.categoryId} fill={c.categoryColor ?? '#94a3b8'} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value) => currency.format(Number(value))} />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Spese per categoria</p>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setMonthCursor((c) => c - 1)}
+            disabled={!canGoPrevMonth}
+            className="rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:dark:bg-zinc-800 disabled:opacity-30"
+            aria-label="Mese precedente"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="min-w-[7.5rem] text-center text-xs font-medium text-slate-600 dark:text-slate-300">
+            {selectedBreakdownMonthKey ? monthLabelFull(selectedBreakdownMonthKey) : '-'}
+            {selectedBreakdownIndex === currentMonthBreakdownIndex ? ' · corrente' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMonthCursor((c) => c + 1)}
+            disabled={!canGoNextMonth}
+            className="rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:dark:bg-zinc-800 disabled:opacity-30"
+            aria-label="Mese successivo"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      {categoryBreakdown.length === 0 ? (
+        <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa registrata in questo mese.</p>
+      ) : (
+        <ul className="space-y-3">
+          {categoryBreakdown.map((c) => {
+            const Icon = getCategoryIcon(c.categoryIcon)
+            const widthPct = maxCategoryAmount > 0 ? (c.amount / maxCategoryAmount) * 100 : 0
+            return (
+              <li key={c.categoryId} className="text-sm">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                      style={{ backgroundColor: c.categoryColor ?? '#94a3b8' }}
+                    >
+                      <Icon className="h-3.5 w-3.5 text-white" />
+                    </span>
+                    <span className="truncate">{c.categoryName}</span>
+                  </span>
+                  <span className="shrink-0 font-bold">{currency.format(c.amount)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 dark:bg-zinc-800">
+                  <div
+                    className="h-2 rounded-full"
+                    style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}
+                  />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+
+  const remindersCard = (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <p className="mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Spese fisse nei prossimi mesi</p>
+      <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">
+        Promemoria senza importo: utile per capire quali mesi avranno più scadenze.
+      </p>
+      {!upcomingReminders || upcomingReminders.months.every((m) => m.occurrences.length === 0) ? (
+        <p className="text-sm text-slate-400 dark:text-slate-500">Nessun promemoria configurato.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {upcomingReminders.months.map((m) => (
+            <div key={m.yearMonth} className="rounded border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-zinc-900 p-3">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-sm font-medium">{monthNameCapitalized(m.yearMonth)}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{m.yearMonth.slice(0, 4)}</span>
+              </div>
+              {m.occurrences.length === 0 ? (
+                <p className="text-xs text-slate-400 dark:text-slate-500">Nessuna scadenza</p>
+              ) : (
+                <ul className="space-y-2">
+                  {m.occurrences.map((o, i) => {
+                    const badge = dayBadge(o.date)
+                    return (
+                      <li key={i} className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-800 dark:bg-zinc-800 text-white">
+                          <span className="text-xs font-bold leading-none">{badge.day}</span>
+                          <span className="text-[9px] leading-none">{badge.month}</span>
+                        </div>
+                        <span className="text-sm font-medium">{o.name}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  const upcomingRecurringCard = (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Prossime scadenze ricorrenti</p>
+      {upcomingExpenses.length === 0 ? (
+        <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa ricorrente in scadenza.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {upcomingExpenses.map((r) => {
+            const Icon = getCategoryIcon(r.categoryIcon)
+            return (
+              <li key={r.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                    style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
+                  >
+                    <Icon className="h-4 w-4 text-white" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold capitalize">{r.name}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{fullDate(r.nextDueDate)}</p>
+                  </div>
+                </div>
+                <span className="shrink-0 text-sm font-medium">{currency.format(r.defaultAmount)}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+
+  const recentTransactionsCard = (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Ultime transazioni</p>
+      {recentTransactions.length === 0 ? (
+        <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna transazione ancora.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {recentTransactions.slice(0, 8).map((t) => (
+            <li key={t.id} className="flex items-center justify-between py-2 text-sm">
+              <div>
+                <p>{t.description || t.categoryName}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  {t.occurredOn} · {t.categoryName}
+                </p>
+              </div>
+              <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
+                {t.type === 'INCOME' ? '+' : '-'}
+                {currency.format(t.amount)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">Saldo attuale{latestCheckpoint ? ` (${latestCheckpoint.checkpointDate})` : ''}</p>
-          <p className="text-2xl font-semibold">{currency.format(currentBalance)}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">Saldo previsto a fine mese</p>
-          <p className="text-2xl font-semibold">
-            {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} width={70} />
-            <Tooltip formatter={(value) => currency.format(Number(value))} />
-            <Line type="monotone" dataKey="actual" name="Storico" stroke="#16a34a" strokeWidth={2} connectNulls={false} dot={false} />
-            <Line
-              type="monotone"
-              dataKey="projected"
-              name="Previsto"
-              stroke="#16a34a"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              connectNulls={false}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">Entrate (mese corrente)</p>
-          <p className="text-xl font-semibold text-emerald-600">{currency.format(currentPeriodIncome)}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">Uscite (mese corrente)</p>
-          <p className="text-xl font-semibold text-red-600">{currency.format(currentPeriodExpense)}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">Saldo netto (mese corrente)</p>
-          <p className="text-xl font-semibold">{currency.format(currentPeriodNet)}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Spese per categoria</p>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setMonthCursor((c) => c - 1)}
-                disabled={!canGoPrevMonth}
-                className="rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:dark:bg-zinc-800 disabled:opacity-30"
-                aria-label="Mese precedente"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="min-w-[7.5rem] text-center text-xs font-medium text-slate-600 dark:text-slate-300">
-                {selectedBreakdownMonthKey ? monthLabelFull(selectedBreakdownMonthKey) : '-'}
-                {selectedBreakdownIndex === currentMonthBreakdownIndex ? ' · corrente' : ''}
-              </span>
-              <button
-                type="button"
-                onClick={() => setMonthCursor((c) => c + 1)}
-                disabled={!canGoNextMonth}
-                className="rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:dark:bg-zinc-800 disabled:opacity-30"
-                aria-label="Mese successivo"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+      {isMobile ? (
+        <>
+          {summaryCards}
+          {categoryCard}
+          {periodCards}
+          {balanceChartCard}
+          {remindersCard}
+          {upcomingRecurringCard}
+        </>
+      ) : (
+        <>
+          {summaryCards}
+          {balanceChartCard}
+          {periodCards}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {categoryCard}
+            {remindersCard}
           </div>
-          {categoryBreakdown.length === 0 ? (
-            <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa registrata in questo mese.</p>
-          ) : (
-            <ul className="space-y-3">
-              {categoryBreakdown.map((c) => {
-                const Icon = getCategoryIcon(c.categoryIcon)
-                const widthPct = maxCategoryAmount > 0 ? (c.amount / maxCategoryAmount) * 100 : 0
-                return (
-                  <li key={c.categoryId} className="text-sm">
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                          style={{ backgroundColor: c.categoryColor ?? '#94a3b8' }}
-                        >
-                          <Icon className="h-3.5 w-3.5 text-white" />
-                        </span>
-                        <span className="truncate">{c.categoryName}</span>
-                      </span>
-                      <span className="shrink-0 font-bold">{currency.format(c.amount)}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100 dark:bg-zinc-800">
-                      <div
-                        className="h-2 rounded-full"
-                        style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-          <p className="mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Spese fisse nei prossimi mesi</p>
-          <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">
-            Promemoria senza importo: utile per capire quali mesi avranno più scadenze.
-          </p>
-          {!upcomingReminders || upcomingReminders.months.every((m) => m.occurrences.length === 0) ? (
-            <p className="text-sm text-slate-400 dark:text-slate-500">Nessun promemoria configurato.</p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {upcomingReminders.months.map((m) => (
-                <div key={m.yearMonth} className="rounded border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-zinc-900 p-3">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium">{monthNameCapitalized(m.yearMonth)}</span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500">{m.yearMonth.slice(0, 4)}</span>
-                  </div>
-                  {m.occurrences.length === 0 ? (
-                    <p className="text-xs text-slate-400 dark:text-slate-500">Nessuna scadenza</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {m.occurrences.map((o, i) => {
-                        const badge = dayBadge(o.date)
-                        return (
-                          <li key={i} className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-800 dark:bg-zinc-800 text-white">
-                              <span className="text-xs font-bold leading-none">{badge.day}</span>
-                              <span className="text-[9px] leading-none">{badge.month}</span>
-                            </div>
-                            <span className="text-sm font-medium">{o.name}</span>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Prossime scadenze ricorrenti</p>
-        {upcomingExpenses.length === 0 ? (
-          <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa ricorrente in scadenza.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {upcomingExpenses.map((r) => {
-              const Icon = getCategoryIcon(r.categoryIcon)
-              return (
-                <li key={r.id} className="flex items-center justify-between gap-3 py-2">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                      style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
-                    >
-                      <Icon className="h-4 w-4 text-white" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold capitalize">{r.name}</p>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">{fullDate(r.nextDueDate)}</p>
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-sm font-medium">{currency.format(r.defaultAmount)}</span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Ultime transazioni</p>
-        {recentTransactions.length === 0 ? (
-          <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna transazione ancora.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {recentTransactions.slice(0, 8).map((t) => (
-              <li key={t.id} className="flex items-center justify-between py-2 text-sm">
-                <div>
-                  <p>{t.description || t.categoryName}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
-                    {t.occurredOn} · {t.categoryName}
-                  </p>
-                </div>
-                <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
-                  {t.type === 'INCOME' ? '+' : '-'}
-                  {currency.format(t.amount)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          {upcomingRecurringCard}
+          {recentTransactionsCard}
+        </>
+      )}
 
       <button
         type="button"
