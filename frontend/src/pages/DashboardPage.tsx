@@ -180,6 +180,14 @@ export default function DashboardPage() {
     reload()
   }
 
+  const handleCreateCategory = async (data: { name: string; type: 'INCOME' | 'EXPENSE'; color: string | null; icon: string | null }) => {
+    const category = await categoriesApi.create(data)
+    const updated = await categoriesApi.list()
+    cacheCategories(updated)
+    setCategories(updated)
+    return category
+  }
+
   if (loading) return <DashboardPageSkeleton />
 
   const latestCheckpoint = checkpoints[0] ?? null
@@ -484,7 +492,12 @@ export default function DashboardPage() {
 
       {quickAddOpen && (
         <Modal title="Nuova transazione" onClose={closeQuickAdd}>
-          <TransactionForm categories={categories} onSubmit={handleQuickAdd} onCancel={closeQuickAdd} />
+          <TransactionForm
+            categories={categories}
+            onSubmit={handleQuickAdd}
+            onCreateCategory={handleCreateCategory}
+            onCancel={closeQuickAdd}
+          />
         </Modal>
       )}
     </div>

@@ -139,6 +139,14 @@ export default function TransactionsPage() {
     closeModal()
   }
 
+  const handleCreateCategory = async (data: { name: string; type: TransactionType; color: string | null; icon: string | null }) => {
+    const category = await categoriesApi.create(data)
+    const updated = await categoriesApi.list()
+    cacheCategories(updated)
+    setCategories(updated)
+    return category
+  }
+
   const handleDelete = async (transaction: Transaction) => {
     if (!window.confirm('Eliminare questa transazione?')) return
     await transactionsApi.delete(transaction.id)
@@ -258,7 +266,13 @@ export default function TransactionsPage() {
 
       {modalMode && (
         <Modal title={modalMode === 'edit' ? 'Modifica transazione' : 'Nuova transazione'} onClose={closeModal}>
-          <TransactionForm categories={categories} initial={editing ?? undefined} onSubmit={handleSubmit} onCancel={closeModal} />
+          <TransactionForm
+            categories={categories}
+            initial={editing ?? undefined}
+            onSubmit={handleSubmit}
+            onCreateCategory={handleCreateCategory}
+            onCancel={closeModal}
+          />
         </Modal>
       )}
     </div>
