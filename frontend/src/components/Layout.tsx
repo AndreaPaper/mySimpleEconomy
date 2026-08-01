@@ -1,6 +1,17 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, LogOut, Receipt, Repeat, Settings, Tags, Bell, WifiOff, type LucideIcon } from 'lucide-react'
+import {
+  LayoutDashboard,
+  LogOut,
+  Receipt,
+  Repeat,
+  Settings,
+  Tags,
+  Bell,
+  UserRound,
+  WifiOff,
+  type LucideIcon,
+} from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { categoriesApi } from '../api/endpoints'
@@ -23,6 +34,8 @@ export default function Layout() {
   const { isOnline, backendReachable, pendingCount } = useOfflineSync()
   const showOfflineBadge = !isOnline || !backendReachable || pendingCount > 0
   const offlineBadgeLabel = !isOnline ? 'Offline' : !backendReachable ? 'Server non raggiungibile' : 'Sincronizzazione'
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
 
   // Tiene la cache delle categorie sempre aggiornata quando si è online, non
   // solo quando si visita la pagina Transazioni: così il form "Nuova
@@ -32,6 +45,24 @@ export default function Layout() {
     if (!isOnline) return
     categoriesApi.list().then(cacheCategories).catch(() => {})
   }, [isOnline])
+
+  useEffect(() => {
+    if (!profileMenuOpen) return
+    const onClickOutside = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setProfileMenuOpen(false)
+      }
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setProfileMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [profileMenuOpen])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-white text-slate-900 dark:from-green-950 dark:via-black dark:to-black dark:text-white">
@@ -67,39 +98,51 @@ export default function Layout() {
             {pendingCount > 0 && ` · ${pendingCount} in attesa`}
           </div>
         )}
-        <div className="mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-200">
-          <Link
-            to="/profilo"
-            className="flex min-w-0 items-center gap-2 rounded-lg border border-transparent px-3 py-2 font-bold hover:border-green-500 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
+        <div
+          ref={profileMenuRef}
+          className="relative mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-200"
+        >
+          {profileMenuOpen && (
+            <div className="absolute inset-x-4 bottom-full mb-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-zinc-900">
+              <Link
+                to="/profilo"
+                onClick={() => setProfileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-black"
+              >
+                <UserRound className="h-4 w-4 shrink-0" />
+                Profilo
+              </Link>
+              <Link
+                to="/impostazioni"
+                onClick={() => setProfileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-black"
+              >
+                <Settings className="h-4 w-4 shrink-0" />
+                Impostazioni
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen(false)
+                  logout()
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-black"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                Esci
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setProfileMenuOpen((open) => !open)}
+            aria-haspopup="true"
+            aria-expanded={profileMenuOpen}
+            className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left font-bold hover:border-green-500 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
           >
             <AvatarIcon className="h-6 w-6 shrink-0 text-slate-500 dark:text-slate-400" />
             <span className="min-w-0 break-words">{nickname || email}</span>
-          </Link>
-          <div className="mt-1 flex items-center justify-end gap-1">
-            <NavLink
-              to="/impostazioni"
-              className={({ isActive }) =>
-                `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                  isActive
-                    ? 'bg-green-50 text-green-600 dark:bg-black dark:text-green-400'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-black'
-                }`
-              }
-              aria-label="Impostazioni"
-              title="Impostazioni"
-            >
-              <Settings className="h-5 w-5" />
-            </NavLink>
-            <button
-              onClick={logout}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-black"
-              type="button"
-              aria-label="Esci"
-              title="Esci"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
-          </div>
+          </button>
         </div>
       </aside>
       <main className="px-4 pb-20 pt-6 md:ml-56 md:pb-6">
