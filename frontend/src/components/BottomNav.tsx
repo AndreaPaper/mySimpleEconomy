@@ -74,23 +74,25 @@ export default function BottomNav({ nickname, email, avatarKey, onLogout }: Bott
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            aria-label={item.label}
+            title={item.label}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-1 py-2 text-xs ${
+              `flex flex-1 items-center justify-center py-3 ${
                 isActive ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'
               }`
             }
           >
             <item.icon className="h-5 w-5" />
-            {item.label}
           </NavLink>
         ))}
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className="flex flex-1 flex-col items-center gap-1 py-2 text-xs text-slate-500 dark:text-slate-400"
+          aria-label="Altro"
+          title="Altro"
+          className="flex flex-1 items-center justify-center py-3 text-slate-500 dark:text-slate-400"
         >
           <MoreHorizontal className="h-5 w-5" />
-          Altro
         </button>
       </nav>
 
