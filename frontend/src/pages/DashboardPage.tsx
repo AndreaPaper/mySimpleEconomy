@@ -14,8 +14,10 @@ import { getCategoryIcon } from '../constants/icons'
 import { DashboardPageSkeleton } from '../components/Skeleton'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
+import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
+import { periodKeyOf, periodRangeOf } from '../utils/period'
 import type {
   BalanceCheckpoint,
   Category,
@@ -95,6 +97,7 @@ function buildCategoryBreakdown(transactions: Transaction[]): CategoryAmount[] {
 }
 
 export default function DashboardPage() {
+  const { salaryDay } = useAuth()
   const { isOnline, backendReachable, addOfflineTransaction } = useOfflineSync()
   const [forecast, setForecast] = useState<ForecastResponse | null>(null)
   const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
@@ -112,14 +115,19 @@ export default function DashboardPage() {
     // Finestra ampia (2 anni) per lo storico: copre praticamente qualsiasi
     // utente senza dover sapere in anticipo da quando ha dati reali.
     const historyStart = new Date(today.getFullYear() - 2, today.getMonth(), 1)
-    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
     const iso = (d: Date) => d.toISOString().slice(0, 10)
+    const todayStr = iso(today)
+    // Il limite superiore arriva fino alla fine del periodo personalizzato
+    // corrente (stipendio-to-stipendio, o mese di calendario se non
+    // configurato), non solo fino a oggi: così una spesa già registrata con
+    // data futura ma ancora dentro il periodo corrente non viene esclusa.
+    const currentPeriodEnd = periodRangeOf(periodKeyOf(todayStr, salaryDay), salaryDay).end
 
     return Promise.all([
       forecastApi.get(4),
       checkpointsApi.list(),
       transactionsApi.list(),
-      transactionsApi.list({ from: iso(historyStart), to: iso(lastMonthEnd) }),
+      transactionsApi.list({ from: iso(historyStart), to: currentPeriodEnd }),
       recurringApi.list(),
       remindersApi.upcoming(6),
       categoriesApi
@@ -141,7 +149,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     reload().finally(() => setLoading(false))
-  }, [])
+  }, [salaryDay])
 
   const closeQuickAdd = () => setQuickAddOpen(false)
 
@@ -179,8 +187,16 @@ export default function DashboardPage() {
   const futureMonths = forecast?.months.slice(1, 4) ?? []
   const currentBalance = latestCheckpoint?.balance ?? forecast?.startingBalance ?? 0
 
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const currentCalendarKey = todayStr.slice(0, 7)
+
+  // Il grafico "Andamento saldo" resta a mese di calendario (fuori
+  // dall'ambito del periodo personalizzato): esclude esplicitamente il mese
+  // corrente, come faceva già prima che la finestra di fetch di
+  // historicalTransactions si allargasse per includerlo.
   const netByMonth = new Map<string, number>()
   for (const t of historicalTransactions) {
+    if (monthKey(t.occurredOn) >= currentCalendarKey) continue
     const key = monthKey(t.occurredOn)
     const signed = t.type === 'INCOME' ? t.amount : -t.amount
     netByMonth.set(key, (netByMonth.get(key) ?? 0) + signed)
@@ -205,29 +221,28 @@ export default function DashboardPage() {
     .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
     .slice(0, 5)
 
-  // Mesi sfogliabili nella card "Spese per categoria": solo mesi con spesa
-  // effettiva, cioè i mesi storici (aggregati qui dalle transazioni reali) e
-  // il mese corrente (già effettivo, non proiettato, nel forecast). I mesi
-  // futuri sono proiezioni statistiche, non spese avvenute, quindi non
-  // vengono mostrati in questa card.
-  const currentForecastMonth = forecast?.months[0] ?? null
-  const breakdownMonthKeys = currentForecastMonth
-    ? [...historicalKeys, currentForecastMonth.yearMonth]
-    : historicalKeys
+  // Periodi sfogliabili nella card "Spese per categoria" e le card "mese
+  // corrente": periodo personalizzato stipendio-to-stipendio (o mese di
+  // calendario se salaryDay non è impostato), aggregati qui dalle
+  // transazioni reali in modo uniforme per storico e periodo corrente - non
+  // si usa più forecast.categoryBreakdown per il periodo corrente, perché
+  // quello ragiona sempre per mese di calendario.
+  const currentPeriodKey = periodKeyOf(todayStr, salaryDay)
+  const periodKeysSet = new Set<string>()
+  for (const t of historicalTransactions) {
+    periodKeysSet.add(periodKeyOf(t.occurredOn, salaryDay))
+  }
+  periodKeysSet.add(currentPeriodKey) // compare anche senza transazioni
+  const breakdownMonthKeys = Array.from(periodKeysSet).sort()
+
   const breakdownByMonth = new Map<string, CategoryAmount[]>()
-  for (const key of historicalKeys) {
+  for (const key of breakdownMonthKeys) {
     breakdownByMonth.set(
       key,
-      buildCategoryBreakdown(historicalTransactions.filter((t) => monthKey(t.occurredOn) === key)),
+      buildCategoryBreakdown(historicalTransactions.filter((t) => periodKeyOf(t.occurredOn, salaryDay) === key)),
     )
   }
-  if (currentForecastMonth) {
-    breakdownByMonth.set(
-      currentForecastMonth.yearMonth,
-      currentForecastMonth.categoryBreakdown.filter((c) => c.type === 'EXPENSE').sort((a, b) => b.amount - a.amount),
-    )
-  }
-  const currentMonthBreakdownIndex = historicalKeys.length
+  const currentMonthBreakdownIndex = breakdownMonthKeys.indexOf(currentPeriodKey)
   const selectedBreakdownIndex = Math.min(
     Math.max(currentMonthBreakdownIndex + monthCursor, 0),
     breakdownMonthKeys.length - 1,
@@ -237,6 +252,17 @@ export default function DashboardPage() {
   const maxCategoryAmount = categoryBreakdown[0]?.amount ?? 0
   const canGoPrevMonth = selectedBreakdownIndex > 0
   const canGoNextMonth = selectedBreakdownIndex < breakdownMonthKeys.length - 1
+
+  const currentPeriodTransactions = historicalTransactions.filter(
+    (t) => periodKeyOf(t.occurredOn, salaryDay) === currentPeriodKey,
+  )
+  const currentPeriodIncome = currentPeriodTransactions
+    .filter((t) => t.type === 'INCOME')
+    .reduce((sum, t) => sum + t.amount, 0)
+  const currentPeriodExpense = currentPeriodTransactions
+    .filter((t) => t.type === 'EXPENSE')
+    .reduce((sum, t) => sum + t.amount, 0)
+  const currentPeriodNet = currentPeriodIncome - currentPeriodExpense
 
   return (
     <div className="space-y-6">
@@ -279,19 +305,15 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
           <p className="text-sm text-slate-500 dark:text-slate-400">Entrate (mese corrente)</p>
-          <p className="text-xl font-semibold text-emerald-600">
-            {currentMonth ? currency.format(currentMonth.projectedIncome) : '-'}
-          </p>
+          <p className="text-xl font-semibold text-emerald-600">{currency.format(currentPeriodIncome)}</p>
         </div>
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
           <p className="text-sm text-slate-500 dark:text-slate-400">Uscite (mese corrente)</p>
-          <p className="text-xl font-semibold text-red-600">
-            {currentMonth ? currency.format(currentMonth.projectedExpense) : '-'}
-          </p>
+          <p className="text-xl font-semibold text-red-600">{currency.format(currentPeriodExpense)}</p>
         </div>
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
           <p className="text-sm text-slate-500 dark:text-slate-400">Saldo netto (mese corrente)</p>
-          <p className="text-xl font-semibold">{currentMonth ? currency.format(currentMonth.netBalance) : '-'}</p>
+          <p className="text-xl font-semibold">{currency.format(currentPeriodNet)}</p>
         </div>
       </div>
 

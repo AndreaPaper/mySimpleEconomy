@@ -5,9 +5,11 @@ import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
 import { getCategoryIcon } from '../constants/icons'
 import { TransactionsPageSkeleton } from '../components/Skeleton'
+import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { getQueue, type QueuedTransaction } from '../offline/queue'
+import { periodKeyOf } from '../utils/period'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
@@ -18,11 +20,14 @@ function monthLabel(yearMonth: string): string {
 }
 
 // Le transazioni arrivano già ordinate per data decrescente, quindi quelle
-// dello stesso mese sono sempre adiacenti: basta accumularle in gruppi.
-function groupByMonth(transactions: DisplayTransaction[]): { key: string; items: DisplayTransaction[] }[] {
+// dello stesso periodo sono sempre adiacenti: basta accumularle in gruppi.
+function groupByMonth(
+  transactions: DisplayTransaction[],
+  salaryDay: number | null,
+): { key: string; items: DisplayTransaction[] }[] {
   const groups: { key: string; items: DisplayTransaction[] }[] = []
   for (const t of transactions) {
-    const key = t.occurredOn.slice(0, 7)
+    const key = periodKeyOf(t.occurredOn, salaryDay)
     const lastGroup = groups[groups.length - 1]
     if (lastGroup && lastGroup.key === key) {
       lastGroup.items.push(t)
@@ -53,6 +58,7 @@ function toDisplayTransaction(q: QueuedTransaction, categories: Category[]): Dis
 }
 
 export default function TransactionsPage() {
+  const { salaryDay } = useAuth()
   const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
   const offlineLike = !isOnline || !backendReachable
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -190,7 +196,7 @@ export default function TransactionsPage() {
         <p className="text-slate-500 dark:text-slate-400">Nessuna transazione ancora.</p>
       ) : (
         <div className="space-y-6">
-          {groupByMonth(displayTransactions).map((group) => (
+          {groupByMonth(displayTransactions, salaryDay).map((group) => (
             <div key={group.key}>
               <p className="mb-2 text-sm font-medium capitalize text-slate-600 dark:text-slate-300">
                 {monthLabel(group.key)}

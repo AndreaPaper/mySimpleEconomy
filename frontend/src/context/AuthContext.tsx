@@ -8,6 +8,8 @@ interface AuthContextValue {
   setNickname: (nickname: string | null) => void
   avatarKey: string | null
   setAvatarKey: (avatarKey: string | null) => void
+  salaryDay: number | null
+  setSalaryDay: (salaryDay: number | null) => void
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(localStorage.getItem('email'))
   const [nickname, setNickname] = useState<string | null>(null)
   const [avatarKey, setAvatarKey] = useState<string | null>(null)
+  const [salaryDay, setSalaryDay] = useState<number | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -28,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((profile) => {
         setNickname(profile.nickname)
         setAvatarKey(profile.avatarKey)
+        setSalaryDay(profile.salaryDay)
       })
       .catch(() => {})
   }, [token])
@@ -57,11 +61,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmail(null)
     setNickname(null)
     setAvatarKey(null)
+    setSalaryDay(null)
   }
 
   return (
     <AuthContext.Provider
-      value={{ token, email, nickname, setNickname, avatarKey, setAvatarKey, login, register, logout }}
+      value={{
+        token,
+        email,
+        nickname,
+        setNickname,
+        avatarKey,
+        setAvatarKey,
+        salaryDay,
+        setSalaryDay,
+        login,
+        register,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>
