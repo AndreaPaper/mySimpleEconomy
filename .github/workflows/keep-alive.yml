@@ -8,7 +8,12 @@ on:
     # tutto l'anno senza logica DST-aware in un cron statico - in inverno fa
     # qualche ping extra verso le 8-9 locali, in estate verso le 21-22
     # locali: accettabile per semplicità.
-    - cron: '*/10 7-20 * * *'
+    #
+    # Ogni 5 minuti (non 10): GitHub non garantisce l'orario esatto dei cron
+    # schedulati e può ritardarli di qualche minuto nei periodi di carico -
+    # un margine più stretto riduce il rischio che un ritardo faccia superare
+    # i 15 minuti di inattività che fanno riaddormentare Render.
+    - cron: '*/5 7-20 * * *'
   workflow_dispatch: {}
 
 jobs:
@@ -16,4 +21,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping backend
-        run: curl -fsS "${{ vars.BACKEND_URL }}/api/ping"
+        run: curl -fsS --max-time 90 "${{ vars.BACKEND_URL }}/api/ping"
