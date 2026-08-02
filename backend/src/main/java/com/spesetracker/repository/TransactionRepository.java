@@ -1,6 +1,7 @@
 package com.spesetracker.repository;
 
 import com.spesetracker.model.Transaction;
+import com.spesetracker.model.enums.TransactionType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,6 +17,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findByUserIdAndCategoryIdAndOccurredOnBetween(
             UUID userId, UUID categoryId, LocalDate from, LocalDate to);
+
+    // Usata da DebtService per calcolare quanto è stato pagato di un debito:
+    // somma (in Java, coerente con lo stile del resto del progetto) tutte le
+    // transazioni di questo tipo nella categoria collegata al debito.
+    List<Transaction> findByUserIdAndCategoryIdAndType(UUID userId, UUID categoryId, TransactionType type);
 
     long countByRecurringTransactionId(UUID recurringTransactionId);
 

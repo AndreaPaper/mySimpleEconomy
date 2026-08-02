@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
+  HandCoins,
   LayoutDashboard,
   LogOut,
   Receipt,
@@ -25,6 +26,7 @@ const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/transazioni', label: 'Transazioni', icon: Receipt },
   { to: '/categorie', label: 'Categorie', icon: Tags },
   { to: '/ricorrenti', label: 'Ricorrenti', icon: Repeat },
+  { to: '/debiti', label: 'Debiti', icon: HandCoins },
   { to: '/promemoria', label: 'Promemoria', icon: Bell },
 ]
 

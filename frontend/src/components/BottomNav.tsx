@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import {
+  HandCoins,
   LayoutDashboard,
   Receipt,
   Tags,
@@ -30,6 +31,7 @@ const primaryItems: NavItem[] = [
 
 const moreItems: NavItem[] = [
   { to: '/ricorrenti', label: 'Ricorrenti', icon: Repeat },
+  { to: '/debiti', label: 'Debiti', icon: HandCoins },
   { to: '/impostazioni', label: 'Impostazioni', icon: Settings },
 ]
 

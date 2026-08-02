@@ -3,6 +3,7 @@ import type {
   BalanceCheckpoint,
   Category,
   DataCleanupResult,
+  Debt,
   ExcelImportPreviewResponse,
   ExcelImportResult,
   ExpenseReminder,
@@ -131,6 +132,28 @@ export const remindersApi = {
   ) => client.put<ExpenseReminder>(`/expense-reminders/${id}`, data).then((r) => r.data),
   deactivate: (id: string) => client.post(`/expense-reminders/${id}/deactivate`),
   reactivate: (id: string) => client.post(`/expense-reminders/${id}/reactivate`),
+}
+
+export const debtsApi = {
+  list: () => client.get<Debt[]>('/debts').then((r) => r.data),
+  create: (data: {
+    categoryId: string
+    name: string
+    totalAmount: number
+    alreadyPaidAmount?: number | null
+    monthlyPaymentAmount?: number | null
+  }) => client.post<Debt>('/debts', data).then((r) => r.data),
+  update: (
+    id: string,
+    data: {
+      categoryId: string
+      name: string
+      totalAmount: number
+      alreadyPaidAmount?: number | null
+      monthlyPaymentAmount?: number | null
+    },
+  ) => client.put<Debt>(`/debts/${id}`, data).then((r) => r.data),
+  delete: (id: string) => client.delete(`/debts/${id}`),
 }
 
 export const profileApi = {

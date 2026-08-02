@@ -81,6 +81,28 @@ CREATE TABLE balance_checkpoints (
 );
 CREATE INDEX idx_checkpoints_user_date ON balance_checkpoints (user_id, checkpoint_date DESC);
 
+-- Debiti/finanziamenti: collegati a una categoria di spesa, l'importo pagato
+-- non viene salvato qui, si calcola sempre sommando le transazioni EXPENSE
+-- di quella categoria (più already_paid_amount, per debiti già in corso
+-- prima di iniziare a tracciarli nell'app). active viene tenuto in sync
+-- dal service ad ogni lettura in base al residuo calcolato.
+CREATE TABLE debts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    name VARCHAR(150) NOT NULL,
+    total_amount NUMERIC(10,2) NOT NULL CHECK (total_amount > 0),
+    already_paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0
+        CHECK (already_paid_amount >= 0 AND already_paid_amount <= total_amount),
+    monthly_payment_amount NUMERIC(10,2) CHECK (monthly_payment_amount IS NULL OR monthly_payment_amount > 0),
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Una categoria può avere al più un debito ATTIVO: indice unico parziale,
+-- non un vincolo UNIQUE semplice, così un debito saldato (active=false)
+-- libera la categoria per uno nuovo.
+CREATE UNIQUE INDEX idx_debts_active_category ON debts (category_id) WHERE active;
+
 -- Promemoria di spese fisse future, senza importo: solo un promemoria di "cosa e quando",
 -- per capire quali mesi avranno più uscite fisse. Non genera transazioni né importi.
 CREATE TABLE expense_reminders (

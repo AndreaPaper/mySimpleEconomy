@@ -166,6 +166,22 @@ export interface UpcomingRemindersResponse {
   months: MonthlyReminders[]
 }
 
+export interface Debt {
+  id: string
+  categoryId: string
+  categoryName: string
+  categoryIcon: string | null
+  categoryColor: string | null
+  name: string
+  totalAmount: number
+  alreadyPaidAmount: number
+  paidAmount: number
+  remainingAmount: number
+  monthlyPaymentAmount: number | null
+  active: boolean
+  createdAt: string
+}
+
 export interface Profile {
   email: string
   nickname: string | null
