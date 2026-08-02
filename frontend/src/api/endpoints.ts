@@ -141,6 +141,7 @@ export const debtsApi = {
     name: string
     totalAmount: number
     alreadyPaidAmount?: number | null
+    alreadyPaidAsOf?: string | null
     monthlyPaymentAmount?: number | null
   }) => client.post<Debt>('/debts', data).then((r) => r.data),
   update: (

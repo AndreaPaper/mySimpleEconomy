@@ -175,6 +175,7 @@ export interface Debt {
   name: string
   totalAmount: number
   alreadyPaidAmount: number
+  alreadyPaidAsOf: string | null
   paidAmount: number
   remainingAmount: number
   monthlyPaymentAmount: number | null

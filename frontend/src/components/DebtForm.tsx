@@ -9,6 +9,7 @@ interface DebtFormProps {
     name: string
     totalAmount: number
     alreadyPaidAmount: number | null
+    alreadyPaidAsOf: string | null
     monthlyPaymentAmount: number | null
   }) => Promise<void>
   onCancel: () => void
@@ -20,13 +21,28 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
   const [name, setName] = useState(initial?.name ?? '')
   const [totalAmount, setTotalAmount] = useState(initial?.totalAmount?.toString() ?? '')
   const [alreadyPaidAmount, setAlreadyPaidAmount] = useState(initial?.alreadyPaidAmount?.toString() ?? '')
+  const [alreadyPaidAsOf, setAlreadyPaidAsOf] = useState(initial?.alreadyPaidAsOf ?? '')
   const [monthlyPaymentAmount, setMonthlyPaymentAmount] = useState(initial?.monthlyPaymentAmount?.toString() ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const handleAlreadyPaidAmountChange = (value: string) => {
+    setAlreadyPaidAmount(value)
+    // La prima volta che si valorizza l'importo, propone oggi come data di
+    // riferimento (modificabile): così le spese storiche già presenti nella
+    // categoria non vengono ricontate sopra al totale inserito a mano.
+    if (value && !alreadyPaidAsOf) {
+      setAlreadyPaidAsOf(new Date().toISOString().slice(0, 10))
+    }
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
+    if (alreadyPaidAmount && !alreadyPaidAsOf) {
+      setError('Indica da quale data in poi le spese vanno conteggiate separatamente dal già pagato.')
+      return
+    }
     setSaving(true)
     try {
       await onSubmit({
@@ -34,6 +50,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
         name,
         totalAmount: Number(totalAmount),
         alreadyPaidAmount: alreadyPaidAmount ? Number(alreadyPaidAmount) : null,
+        alreadyPaidAsOf: alreadyPaidAmount ? alreadyPaidAsOf : null,
         monthlyPaymentAmount: monthlyPaymentAmount ? Number(monthlyPaymentAmount) : null,
       })
     } catch {
@@ -117,13 +134,31 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
           step="0.01"
           min="0"
           value={alreadyPaidAmount}
-          onChange={(e) => setAlreadyPaidAmount(e.target.value)}
+          onChange={(e) => handleAlreadyPaidAmountChange(e.target.value)}
           className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
         <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
           Utile solo per un debito che stai già pagando da tempo: lascia vuoto per un debito nuovo.
         </span>
       </div>
+      {alreadyPaidAmount && (
+        <div>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="debt-already-paid-as-of">
+            Già pagato fino al
+          </label>
+          <input
+            id="debt-already-paid-as-of"
+            type="date"
+            required
+            value={alreadyPaidAsOf}
+            onChange={(e) => setAlreadyPaidAsOf(e.target.value)}
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          />
+          <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
+            Le spese di questa categoria da questa data in poi si sommano al già pagato; quelle precedenti si considerano già incluse.
+          </span>
+        </div>
+      )}
       <div>
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="debt-monthly">
           Rata mensile target (opzionale)

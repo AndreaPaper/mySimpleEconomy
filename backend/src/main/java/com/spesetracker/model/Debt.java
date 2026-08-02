@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 // Debito/finanziamento collegato a una categoria di spesa. L'importo pagato
@@ -40,6 +41,12 @@ public class Debt {
 
     @Column(name = "already_paid_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal alreadyPaidAmount;
+
+    // Confine tra "conteggiato in alreadyPaidAmount" e "conteggiato dalle
+    // transazioni": solo le transazioni con occurredOn successivo a questa
+    // data vengono sommate sopra alreadyPaidAmount (vedi DebtService).
+    @Column(name = "already_paid_as_of")
+    private LocalDate alreadyPaidAsOf;
 
     @Column(name = "monthly_payment_amount", precision = 10, scale = 2)
     private BigDecimal monthlyPaymentAmount;

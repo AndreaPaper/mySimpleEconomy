@@ -4,6 +4,7 @@ import com.spesetracker.model.Debt;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public record DebtResponse(
@@ -15,6 +16,7 @@ public record DebtResponse(
         String name,
         BigDecimal totalAmount,
         BigDecimal alreadyPaidAmount,
+        LocalDate alreadyPaidAsOf,
         BigDecimal paidAmount,
         BigDecimal remainingAmount,
         BigDecimal monthlyPaymentAmount,
@@ -36,6 +38,7 @@ public record DebtResponse(
                 debt.getName(),
                 debt.getTotalAmount(),
                 debt.getAlreadyPaidAmount(),
+                debt.getAlreadyPaidAsOf(),
                 paidAmount,
                 remainingAmount,
                 debt.getMonthlyPaymentAmount(),

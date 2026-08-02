@@ -41,13 +41,15 @@ public class DebtService {
     public DebtResponse create(UUID userId, DebtRequest request) {
         Category category = ownedExpenseCategory(userId, request.categoryId());
         ensureCategoryFree(category.getId(), null);
+        BigDecimal alreadyPaidAmount = validatedAlreadyPaidAmount(request);
 
         Debt debt = Debt.builder()
                 .user(userRepository.getReferenceById(userId))
                 .category(category)
                 .name(request.name())
                 .totalAmount(request.totalAmount())
-                .alreadyPaidAmount(request.alreadyPaidAmount() != null ? request.alreadyPaidAmount() : BigDecimal.ZERO)
+                .alreadyPaidAmount(alreadyPaidAmount)
+                .alreadyPaidAsOf(alreadyPaidAmount.compareTo(BigDecimal.ZERO) > 0 ? request.alreadyPaidAsOf() : null)
                 .monthlyPaymentAmount(request.monthlyPaymentAmount())
                 .build();
 
@@ -59,14 +61,28 @@ public class DebtService {
         Debt debt = findOwned(userId, id);
         Category category = ownedExpenseCategory(userId, request.categoryId());
         ensureCategoryFree(category.getId(), debt.getId());
+        BigDecimal alreadyPaidAmount = validatedAlreadyPaidAmount(request);
 
         debt.setCategory(category);
         debt.setName(request.name());
         debt.setTotalAmount(request.totalAmount());
-        debt.setAlreadyPaidAmount(request.alreadyPaidAmount() != null ? request.alreadyPaidAmount() : BigDecimal.ZERO);
+        debt.setAlreadyPaidAmount(alreadyPaidAmount);
+        debt.setAlreadyPaidAsOf(alreadyPaidAmount.compareTo(BigDecimal.ZERO) > 0 ? request.alreadyPaidAsOf() : null);
         debt.setMonthlyPaymentAmount(request.monthlyPaymentAmount());
 
         return toResponseAndSyncActive(debt);
+    }
+
+    // Se è impostato un importo già pagato, serve anche la data di riferimento,
+    // altrimenti le transazioni storiche della categoria rischiano di essere
+    // sommate di nuovo sopra un totale che probabilmente le include già.
+    private BigDecimal validatedAlreadyPaidAmount(DebtRequest request) {
+        BigDecimal alreadyPaidAmount = request.alreadyPaidAmount() != null ? request.alreadyPaidAmount() : BigDecimal.ZERO;
+        if (alreadyPaidAmount.compareTo(BigDecimal.ZERO) > 0 && request.alreadyPaidAsOf() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Indica da quale data in poi le spese vanno conteggiate separatamente dal già pagato");
+        }
+        return alreadyPaidAmount;
     }
 
     @Transactional
@@ -79,6 +95,9 @@ public class DebtService {
         BigDecimal paidFromTransactions = transactionRepository
                 .findByUserIdAndCategoryIdAndType(debt.getUser().getId(), debt.getCategory().getId(), TransactionType.EXPENSE)
                 .stream()
+                // Le transazioni fino ad alreadyPaidAsOf (compreso) si considerano già
+                // incluse in alreadyPaidAmount, per non contarle due volte.
+                .filter(t -> debt.getAlreadyPaidAsOf() == null || t.getOccurredOn().isAfter(debt.getAlreadyPaidAsOf()))
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 

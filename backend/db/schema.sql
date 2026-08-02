@@ -94,6 +94,11 @@ CREATE TABLE debts (
     total_amount NUMERIC(10,2) NOT NULL CHECK (total_amount > 0),
     already_paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0
         CHECK (already_paid_amount >= 0 AND already_paid_amount <= total_amount),
+    -- Confine tra "conteggiato in already_paid_amount" e "conteggiato dalle
+    -- transazioni": solo le transazioni della categoria con occurred_on
+    -- successivo a questa data vengono sommate sopra already_paid_amount,
+    -- per non contare due volte spese storiche già incluse nel totale manuale.
+    already_paid_as_of DATE CHECK (already_paid_as_of IS NULL OR already_paid_amount > 0),
     monthly_payment_amount NUMERIC(10,2) CHECK (monthly_payment_amount IS NULL OR monthly_payment_amount > 0),
     active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
