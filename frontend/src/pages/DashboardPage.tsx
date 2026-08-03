@@ -64,6 +64,16 @@ function monthNameCapitalized(yearMonth: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
+function defaultRangeStart(): string {
+  return `${new Date().getFullYear()}-01-01`
+}
+
+function defaultRangeEnd(): string {
+  const d = new Date()
+  d.setMonth(d.getMonth() + 6)
+  return d.toISOString().slice(0, 10)
+}
+
 function fullDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
   return fullDateFormatter.format(new Date(year, month - 1, day))
@@ -114,12 +124,32 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [monthCursor, setMonthCursor] = useState(0)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [rangeStart, setRangeStart] = useState(defaultRangeStart())
+  const [rangeEnd, setRangeEnd] = useState(defaultRangeEnd())
+
+  const today = new Date()
+  // Quanti mesi di forecast servono per coprire rangeEnd, partendo dal mese
+  // corrente (il forecast engine parte sempre da oggi, mai da rangeStart).
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const rangeEndDate = new Date(rangeEnd)
+  const endMonthStart = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth(), 1)
+  const monthsDiff =
+    (endMonthStart.getFullYear() - currentMonthStart.getFullYear()) * 12 +
+    (endMonthStart.getMonth() - currentMonthStart.getMonth())
+  const monthsParam = Math.min(24, Math.max(1, monthsDiff + 1))
+  const startMonthKey = rangeStart.slice(0, 7)
+  const endMonthKey = rangeEnd.slice(0, 7)
 
   const reload = () => {
-    const today = new Date()
-    // Finestra ampia (2 anni) per lo storico: copre praticamente qualsiasi
-    // utente senza dover sapere in anticipo da quando ha dati reali.
-    const historyStart = new Date(today.getFullYear() - 2, today.getMonth(), 1)
+    // Finestra ampia (2 anni) per lo storico di default: copre praticamente
+    // qualsiasi utente senza dover sapere in anticipo da quando ha dati
+    // reali, per la card "Spese per categoria" che permette di sfogliare
+    // periodi passati indipendentemente dal range scelto per il grafico.
+    // Si allarga oltre i 2 anni solo se l'utente sceglie un rangeStart
+    // ancora più indietro per il grafico "Andamento saldo".
+    const defaultHistoryStart = new Date(today.getFullYear() - 2, today.getMonth(), 1)
+    const chartHistoryStart = new Date(rangeStart)
+    const historyStart = chartHistoryStart < defaultHistoryStart ? chartHistoryStart : defaultHistoryStart
     const iso = (d: Date) => d.toISOString().slice(0, 10)
     const todayStr = iso(today)
     // Il limite superiore arriva fino alla fine del periodo personalizzato
@@ -129,7 +159,7 @@ export default function DashboardPage() {
     const currentPeriodEnd = periodRangeOf(periodKeyOf(todayStr, salaryDay), salaryDay).end
 
     return Promise.all([
-      forecastApi.get(4),
+      forecastApi.get(monthsParam),
       checkpointsApi.list(),
       transactionsApi.list(),
       transactionsApi.list({ from: iso(historyStart), to: currentPeriodEnd }),
@@ -154,7 +184,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     reload().finally(() => setLoading(false))
-  }, [salaryDay])
+  }, [salaryDay, rangeStart, rangeEnd])
 
   const closeQuickAdd = () => setQuickAddOpen(false)
 
@@ -197,7 +227,7 @@ export default function DashboardPage() {
 
   const latestCheckpoint = checkpoints[0] ?? null
   const currentMonth = forecast?.months[0] ?? null
-  const futureMonths = forecast?.months.slice(1, 4) ?? []
+  const futureMonths = monthsDiff >= 0 ? forecast?.months.slice(1, monthsParam) ?? [] : []
   const currentBalance = latestCheckpoint?.balance ?? forecast?.startingBalance ?? 0
 
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -218,10 +248,12 @@ export default function DashboardPage() {
   const totalHistoricalNet = historicalKeys.reduce((sum, k) => sum + (netByMonth.get(k) ?? 0), 0)
 
   let running = currentBalance - totalHistoricalNet
-  const historicalPoints: ChartPoint[] = historicalKeys.map((key) => {
-    running += netByMonth.get(key) ?? 0
-    return { label: monthLabel(key), actual: running, projected: null }
-  })
+  const historicalPoints: ChartPoint[] = historicalKeys
+    .map((key) => {
+      running += netByMonth.get(key) ?? 0
+      return { key, label: monthLabel(key), actual: running, projected: null }
+    })
+    .filter((p) => p.key >= startMonthKey && p.key <= endMonthKey)
 
   const chartData: ChartPoint[] = [
     ...historicalPoints,
@@ -294,7 +326,26 @@ export default function DashboardPage() {
 
   const balanceChartCard = (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-      <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
+        <div className="flex items-center gap-2 text-xs">
+          <input
+            type="date"
+            value={rangeStart}
+            onChange={(e) => setRangeStart(e.target.value)}
+            className="rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+            aria-label="Data inizio"
+          />
+          <span className="text-slate-400">→</span>
+          <input
+            type="date"
+            value={rangeEnd}
+            onChange={(e) => setRangeEnd(e.target.value)}
+            className="rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+            aria-label="Data fine"
+          />
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
