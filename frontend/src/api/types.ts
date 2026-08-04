@@ -141,7 +141,12 @@ export interface DataCleanupResult {
 
 export interface ExpenseReminder {
   id: string
+  categoryId: string | null
+  categoryName: string | null
+  categoryIcon: string | null
+  categoryColor: string | null
   name: string
+  amount: number | null
   intervalUnit: IntervalUnit
   intervalValue: number
   startDate: string

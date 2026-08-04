@@ -7,11 +7,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
     List<Transaction> findByUserIdOrderByOccurredOnDesc(UUID userId, Pageable pageable);
+
+    // Fallback di importo per la generazione da promemoria: l'ultima spesa
+    // registrata in quella categoria, se il promemoria non ha un prezzo suo.
+    Optional<Transaction> findFirstByUserIdAndCategoryIdAndTypeOrderByOccurredOnDesc(
+            UUID userId, UUID categoryId, TransactionType type);
+
+    // Dedup per il job di generazione a inizio mese: evita di duplicare la
+    // transazione se il job viene rieseguito nello stesso mese.
+    boolean existsByExpenseReminderIdAndOccurredOnBetween(UUID expenseReminderId, LocalDate from, LocalDate to);
 
     List<Transaction> findByUserIdAndOccurredOnBetween(UUID userId, LocalDate from, LocalDate to);
 

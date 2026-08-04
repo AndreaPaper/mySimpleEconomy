@@ -6,13 +6,15 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-// Promemoria di una spesa fissa futura, senza importo: serve solo a sapere "cosa e
-// quando" (es. bollo auto, assicurazione, IMU) per capire quali mesi avranno più
-// scadenze fisse. A differenza di RecurringTransaction non genera transazioni.
+// Promemoria di una spesa fissa futura (es. bollo auto, assicurazione, IMU),
+// con categoria e prezzo stimato opzionali. Se ha una categoria, il job di
+// inizio mese (ExpenseReminderGenerationService) genera automaticamente una
+// transazione EXPENSE riepilogativa per i mesi in cui è dovuto.
 @Entity
 @Table(name = "expense_reminders")
 @Getter
@@ -30,8 +32,15 @@ public class ExpenseReminder {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     @Column(nullable = false, length = 150)
     private String name;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)

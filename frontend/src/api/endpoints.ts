@@ -110,7 +110,9 @@ export const remindersApi = {
   upcoming: (months = 3) =>
     client.get<UpcomingRemindersResponse>('/expense-reminders/upcoming', { params: { months } }).then((r) => r.data),
   create: (data: {
+    categoryId: string
     name: string
+    amount?: number | null
     intervalUnit: string
     intervalValue: number
     startDate: string
@@ -121,7 +123,9 @@ export const remindersApi = {
   update: (
     id: string,
     data: {
+      categoryId: string
       name: string
+      amount?: number | null
       intervalUnit: string
       intervalValue: number
       startDate: string

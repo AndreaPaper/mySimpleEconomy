@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { remindersApi } from '../api/endpoints'
-import type { ExpenseReminder, IntervalUnit } from '../api/types'
+import { categoriesApi, remindersApi } from '../api/endpoints'
+import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
 import Modal from '../components/Modal'
 import ExpenseReminderForm from '../components/ExpenseReminderForm'
 import { ListPageSkeleton } from '../components/Skeleton'
 
+const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+
 export default function RemindersPage() {
   const [items, setItems] = useState<ExpenseReminder[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<ExpenseReminder | null>(null)
@@ -14,7 +17,7 @@ export default function RemindersPage() {
   const reload = () => remindersApi.list().then(setItems)
 
   useEffect(() => {
-    reload().finally(() => setLoading(false))
+    Promise.all([reload(), categoriesApi.list().then(setCategories)]).finally(() => setLoading(false))
   }, [])
 
   const openCreate = () => {
@@ -30,7 +33,9 @@ export default function RemindersPage() {
   const closeModal = () => setModalMode(null)
 
   const handleSubmit = async (data: {
+    categoryId: string
     name: string
+    amount: number | null
     intervalUnit: IntervalUnit
     intervalValue: number
     startDate: string
@@ -63,7 +68,8 @@ export default function RemindersPage() {
         <div>
           <h1 className="text-lg font-semibold">Promemoria spese fisse</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Senza importo: servono solo a ricordarti quando ricorrono, per capire quali mesi saranno più pesanti.
+            Ricordano quando ricorrono le spese fisse; con categoria e prezzo (opzionale), a inizio mese vengono
+            già contate come uscite.
           </p>
         </div>
         <button
@@ -87,6 +93,8 @@ export default function RemindersPage() {
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima: {r.nextDueDate}
+                  {r.categoryName && ` · ${r.categoryName}`}
+                  {r.amount != null && ` · ${currency.format(r.amount)}`}
                 </p>
               </div>
               <div className="flex gap-3 text-sm">
@@ -108,7 +116,7 @@ export default function RemindersPage() {
 
       {modalMode && (
         <Modal title={modalMode === 'edit' ? 'Modifica promemoria' : 'Nuovo promemoria'} onClose={closeModal}>
-          <ExpenseReminderForm initial={editing ?? undefined} onSubmit={handleSubmit} onCancel={closeModal} />
+          <ExpenseReminderForm categories={categories} initial={editing ?? undefined} onSubmit={handleSubmit} onCancel={closeModal} />
         </Modal>
       )}
     </div>

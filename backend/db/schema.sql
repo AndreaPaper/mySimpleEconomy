@@ -108,12 +108,17 @@ CREATE TABLE debts (
 -- libera la categoria per uno nuovo.
 CREATE UNIQUE INDEX idx_debts_active_category ON debts (category_id) WHERE active;
 
--- Promemoria di spese fisse future, senza importo: solo un promemoria di "cosa e quando",
--- per capire quali mesi avranno più uscite fisse. Non genera transazioni né importi.
+-- Promemoria di spese fisse future: un promemoria di "cosa e quando" (bollo
+-- auto, IMU, assicurazione...), con categoria e prezzo stimato opzionali.
+-- Se hanno una categoria, il job di inizio mese può generare automaticamente
+-- una transazione EXPENSE riepilogativa per il mese (vedi expense_reminder_id
+-- su transactions).
 CREATE TABLE expense_reminders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES categories(id) ON DELETE RESTRICT,
     name VARCHAR(150) NOT NULL,
+    amount NUMERIC(10,2) CHECK (amount IS NULL OR amount > 0),
     interval_unit interval_unit NOT NULL,
     interval_value SMALLINT NOT NULL DEFAULT 1 CHECK (interval_value > 0),
     start_date DATE NOT NULL,
@@ -125,3 +130,7 @@ CREATE TABLE expense_reminders (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_expense_reminders_next_due ON expense_reminders (next_due_date) WHERE active = true;
+
+-- Aggiunta qui (non nella CREATE TABLE transactions più sopra) perché
+-- expense_reminders viene creata solo a questo punto del file.
+ALTER TABLE transactions ADD COLUMN expense_reminder_id UUID REFERENCES expense_reminders(id) ON DELETE SET NULL;

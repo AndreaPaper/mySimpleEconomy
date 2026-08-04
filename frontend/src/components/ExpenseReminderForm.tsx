@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import type { ExpenseReminder, IntervalUnit } from '../api/types'
+import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
 
 interface ExpenseReminderFormProps {
+  categories: Category[]
   initial?: ExpenseReminder
   onSubmit: (data: {
+    categoryId: string
     name: string
+    amount: number | null
     intervalUnit: IntervalUnit
     intervalValue: number
     startDate: string
@@ -22,9 +25,12 @@ const INTERVAL_LABELS: Record<IntervalUnit, string> = {
   YEAR: 'anno/i',
 }
 
-export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: ExpenseReminderFormProps) {
+export default function ExpenseReminderForm({ categories, initial, onSubmit, onCancel }: ExpenseReminderFormProps) {
   const today = new Date().toISOString().slice(0, 10)
+  const expenseCategories = categories.filter((c) => c.type === 'EXPENSE')
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? expenseCategories[0]?.id ?? '')
   const [name, setName] = useState(initial?.name ?? '')
+  const [amount, setAmount] = useState(initial?.amount?.toString() ?? '')
   const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>(initial?.intervalUnit ?? 'MONTH')
   const [intervalValue, setIntervalValue] = useState(initial?.intervalValue?.toString() ?? '1')
   const [startDate, setStartDate] = useState(initial?.startDate ?? today)
@@ -40,7 +46,9 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
     setSaving(true)
     try {
       await onSubmit({
+        categoryId,
         name,
+        amount: amount === '' ? null : Number(amount),
         intervalUnit,
         intervalValue: Number(intervalValue),
         startDate,
@@ -55,9 +63,40 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
     }
   }
 
+  if (expenseCategories.length === 0) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Crea prima almeno una categoria di uscita.</p>
+        <div className="flex justify-end">
+          <button type="button" onClick={onCancel} className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">
+            Chiudi
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
+      <div>
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-category">
+          Categoria
+        </label>
+        <select
+          id="er-category"
+          required
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+        >
+          {expenseCategories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-name">
           Nome
@@ -70,6 +109,24 @@ export default function ExpenseReminderForm({ initial, onSubmit, onCancel }: Exp
           onChange={(e) => setName(e.target.value)}
           className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-amount">
+          Prezzo stimato (opzionale)
+        </label>
+        <input
+          id="er-amount"
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="es. 120.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+        />
+        <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
+          Se vuoto, a inizio mese verrà usato l'importo dell'ultima spesa registrata in questa categoria (se esiste).
+        </span>
       </div>
       <div className="flex gap-2">
         <div className="flex-1">

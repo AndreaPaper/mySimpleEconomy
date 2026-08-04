@@ -5,7 +5,10 @@ import com.spesetracker.dto.reminder.ExpenseReminderRequest;
 import com.spesetracker.dto.reminder.ExpenseReminderResponse;
 import com.spesetracker.dto.reminder.MonthlyReminders;
 import com.spesetracker.dto.reminder.UpcomingRemindersResponse;
+import com.spesetracker.model.Category;
 import com.spesetracker.model.ExpenseReminder;
+import com.spesetracker.model.enums.CategoryType;
+import com.spesetracker.repository.CategoryRepository;
 import com.spesetracker.repository.ExpenseReminderRepository;
 import com.spesetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import java.util.UUID;
 public class ExpenseReminderService {
 
     private final ExpenseReminderRepository expenseReminderRepository;
+    private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
@@ -38,9 +42,13 @@ public class ExpenseReminderService {
 
     @Transactional
     public ExpenseReminderResponse create(UUID userId, ExpenseReminderRequest request) {
+        Category category = ownedExpenseCategory(userId, request.categoryId());
+
         ExpenseReminder reminder = ExpenseReminder.builder()
                 .user(userRepository.getReferenceById(userId))
+                .category(category)
                 .name(request.name())
+                .amount(request.amount())
                 .intervalUnit(request.intervalUnit())
                 .intervalValue(request.intervalValue())
                 .startDate(request.startDate())
@@ -55,8 +63,11 @@ public class ExpenseReminderService {
     @Transactional
     public ExpenseReminderResponse update(UUID userId, UUID id, ExpenseReminderRequest request) {
         ExpenseReminder reminder = findOwned(userId, id);
+        Category category = ownedExpenseCategory(userId, request.categoryId());
 
+        reminder.setCategory(category);
         reminder.setName(request.name());
+        reminder.setAmount(request.amount());
         reminder.setIntervalUnit(request.intervalUnit());
         reminder.setIntervalValue(request.intervalValue());
         reminder.setStartDate(request.startDate());
@@ -65,6 +76,20 @@ public class ExpenseReminderService {
         reminder.setNotifyDaysBefore(request.notifyDaysBefore());
 
         return ExpenseReminderResponse.from(reminder);
+    }
+
+    private Category ownedExpenseCategory(UUID userId, UUID categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Categoria non trovata"));
+
+        if (!category.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Categoria non trovata");
+        }
+        if (category.getType() != CategoryType.EXPENSE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La categoria di un promemoria deve essere di tipo uscita");
+        }
+
+        return category;
     }
 
     @Transactional

@@ -19,5 +19,10 @@ public interface ExpenseReminderRepository extends JpaRepository<ExpenseReminder
     // Candidati per il job di notifica: promemoria attivi con preavviso configurato.
     List<ExpenseReminder> findByActiveTrueAndNotifyDaysBeforeIsNotNull();
 
+    // Candidati per il job di generazione a inizio mese: promemoria attivi,
+    // con una categoria assegnata (altrimenti non sapremmo su cosa registrare
+    // la transazione), la cui prossima scadenza cade nel mese indicato.
+    List<ExpenseReminder> findByActiveTrueAndCategoryIsNotNullAndNextDueDateBetween(LocalDate from, LocalDate to);
+
     long deleteByUserId(UUID userId);
 }

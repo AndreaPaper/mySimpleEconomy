@@ -38,6 +38,12 @@ public class Transaction {
     @JoinColumn(name = "recurring_transaction_id")
     private RecurringTransaction recurringTransaction;
 
+    // Nullo per le transazioni inserite manualmente, valorizzato per quelle
+    // generate dal job di inizio mese a partire da un promemoria.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "expense_reminder_id")
+    private ExpenseReminder expenseReminder;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
