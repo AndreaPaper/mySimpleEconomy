@@ -3,6 +3,7 @@ package com.spesetracker.repository;
 import com.spesetracker.model.Transaction;
 import com.spesetracker.model.enums.TransactionType;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -12,7 +13,11 @@ import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
-    List<Transaction> findByUserIdOrderByOccurredOnDesc(UUID userId, Pageable pageable);
+    // Elenco paginato "vedi tutto" (nessun intervallo di date): l'ordinamento
+    // arriva dal Pageable passato dal service, non dal nome del metodo.
+    Slice<Transaction> findByUserId(UUID userId, Pageable pageable);
+
+    Slice<Transaction> findByUserIdAndCategoryId(UUID userId, UUID categoryId, Pageable pageable);
 
     // Fallback di importo per la generazione da promemoria: l'ultima spesa
     // registrata in quella categoria, se il promemoria non ha un prezzo suo.

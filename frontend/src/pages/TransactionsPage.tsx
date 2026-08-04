@@ -11,6 +11,7 @@ import { cacheCategories, loadCachedCategories } from '../offline/categoriesCach
 import { getQueue, type QueuedTransaction } from '../offline/queue'
 import { periodKeyOf } from '../utils/period'
 
+const PAGE_SIZE = 30
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 
@@ -68,9 +69,33 @@ export default function TransactionsPage() {
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const prevPendingCount = useRef(pendingCount)
 
-  const reloadTransactions = () => transactionsApi.list().then(setTransactions).catch(() => {})
+  const reloadTransactions = () =>
+    transactionsApi
+      .list({ categoryId: categoryFilter || undefined, page: 0, size: PAGE_SIZE })
+      .then((res) => {
+        setTransactions(res.content)
+        setPage(0)
+        setHasMore(res.hasNext)
+      })
+      .catch(() => {})
+
+  const loadMore = async () => {
+    setLoadingMore(true)
+    try {
+      const res = await transactionsApi.list({ categoryId: categoryFilter || undefined, page: page + 1, size: PAGE_SIZE })
+      setTransactions((prev) => [...prev, ...res.content])
+      setPage((p) => p + 1)
+      setHasMore(res.hasNext)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -84,6 +109,11 @@ export default function TransactionsPage() {
         .catch(() => setCategories(loadCachedCategories())),
     ]).finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (loading) return
+    reloadTransactions()
+  }, [categoryFilter])
 
   useEffect(() => {
     setPendingItems(getQueue())
@@ -172,8 +202,10 @@ export default function TransactionsPage() {
 
   if (loading) return <TransactionsPageSkeleton />
 
+  const filteredPendingItems = categoryFilter ? pendingItems.filter((q) => q.categoryId === categoryFilter) : pendingItems
+
   const displayTransactions: DisplayTransaction[] = [
-    ...pendingItems.map((q) => toDisplayTransaction(q, categories)),
+    ...filteredPendingItems.map((q) => toDisplayTransaction(q, categories)),
     ...transactions,
   ].sort((a, b) => b.occurredOn.localeCompare(a.occurredOn))
 
@@ -198,6 +230,25 @@ export default function TransactionsPage() {
             Nuova transazione
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="tx-category-filter">
+          Categoria
+        </label>
+        <select
+          id="tx-category-filter"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="w-full max-w-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+        >
+          <option value="">Tutte le categorie</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {displayTransactions.length === 0 ? (
@@ -261,6 +312,18 @@ export default function TransactionsPage() {
               </ul>
             </div>
           ))}
+          {hasMore && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="rounded border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm hover:bg-slate-50 hover:dark:bg-zinc-900 disabled:opacity-50"
+              >
+                {loadingMore ? 'Caricamento...' : 'Carica altro'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

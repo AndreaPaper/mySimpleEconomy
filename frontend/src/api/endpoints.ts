@@ -12,6 +12,7 @@ import type {
   RecurringOverride,
   RecurringTransaction,
   Transaction,
+  TransactionPage,
   UpcomingRemindersResponse,
 } from './types'
 
@@ -39,8 +40,8 @@ export const categoriesApi = {
 }
 
 export const transactionsApi = {
-  list: (params?: { from?: string; to?: string; categoryId?: string }) =>
-    client.get<Transaction[]>('/transactions', { params }).then((r) => r.data),
+  list: (params?: { from?: string; to?: string; categoryId?: string; page?: number; size?: number }) =>
+    client.get<TransactionPage>('/transactions', { params }).then((r) => r.data),
   create: (data: {
     categoryId: string
     amount: number

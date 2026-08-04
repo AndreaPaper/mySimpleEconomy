@@ -24,6 +24,11 @@ export interface Transaction {
   recurringTransactionId: string | null
 }
 
+export interface TransactionPage {
+  content: Transaction[]
+  hasNext: boolean
+}
+
 export interface RecurringTransaction {
   id: string
   categoryId: string

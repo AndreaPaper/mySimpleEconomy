@@ -1,5 +1,6 @@
 package com.spesetracker.service;
 
+import com.spesetracker.dto.transaction.TransactionPageResponse;
 import com.spesetracker.dto.transaction.TransactionRequest;
 import com.spesetracker.dto.transaction.TransactionResponse;
 import com.spesetracker.model.Category;
@@ -9,6 +10,9 @@ import com.spesetracker.repository.TransactionRepository;
 import com.spesetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,26 +26,30 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TransactionService {
 
-    private static final int DEFAULT_RECENT_LIMIT = 50;
-
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<TransactionResponse> list(UUID userId, LocalDate from, LocalDate to, UUID categoryId) {
-        List<Transaction> transactions;
-
+    public TransactionPageResponse list(UUID userId, LocalDate from, LocalDate to, UUID categoryId, int page, int size) {
         if (from != null && to != null) {
-            transactions = (categoryId != null)
+            // Intervallo di date: comportamento invariato, elenco completo non
+            // paginato (usato da Dashboard/Export, che si aspettano tutto lo storico
+            // del periodo, non una pagina).
+            List<Transaction> transactions = (categoryId != null)
                     ? transactionRepository.findByUserIdAndCategoryIdAndOccurredOnBetween(userId, categoryId, from, to)
                     : transactionRepository.findByUserIdAndOccurredOnBetween(userId, from, to);
-        } else {
-            transactions = transactionRepository.findByUserIdOrderByOccurredOnDesc(
-                    userId, PageRequest.of(0, DEFAULT_RECENT_LIMIT));
+
+            return new TransactionPageResponse(transactions.stream().map(TransactionResponse::from).toList(), false);
         }
 
-        return transactions.stream().map(TransactionResponse::from).toList();
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "occurredOn", "createdAt"));
+        Slice<Transaction> slice = (categoryId != null)
+                ? transactionRepository.findByUserIdAndCategoryId(userId, categoryId, pageable)
+                : transactionRepository.findByUserId(userId, pageable);
+
+        return new TransactionPageResponse(
+                slice.getContent().stream().map(TransactionResponse::from).toList(), slice.hasNext());
     }
 
     @Transactional

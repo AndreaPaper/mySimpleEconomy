@@ -175,8 +175,8 @@ export default function DashboardPage() {
     ]).then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
       setForecast(forecastRes)
       setCheckpoints(checkpointsRes)
-      setRecentTransactions(recentRes)
-      setHistoricalTransactions(historicalRes)
+      setRecentTransactions(recentRes.content)
+      setHistoricalTransactions(historicalRes.content)
       setRecurring(recurringRes)
       setUpcomingReminders(remindersRes)
     })
