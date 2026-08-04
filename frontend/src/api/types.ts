@@ -160,6 +160,7 @@ export interface ExpenseReminderOccurrence {
   reminderId: string
   name: string
   date: string
+  amount: number | null
 }
 
 export interface MonthlyReminders {

@@ -493,12 +493,19 @@ export default function DashboardPage() {
                   {m.occurrences.map((o, i) => {
                     const badge = dayBadge(o.date)
                     return (
-                      <li key={i} className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-800 dark:bg-zinc-800 text-white">
-                          <span className="text-xs font-bold leading-none">{badge.day}</span>
-                          <span className="text-[9px] leading-none">{badge.month}</span>
+                      <li key={i} className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-800 dark:bg-zinc-800 text-white">
+                            <span className="text-xs font-bold leading-none">{badge.day}</span>
+                            <span className="text-[9px] leading-none">{badge.month}</span>
+                          </div>
+                          <span className="truncate text-sm font-medium">{o.name}</span>
                         </div>
-                        <span className="text-sm font-medium">{o.name}</span>
+                        {o.amount != null && (
+                          <span className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">
+                            {currency.format(o.amount)}
+                          </span>
+                        )}
                       </li>
                     )
                   })}

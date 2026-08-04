@@ -110,7 +110,7 @@ public class ExpenseReminderService {
             LocalDate cursor = reminder.getNextDueDate();
             while (!cursor.isAfter(horizonEndDate) && reminder.isCurrentlyActive(cursor)) {
                 byMonth.computeIfAbsent(YearMonth.from(cursor), k -> new ArrayList<>())
-                        .add(new ExpenseReminderOccurrence(reminder.getId(), reminder.getName(), cursor));
+                        .add(new ExpenseReminderOccurrence(reminder.getId(), reminder.getName(), cursor, reminder.getAmount()));
                 cursor = reminder.addInterval(cursor);
             }
         }
