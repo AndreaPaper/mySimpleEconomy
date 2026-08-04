@@ -77,6 +77,14 @@ public class RecurringTransactionService {
         findOwned(userId, id).setActive(active);
     }
 
+    // Le transazioni già generate restano (recurring_transaction_id passa a NULL,
+    // vedi schema.sql): elimina solo la regola e le sue eccezioni (cascade), non lo storico.
+    @Transactional
+    public void delete(UUID userId, UUID id) {
+        RecurringTransaction rt = findOwned(userId, id);
+        recurringTransactionRepository.delete(rt);
+    }
+
     public List<RecurringOverrideResponse> listOverrides(UUID userId, UUID recurringTransactionId) {
         findOwned(userId, recurringTransactionId);
         return recurringOverrideRepository.findByRecurringTransactionIdOrderByOccurrenceDateAsc(recurringTransactionId)

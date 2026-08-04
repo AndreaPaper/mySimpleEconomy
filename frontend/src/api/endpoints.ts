@@ -82,6 +82,7 @@ export const recurringApi = {
   ) => client.put<RecurringTransaction>(`/recurring-transactions/${id}`, data).then((r) => r.data),
   deactivate: (id: string) => client.post(`/recurring-transactions/${id}/deactivate`),
   reactivate: (id: string) => client.post(`/recurring-transactions/${id}/reactivate`),
+  delete: (id: string) => client.delete(`/recurring-transactions/${id}`),
   listOverrides: (id: string) =>
     client.get<RecurringOverride[]>(`/recurring-transactions/${id}/overrides`).then((r) => r.data),
   createOverride: (id: string, data: { occurrenceDate: string; overrideAmount: number; note?: string | null }) =>

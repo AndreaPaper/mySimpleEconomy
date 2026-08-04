@@ -62,6 +62,12 @@ export default function RecurringPage() {
     await reload()
   }
 
+  const handleDelete = async (item: RecurringTransaction) => {
+    if (!window.confirm(`Eliminare "${item.name}"? Le transazioni già generate non vengono toccate.`)) return
+    await recurringApi.delete(item.id)
+    await reload()
+  }
+
   if (loading) return <ListPageSkeleton />
 
   return (
@@ -117,6 +123,13 @@ export default function RecurringPage() {
                     className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
                   >
                     {r.active ? 'Disattiva' : 'Riattiva'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(r)}
+                    className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
+                  >
+                    Elimina
                   </button>
                 </div>
               </div>

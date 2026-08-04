@@ -55,6 +55,12 @@ public class RecurringTransactionController {
         recurringTransactionService.setActive(principal.getId(), id, true);
     }
 
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal UserPrincipal principal, @PathVariable UUID id) {
+        recurringTransactionService.delete(principal.getId(), id);
+    }
+
     @GetMapping("/{id}/overrides")
     public List<RecurringOverrideResponse> listOverrides(
             @AuthenticationPrincipal UserPrincipal principal, @PathVariable UUID id
