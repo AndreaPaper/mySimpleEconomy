@@ -53,4 +53,10 @@ public class CategoryController {
     public void archive(@AuthenticationPrincipal UserPrincipal principal, @PathVariable UUID id) {
         categoryService.archive(principal.getId(), id);
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal UserPrincipal principal, @PathVariable UUID id) {
+        categoryService.delete(principal.getId(), id);
+    }
 }

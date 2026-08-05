@@ -50,6 +50,20 @@ export default function CategoriesPage() {
     await reload()
   }
 
+  const handleDelete = async (category: Category) => {
+    if (!window.confirm(`Eliminare definitivamente "${category.name}"? A differenza dell'archiviazione, non si può annullare.`)) {
+      return
+    }
+    try {
+      await categoriesApi.delete(category.id)
+      await reload()
+    } catch {
+      window.alert(
+        'Impossibile eliminare: la categoria è collegata a transazioni, spese ricorrenti, debiti o promemoria. Prova ad archiviarla invece.',
+      )
+    }
+  }
+
   const handleGenerateDefaults = async () => {
     setGenerating(true)
     setGenerateFeedback(null)
@@ -114,6 +128,9 @@ export default function CategoriesPage() {
                 </button>
                 <button type="button" onClick={() => handleArchive(c)} className="text-slate-500 dark:text-slate-400 hover:underline">
                   Archivia
+                </button>
+                <button type="button" onClick={() => handleDelete(c)} className="text-slate-500 dark:text-slate-400 hover:underline">
+                  Elimina
                 </button>
               </div>
             </li>

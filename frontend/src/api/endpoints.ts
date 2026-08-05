@@ -38,6 +38,7 @@ export const categoriesApi = {
     client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
   archive: (id: string) => client.post(`/categories/${id}/archive`),
   generateDefaults: () => client.post<Category[]>('/categories/generate-defaults').then((r) => r.data),
+  delete: (id: string) => client.delete(`/categories/${id}`),
 }
 
 export const transactionsApi = {

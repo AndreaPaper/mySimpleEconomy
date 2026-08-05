@@ -9,6 +9,7 @@ import com.spesetracker.model.enums.CategoryType;
 import com.spesetracker.repository.CategoryRepository;
 import com.spesetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -119,6 +120,25 @@ public class CategoryService {
     public void archive(UUID userId, UUID categoryId) {
         Category category = findOwned(userId, categoryId);
         category.setArchived(true);
+    }
+
+    // Eliminazione definitiva, distinta dall'archiviazione: possibile solo se
+    // nessuna transazione/ricorrenza/debito/promemoria la referenzia ancora
+    // (tutte le FK verso categories sono ON DELETE RESTRICT). Si prova la
+    // delete e si intercetta il vincolo, invece di fare quattro query di
+    // esistenza separate per ogni tabella collegata.
+    @Transactional
+    public void delete(UUID userId, UUID categoryId) {
+        Category category = findOwned(userId, categoryId);
+
+        try {
+            categoryRepository.delete(category);
+            categoryRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Categoria in uso (transazioni, ricorrenze, debiti o promemoria collegati): archiviala invece di eliminarla");
+        }
     }
 
     private Category findOwned(UUID userId, UUID categoryId) {
