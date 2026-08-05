@@ -35,6 +35,11 @@ public class CategoryController {
         return categoryService.create(principal.getId(), request);
     }
 
+    @PostMapping("/generate-defaults")
+    public List<CategoryResponse> generateDefaults(@AuthenticationPrincipal UserPrincipal principal) {
+        return categoryService.generateDefaults(principal.getId());
+    }
+
     @PutMapping("/{id}")
     public CategoryResponse update(
             @AuthenticationPrincipal UserPrincipal principal,

@@ -11,6 +11,8 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Category | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generateFeedback, setGenerateFeedback] = useState<string | null>(null)
 
   const reload = () => categoriesApi.list().then(setCategories)
 
@@ -48,19 +50,44 @@ export default function CategoriesPage() {
     await reload()
   }
 
+  const handleGenerateDefaults = async () => {
+    setGenerating(true)
+    setGenerateFeedback(null)
+    try {
+      const createdCategories = await categoriesApi.generateDefaults()
+      await reload()
+      setGenerateFeedback(
+        createdCategories.length > 0 ? `${createdCategories.length} categorie aggiunte.` : 'Le avevi già tutte.',
+      )
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   if (loading) return <ListPageSkeleton />
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold">Categorie</h1>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
-        >
-          Nuova categoria
-        </button>
+        <div className="flex items-center gap-2">
+          {generateFeedback && <span className="text-sm text-slate-500 dark:text-slate-400">{generateFeedback}</span>}
+          <button
+            type="button"
+            onClick={handleGenerateDefaults}
+            disabled={generating}
+            className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm hover:bg-slate-50 hover:dark:bg-zinc-900 disabled:opacity-50"
+          >
+            {generating ? 'Generazione...' : 'Genera categorie predefinite'}
+          </button>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            Nuova categoria
+          </button>
+        </div>
       </div>
 
       {categories.length === 0 ? (
