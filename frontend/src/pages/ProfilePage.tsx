@@ -143,7 +143,10 @@ export default function ProfilePage() {
             placeholder="Es. 27"
             className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
-          <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">Giorno del mese (1-31) in cui ricevi lo stipendio.</span>
+          <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
+            Giorno del mese (1-31) in cui ricevi lo stipendio. Se compili sia questo campo che l'importo, ogni mese
+            viene aggiunta in automatico la transazione dello stipendio (visibile e modificabile in "Ricorrenti").
+          </span>
         </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

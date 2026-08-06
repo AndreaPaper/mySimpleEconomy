@@ -42,6 +42,13 @@ public class User {
     @Column(name = "avatar_key", length = 30)
     private String avatarKey;
 
+    // Regola ricorrente generata automaticamente da defaultSalaryAmount/salaryDay
+    // (vedi ProfileService). NULL se lo stipendio non è mai stato impostato, o se
+    // la regola è stata cancellata manualmente dalla pagina Ricorrenti.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "salary_recurring_transaction_id")
+    private RecurringTransaction salaryRecurringTransaction;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

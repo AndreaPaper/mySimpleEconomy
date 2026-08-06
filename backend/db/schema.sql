@@ -46,6 +46,13 @@ CREATE TABLE recurring_transactions (
 );
 CREATE INDEX idx_recurring_next_due ON recurring_transactions (next_due_date) WHERE active = true;
 
+-- Aggiunta qui (non nella CREATE TABLE users più in alto) perché
+-- recurring_transactions viene creata solo a questo punto del file. Collega
+-- lo stipendio del profilo alla regola ricorrente che lo genera in automatico
+-- (vedi ProfileService.syncSalaryRecurringTransaction), così un secondo
+-- salvataggio aggiorna la stessa regola invece di crearne una nuova.
+ALTER TABLE users ADD COLUMN salary_recurring_transaction_id UUID REFERENCES recurring_transactions(id) ON DELETE SET NULL;
+
 CREATE TABLE recurring_overrides (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     recurring_transaction_id UUID NOT NULL REFERENCES recurring_transactions(id) ON DELETE CASCADE,
