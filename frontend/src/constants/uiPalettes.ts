@@ -12,7 +12,7 @@ export const UI_PALETTES: UiPalette[] = [
   {
     key: 'colorhunt',
     label: 'Cielo pastello',
-    colors: { brand900: '#30AFFF', brand700: '#92EEFF', brand500: '#C4F7CA', brand100: '#D8FFC5' },
+    colors: { brand900: '#C4F7CA', brand700: '#30AFFF', brand500: '#92EEFF', brand100: '#D8FFC5' },
   },
   {
     key: 'classic',

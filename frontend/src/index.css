@@ -2,10 +2,20 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Default: palette "Cielo pastello" (Color Hunt). Selezionabile dalle
-   Impostazioni (PaletteContext), che imposta data-palette su <html>; le
-   regole sotto sovrascrivono queste custom property per le altre palette. */
+/* Default: palette "Cielo pastello" (Color Hunt), modalità chiara.
+   Selezionabile dalle Impostazioni (PaletteContext), che imposta
+   data-palette su <html>; le regole sotto sovrascrivono queste custom
+   property per la modalità scura e per le altre palette. */
 @theme {
+  --color-brand-700: #30AFFF; /* Primary Action / Accent */
+  --color-brand-500: #92EEFF; /* Secondary / Highlights */
+  --color-brand-100: #D8FFC5; /* Soft Background Fill */
+  --color-brand-900: #C4F7CA; /* Supporting / Card Background */
+}
+
+/* Modalità scura per "Cielo pastello": lasciata con la mappatura
+   precedente per ora, non ancora rivista. */
+html.dark {
   --color-brand-900: #30AFFF;
   --color-brand-700: #92EEFF;
   --color-brand-500: #C4F7CA;
