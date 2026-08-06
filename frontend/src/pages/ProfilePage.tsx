@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
-import { profileApi } from '../api/endpoints'
+import { checkpointsApi, profileApi } from '../api/endpoints'
+import type { BalanceCheckpoint } from '../api/types'
 import { useAuth } from '../context/AuthContext'
 import { ProfilePageSkeleton } from '../components/Skeleton'
 import { AVATAR_OPTIONS, getAvatarIcon } from '../constants/avatars'
+
+const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+const dateFormatter = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+function formatDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return dateFormatter.format(new Date(year, month - 1, day))
+}
 
 export default function ProfilePage() {
   const { setNickname: setGlobalNickname, setAvatarKey: setGlobalAvatarKey } = useAuth()
@@ -16,18 +25,47 @@ export default function ProfilePage() {
   const [salaryDay, setSalaryDay] = useState('')
   const [avatarKey, setAvatarKey] = useState<string | null>(null)
 
+  const today = new Date().toISOString().slice(0, 10)
+  const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
+  const [checkpointDate, setCheckpointDate] = useState(today)
+  const [checkpointBalance, setCheckpointBalance] = useState('')
+  const [checkpointSaving, setCheckpointSaving] = useState(false)
+  const [checkpointError, setCheckpointError] = useState<string | null>(null)
+  const [checkpointSaved, setCheckpointSaved] = useState(false)
+
+  const reloadCheckpoints = () => checkpointsApi.list().then(setCheckpoints)
+
   useEffect(() => {
-    profileApi
-      .get()
-      .then((profile) => {
+    Promise.all([
+      profileApi.get().then((profile) => {
         setEmail(profile.email)
         setNickname(profile.nickname ?? '')
         setDefaultSalaryAmount(profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '')
         setSalaryDay(profile.salaryDay != null ? String(profile.salaryDay) : '')
         setAvatarKey(profile.avatarKey)
-      })
-      .finally(() => setLoading(false))
+      }),
+      reloadCheckpoints(),
+    ]).finally(() => setLoading(false))
   }, [])
+
+  const latestCheckpoint = checkpoints[0] ?? null
+
+  const handleCheckpointSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCheckpointError(null)
+    setCheckpointSaved(false)
+    setCheckpointSaving(true)
+    try {
+      await checkpointsApi.upsert({ checkpointDate, balance: Number(checkpointBalance) })
+      await reloadCheckpoints()
+      setCheckpointBalance('')
+      setCheckpointSaved(true)
+    } catch {
+      setCheckpointError('Salvataggio non riuscito. Controlla i valori inseriti.')
+    } finally {
+      setCheckpointSaving(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -158,6 +196,58 @@ export default function ProfilePage() {
           className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio in corso...' : 'Salva'}
+        </button>
+      </form>
+
+      <form
+        onSubmit={handleCheckpointSubmit}
+        className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6"
+      >
+        <div>
+          <h2 className="text-sm font-medium text-slate-900 dark:text-white">Saldo</h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {latestCheckpoint
+              ? `Ultimo saldo registrato: ${currency.format(latestCheckpoint.balance)} al ${formatDate(latestCheckpoint.checkpointDate)}.`
+              : 'Nessun saldo registrato ancora: la Dashboard parte da 0€ finché non ne inserisci uno.'}
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <label className="flex-1 text-sm">
+            <span className="mb-1 block text-slate-600 dark:text-slate-300">Data</span>
+            <input
+              type="date"
+              value={checkpointDate}
+              onChange={(e) => setCheckpointDate(e.target.value)}
+              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            />
+          </label>
+          <label className="flex-1 text-sm">
+            <span className="mb-1 block text-slate-600 dark:text-slate-300">Saldo a quella data</span>
+            <input
+              type="number"
+              step="0.01"
+              required
+              value={checkpointBalance}
+              onChange={(e) => setCheckpointBalance(e.target.value)}
+              placeholder="Es. 1500.00"
+              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            />
+          </label>
+        </div>
+        <span className="block text-xs text-slate-400 dark:text-slate-500">
+          Se inserisci un saldo per una data già registrata, la sovrascrive.
+        </span>
+
+        {checkpointError && <p className="text-sm text-red-600">{checkpointError}</p>}
+        {checkpointSaved && !checkpointError && <p className="text-sm text-emerald-600">Saldo salvato.</p>}
+
+        <button
+          type="submit"
+          disabled={checkpointSaving}
+          className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
+        >
+          {checkpointSaving ? 'Salvataggio in corso...' : 'Salva saldo'}
         </button>
       </form>
     </div>
