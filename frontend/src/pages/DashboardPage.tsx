@@ -474,7 +474,7 @@ export default function DashboardPage() {
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
       <p className="mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Spese fisse nei prossimi mesi</p>
       <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">
-        Promemoria senza importo: utile per capire quali mesi avranno più scadenze.
+        L'importo (~ se stimato dall'ultima spesa della categoria) aiuta a capire quali mesi saranno più pesanti.
       </p>
       {!upcomingReminders || upcomingReminders.months.every((m) => m.occurrences.length === 0) ? (
         <p className="text-sm text-slate-400 dark:text-slate-500">Nessun promemoria configurato.</p>
@@ -502,7 +502,11 @@ export default function DashboardPage() {
                           <span className="truncate text-sm font-medium">{o.name}</span>
                         </div>
                         {o.amount != null && (
-                          <span className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">
+                          <span
+                            className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400"
+                            title={o.estimated ? 'Stima dall\'ultima spesa della categoria' : undefined}
+                          >
+                            {o.estimated && '~'}
                             {currency.format(o.amount)}
                           </span>
                         )}

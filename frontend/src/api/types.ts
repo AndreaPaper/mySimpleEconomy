@@ -166,6 +166,7 @@ export interface ExpenseReminderOccurrence {
   name: string
   date: string
   amount: number | null
+  estimated: boolean
 }
 
 export interface MonthlyReminders {
