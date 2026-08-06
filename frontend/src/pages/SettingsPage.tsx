@@ -5,6 +5,8 @@ import type { DataCleanupResult } from '../api/types'
 import Modal from '../components/Modal'
 import { useTheme } from '../context/ThemeContext'
 import { useCaseStyle } from '../context/CaseStyleContext'
+import { usePalette } from '../context/PaletteContext'
+import { UI_PALETTES } from '../constants/uiPalettes'
 
 const CONFIRM_WORD = 'ELIMINA'
 
@@ -22,6 +24,7 @@ function ResultSummary({ result }: { result: DataCleanupResult }) {
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme()
   const { caseStyle, toggleCaseStyle } = useCaseStyle()
+  const { paletteKey, setPaletteKey } = usePalette()
   const [fullWipeOpen, setFullWipeOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [from, setFrom] = useState('')
@@ -94,6 +97,32 @@ export default function SettingsPage() {
             }`}
           />
         </button>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+        <h2 className="mb-1 font-medium dark:text-white">Palette colori</h2>
+        <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">Scegli i colori dell'interfaccia.</p>
+        <div className="flex flex-wrap gap-3">
+          {UI_PALETTES.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPaletteKey(p.key)}
+              className={`flex flex-col items-center gap-2 rounded-lg border-2 p-2 ${
+                paletteKey === p.key
+                  ? 'border-brand-700 bg-brand-100 dark:bg-brand-900'
+                  : 'border-slate-300 dark:border-slate-700'
+              }`}
+            >
+              <div className="flex overflow-hidden rounded">
+                {[p.colors.brand900, p.colors.brand700, p.colors.brand500, p.colors.brand100].map((c) => (
+                  <span key={c} className="h-6 w-6" style={{ backgroundColor: c }} />
+                ))}
+              </div>
+              <span className="text-xs text-slate-600 dark:text-slate-300">{p.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">

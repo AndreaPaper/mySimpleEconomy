@@ -2,7 +2,17 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Default: palette "Cielo pastello" (Color Hunt). Selezionabile dalle
+   Impostazioni (PaletteContext), che imposta data-palette su <html>; le
+   regole sotto sovrascrivono queste custom property per le altre palette. */
 @theme {
+  --color-brand-900: #30AFFF;
+  --color-brand-700: #92EEFF;
+  --color-brand-500: #C4F7CA;
+  --color-brand-100: #D8FFC5;
+}
+
+html[data-palette="classic"] {
   --color-brand-900: #1B3C53;
   --color-brand-700: #234C6A;
   --color-brand-500: #456882;

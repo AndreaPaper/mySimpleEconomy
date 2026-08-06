@@ -2,6 +2,7 @@ import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { CaseStyleProvider } from './context/CaseStyleContext'
+import { PaletteProvider } from './context/PaletteContext'
 import { OfflineSyncProvider } from './context/OfflineSyncContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
@@ -21,30 +22,32 @@ function App() {
   return (
     <ThemeProvider>
       <CaseStyleProvider>
-        <OfflineSyncProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<Layout />}>
-                    <Route path="/" element={<DashboardPage />} />
-                    <Route path="/transazioni" element={<TransactionsPage />} />
-                    <Route path="/categorie" element={<CategoriesPage />} />
-                    <Route path="/ricorrenti" element={<RecurringPage />} />
-                    <Route path="/debiti" element={<DebtsPage />} />
-                    <Route path="/promemoria" element={<RemindersPage />} />
-                    <Route path="/importa" element={<ImportPage />} />
-                    <Route path="/impostazioni" element={<SettingsPage />} />
-                    <Route path="/profilo" element={<ProfilePage />} />
+        <PaletteProvider>
+          <OfflineSyncProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<Layout />}>
+                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/transazioni" element={<TransactionsPage />} />
+                      <Route path="/categorie" element={<CategoriesPage />} />
+                      <Route path="/ricorrenti" element={<RecurringPage />} />
+                      <Route path="/debiti" element={<DebtsPage />} />
+                      <Route path="/promemoria" element={<RemindersPage />} />
+                      <Route path="/importa" element={<ImportPage />} />
+                      <Route path="/impostazioni" element={<SettingsPage />} />
+                      <Route path="/profilo" element={<ProfilePage />} />
+                    </Route>
                   </Route>
-                </Route>
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </BrowserRouter>
-          </AuthProvider>
-        </OfflineSyncProvider>
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </BrowserRouter>
+            </AuthProvider>
+          </OfflineSyncProvider>
+        </PaletteProvider>
       </CaseStyleProvider>
     </ThemeProvider>
   )
