@@ -59,7 +59,7 @@ export default function CategoryForm({ initial, onSubmit, onCancel }: CategoryFo
                 type="button"
                 onClick={() => setType(t)}
                 className={`rounded border px-3 py-1.5 text-sm ${
-                  type === t ? 'border-green-600 bg-green-50 text-green-700' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                  type === t ? 'border-brand-700 bg-brand-100 text-brand-700' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {t === 'EXPENSE' ? 'Uscita' : 'Entrata'}
@@ -118,7 +118,7 @@ export default function CategoryForm({ initial, onSubmit, onCancel }: CategoryFo
         <button
           type="submit"
           disabled={saving}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>

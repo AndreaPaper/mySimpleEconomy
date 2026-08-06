@@ -183,7 +183,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
         <button
           type="submit"
           disabled={saving}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>

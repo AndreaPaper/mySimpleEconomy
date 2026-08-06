@@ -80,7 +80,7 @@ export default function BottomNav({ nickname, email, avatarKey, onLogout }: Bott
             title={item.label}
             className={({ isActive }) =>
               `flex flex-1 items-center justify-center py-3 ${
-                isActive ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'
+                isActive ? 'text-brand-700' : 'text-slate-500 dark:text-slate-400'
               }`
             }
           >
@@ -125,7 +125,7 @@ export default function BottomNav({ nickname, email, avatarKey, onLogout }: Bott
                     onClick={() => setMoreOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded px-3 py-3 text-sm ${
-                        isActive ? 'bg-green-50 font-medium text-green-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-zinc-800'
+                        isActive ? 'bg-brand-100 font-medium text-brand-700' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-zinc-800'
                       }`
                     }
                   >

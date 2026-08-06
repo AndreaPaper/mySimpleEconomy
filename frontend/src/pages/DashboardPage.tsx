@@ -352,12 +352,12 @@ export default function DashboardPage() {
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} width={70} />
           <Tooltip formatter={(value) => currency.format(Number(value))} />
-          <Line type="monotone" dataKey="actual" name="Storico" stroke="#16a34a" strokeWidth={2} connectNulls={false} dot={false} />
+          <Line type="monotone" dataKey="actual" name="Storico" stroke="#234C6A" strokeWidth={2} connectNulls={false} dot={false} />
           <Line
             type="monotone"
             dataKey="projected"
             name="Previsto"
-            stroke="#16a34a"
+            stroke="#234C6A"
             strokeWidth={2}
             strokeDasharray="5 5"
             connectNulls={false}
@@ -609,7 +609,7 @@ export default function DashboardPage() {
         type="button"
         onClick={() => setQuickAddOpen(true)}
         aria-label="Nuova transazione"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+72px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-white shadow-lg hover:bg-green-700 md:hidden"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+72px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-lg hover:bg-brand-900 md:hidden"
       >
         <Plus className="h-6 w-6" />
       </button>

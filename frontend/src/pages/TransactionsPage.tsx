@@ -225,7 +225,7 @@ export default function TransactionsPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
           >
             Nuova transazione
           </button>
@@ -292,7 +292,7 @@ export default function TransactionsPage() {
                           onClick={() => openEdit(t)}
                           disabled={actionsDisabled}
                           title={offlineLike ? 'Non disponibile offline' : undefined}
-                          className="-m-1 p-1 text-sm text-green-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
+                          className="-m-1 p-1 text-sm text-brand-700 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                         >
                           Modifica
                         </button>

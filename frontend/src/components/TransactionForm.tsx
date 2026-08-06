@@ -105,7 +105,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             onClick={() => handleTypeChange('EXPENSE')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'EXPENSE'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -116,7 +116,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             onClick={() => handleTypeChange('INCOME')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'INCOME'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -189,7 +189,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
                 type="button"
                 onClick={handleCreateCategory}
                 disabled={creatingCategorySaving || !newCategoryName.trim()}
-                className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                className="rounded bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
               >
                 {creatingCategorySaving ? 'Creazione...' : 'Crea categoria'}
               </button>
@@ -203,7 +203,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             <button
               type="button"
               onClick={() => handleCategorySelectChange(NEW_CATEGORY_VALUE)}
-              className="shrink-0 text-sm font-medium text-green-600 hover:underline"
+              className="shrink-0 text-sm font-medium text-brand-700 hover:underline"
             >
               + Nuova categoria
             </button>
@@ -270,7 +270,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
         <button
           type="submit"
           disabled={saving || creatingCategory || !categoryId}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>

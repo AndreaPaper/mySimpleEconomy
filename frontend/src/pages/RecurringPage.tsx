@@ -77,7 +77,7 @@ export default function RecurringPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
         >
           Nuova regola
         </button>
@@ -106,14 +106,14 @@ export default function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    className="-m-1 p-1 text-sm text-green-600 hover:underline"
+                    className="-m-1 p-1 text-sm text-brand-700 hover:underline"
                   >
                     Eccezioni
                   </button>
                   <button
                     type="button"
                     onClick={() => openEdit(r)}
-                    className="-m-1 p-1 text-sm text-green-600 hover:underline"
+                    className="-m-1 p-1 text-sm text-brand-700 hover:underline"
                   >
                     Modifica
                   </button>

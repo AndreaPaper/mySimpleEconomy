@@ -75,7 +75,7 @@ export default function DebtsPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
         >
           Nuovo debito
         </button>
@@ -105,7 +105,7 @@ export default function DebtsPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-3 text-sm">
-                    <button type="button" onClick={() => openEdit(d)} className="text-green-600 hover:underline">
+                    <button type="button" onClick={() => openEdit(d)} className="text-brand-700 hover:underline">
                       Modifica
                     </button>
                     <button type="button" onClick={() => handleDelete(d)} className="text-slate-500 dark:text-slate-400 hover:underline">
@@ -116,7 +116,7 @@ export default function DebtsPage() {
 
                 <div className="h-2 rounded-full bg-slate-100 dark:bg-zinc-800">
                   <div
-                    className="h-2 rounded-full bg-green-600"
+                    className="h-2 rounded-full bg-brand-700"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

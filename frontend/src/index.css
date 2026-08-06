@@ -2,6 +2,13 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --color-brand-900: #1B3C53;
+  --color-brand-700: #234C6A;
+  --color-brand-500: #456882;
+  --color-brand-100: #E3E3E3;
+}
+
 @font-face {
   font-family: "Lemon Milk";
   src: url("./assets/fonts/lemonMilk/LEMONMILK-Regular.otf") format("opentype");

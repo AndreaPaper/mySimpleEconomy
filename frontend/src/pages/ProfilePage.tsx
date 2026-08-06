@@ -75,7 +75,7 @@ export default function ProfilePage() {
               onClick={() => setAvatarKey(null)}
               className={`flex h-11 w-11 items-center justify-center rounded-full border-2 ${
                 avatarKey === null
-                  ? 'border-green-600 bg-green-50 dark:bg-green-950'
+                  ? 'border-brand-700 bg-brand-100 dark:bg-brand-900'
                   : 'border-slate-300 dark:border-slate-700'
               }`}
               aria-label="Nessun avatar (icona di default)"
@@ -93,7 +93,7 @@ export default function ProfilePage() {
                 onClick={() => setAvatarKey(key)}
                 className={`flex h-11 w-11 items-center justify-center rounded-full border-2 ${
                   avatarKey === key
-                    ? 'border-green-600 bg-green-50 dark:bg-green-950'
+                    ? 'border-brand-700 bg-brand-100 dark:bg-brand-900'
                     : 'border-slate-300 dark:border-slate-700'
                 }`}
                 aria-label={label}
@@ -155,7 +155,7 @@ export default function ProfilePage() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio in corso...' : 'Salva'}
         </button>

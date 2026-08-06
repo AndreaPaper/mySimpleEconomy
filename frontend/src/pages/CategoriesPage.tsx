@@ -97,7 +97,7 @@ export default function CategoriesPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
           >
             Nuova categoria
           </button>
@@ -123,7 +123,7 @@ export default function CategoriesPage() {
                 <span className="text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
               </div>
               <div className="flex gap-3 text-sm">
-                <button type="button" onClick={() => openEdit(c)} className="text-green-600 hover:underline">
+                <button type="button" onClick={() => openEdit(c)} className="text-brand-700 hover:underline">
                   Modifica
                 </button>
                 <button type="button" onClick={() => handleArchive(c)} className="text-slate-500 dark:text-slate-400 hover:underline">

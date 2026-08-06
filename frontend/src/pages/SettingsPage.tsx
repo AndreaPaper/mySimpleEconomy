@@ -85,7 +85,7 @@ export default function SettingsPage() {
           aria-checked={theme === 'dark'}
           onClick={toggleTheme}
           className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-            theme === 'dark' ? 'bg-green-600' : 'bg-slate-300'
+            theme === 'dark' ? 'bg-brand-700' : 'bg-slate-300'
           }`}
         >
           <span
@@ -109,7 +109,7 @@ export default function SettingsPage() {
           aria-checked={caseStyle === 'uppercase'}
           onClick={toggleCaseStyle}
           className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-            caseStyle === 'uppercase' ? 'bg-green-600' : 'bg-slate-300'
+            caseStyle === 'uppercase' ? 'bg-brand-700' : 'bg-slate-300'
           }`}
         >
           <span
@@ -129,7 +129,7 @@ export default function SettingsPage() {
         </div>
         <Link
           to="/importa"
-          className="shrink-0 rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+          className="shrink-0 rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
         >
           Importa
         </Link>

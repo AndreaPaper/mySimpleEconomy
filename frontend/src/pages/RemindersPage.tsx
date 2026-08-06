@@ -75,7 +75,7 @@ export default function RemindersPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
         >
           Nuovo promemoria
         </button>
@@ -98,7 +98,7 @@ export default function RemindersPage() {
                 </p>
               </div>
               <div className="flex gap-3 text-sm">
-                <button type="button" onClick={() => openEdit(r)} className="-m-1 p-1 text-green-600 hover:underline">
+                <button type="button" onClick={() => openEdit(r)} className="-m-1 p-1 text-brand-700 hover:underline">
                   Modifica
                 </button>
                 <button

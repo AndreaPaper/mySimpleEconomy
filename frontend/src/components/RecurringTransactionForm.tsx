@@ -107,7 +107,7 @@ export default function RecurringTransactionForm({
             onClick={() => handleTypeChange('EXPENSE')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'EXPENSE'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -118,7 +118,7 @@ export default function RecurringTransactionForm({
             onClick={() => handleTypeChange('INCOME')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'INCOME'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -242,7 +242,7 @@ export default function RecurringTransactionForm({
         <button
           type="submit"
           disabled={saving || categoriesForType.length === 0}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>

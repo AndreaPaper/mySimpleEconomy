@@ -26,7 +26,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-green-100 via-green-50 to-white px-4 dark:from-green-950 dark:via-black dark:to-black">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-brand-100 via-brand-100 to-white px-4 dark:from-brand-900 dark:via-black dark:to-black">
       <img src={logo} alt="MySimpleEconomy" className="h-16 w-16" />
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-black">
         <h1 className="text-xl font-semibold dark:text-white">Crea il tuo account</h1>
@@ -57,12 +57,12 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="w-full rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {loading ? 'Registrazione in corso...' : 'Registrati'}
         </button>
         <p className="text-center text-sm text-slate-600 dark:text-slate-300">
-          Hai già un account? <Link to="/login" className="text-green-600">Accedi</Link>
+          Hai già un account? <Link to="/login" className="text-brand-700">Accedi</Link>
         </p>
       </form>
     </div>
