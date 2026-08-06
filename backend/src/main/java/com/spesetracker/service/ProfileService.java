@@ -2,6 +2,7 @@ package com.spesetracker.service;
 
 import com.spesetracker.dto.profile.ProfileResponse;
 import com.spesetracker.dto.profile.ProfileUpdateRequest;
+import com.spesetracker.job.RecurringTransactionGenerationService;
 import com.spesetracker.model.AvatarCatalog;
 import com.spesetracker.model.Category;
 import com.spesetracker.model.RecurringTransaction;
@@ -34,6 +35,7 @@ public class ProfileService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final RecurringTransactionRepository recurringTransactionRepository;
+    private final RecurringTransactionGenerationService generationService;
 
     @Transactional(readOnly = true)
     public ProfileResponse get(UUID userId) {
@@ -81,7 +83,17 @@ public class ProfileService {
             return;
         }
 
-        LocalDate nextDueDate = nextOccurrenceOfDay(day, LocalDate.now());
+        LocalDate today = LocalDate.now();
+        // Alla prima attivazione (o riattivazione dopo aver svuotato lo
+        // stipendio) si usa il giorno di QUESTO mese anche se già passato,
+        // così lo stipendio del mese corrente viene generato subito sotto
+        // invece di aspettare il mese prossimo. Se la regola è già attiva
+        // (semplice modifica di importo/giorno), si guarda solo in avanti,
+        // per non rigenerare due volte lo stipendio dello stesso mese.
+        boolean isNewOrReactivating = rule == null || !Boolean.TRUE.equals(rule.getActive());
+        LocalDate nextDueDate = isNewOrReactivating
+                ? today.withDayOfMonth(Math.min(day, today.lengthOfMonth()))
+                : nextOccurrenceOfDay(day, today);
 
         if (rule == null) {
             RecurringTransaction created = RecurringTransaction.builder()
@@ -94,13 +106,16 @@ public class ProfileService {
                     .startDate(nextDueDate)
                     .nextDueDate(nextDueDate)
                     .build();
-            user.setSalaryRecurringTransaction(recurringTransactionRepository.save(created));
+            recurringTransactionRepository.save(created);
+            user.setSalaryRecurringTransaction(created);
+            generationService.processDueRule(created.getId(), today);
             return;
         }
 
         rule.setDefaultAmount(amount);
         rule.setNextDueDate(nextDueDate);
         rule.setActive(true);
+        generationService.processDueRule(rule.getId(), today);
     }
 
     private Category salaryCategory(User user) {
