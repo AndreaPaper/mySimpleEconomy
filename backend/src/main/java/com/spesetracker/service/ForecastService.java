@@ -71,6 +71,12 @@ public class ForecastService {
                 .findByUserIdAndOccurredOnBetween(userId, checkpointDate.plusDays(1), today);
         actualSinceCheckpoint.forEach(t -> categoryLookup.putIfAbsent(t.getCategory().getId(), t.getCategory()));
 
+        // Saldo vero, adesso: checkpoint più tutte le transazioni reali da allora ad
+        // oggi incluso (l'intera actualSinceCheckpoint, non solo la parte pre-orizzonte).
+        BigDecimal currentBalance = checkpointBalance.add(actualSinceCheckpoint.stream()
+                .map(this::signedAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+
         BigDecimal preHorizonDelta = actualSinceCheckpoint.stream()
                 .filter(t -> t.getOccurredOn().isBefore(currentMonth.atDay(1)))
                 .map(this::signedAmount)
@@ -190,6 +196,7 @@ public class ForecastService {
         return new ForecastResponse(
                 checkpoint.map(BalanceCheckpoint::getCheckpointDate).orElse(null),
                 checkpointBalance,
+                currentBalance,
                 monthlyForecasts
         );
     }

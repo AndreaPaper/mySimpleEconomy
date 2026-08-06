@@ -228,7 +228,7 @@ export default function DashboardPage() {
   const latestCheckpoint = checkpoints[0] ?? null
   const currentMonth = forecast?.months[0] ?? null
   const futureMonths = monthsDiff >= 0 ? forecast?.months.slice(1, monthsParam) ?? [] : []
-  const currentBalance = latestCheckpoint?.balance ?? forecast?.startingBalance ?? 0
+  const currentBalance = forecast?.currentBalance ?? latestCheckpoint?.balance ?? 0
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const currentCalendarKey = todayStr.slice(0, 7)
@@ -312,7 +312,7 @@ export default function DashboardPage() {
   const summaryCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo attuale{latestCheckpoint ? ` (${latestCheckpoint.checkpointDate})` : ''}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo attuale</p>
         <p className="text-2xl font-semibold">{currency.format(currentBalance)}</p>
       </div>
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">

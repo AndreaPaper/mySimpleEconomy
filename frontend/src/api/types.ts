@@ -74,6 +74,7 @@ export interface MonthlyForecast {
 export interface ForecastResponse {
   startingBalanceDate: string | null
   startingBalance: number
+  currentBalance: number
   months: MonthlyForecast[]
 }
 
