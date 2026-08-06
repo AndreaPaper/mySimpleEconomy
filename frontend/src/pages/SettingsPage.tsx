@@ -4,6 +4,7 @@ import { dataCleanupApi } from '../api/endpoints'
 import type { DataCleanupResult } from '../api/types'
 import Modal from '../components/Modal'
 import { useTheme } from '../context/ThemeContext'
+import { useCaseStyle } from '../context/CaseStyleContext'
 
 const CONFIRM_WORD = 'ELIMINA'
 
@@ -20,6 +21,7 @@ function ResultSummary({ result }: { result: DataCleanupResult }) {
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme()
+  const { caseStyle, toggleCaseStyle } = useCaseStyle()
   const [fullWipeOpen, setFullWipeOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [from, setFrom] = useState('')
@@ -89,6 +91,30 @@ export default function SettingsPage() {
           <span
             className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
               theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+        <div>
+          <h2 className="font-medium dark:text-white">Testo maiuscolo</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Disattiva per vedere le scritte (incluse le categorie che crei) come le scrivi, non tutte in maiuscolo.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={caseStyle === 'uppercase'}
+          onClick={toggleCaseStyle}
+          className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+            caseStyle === 'uppercase' ? 'bg-green-600' : 'bg-slate-300'
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              caseStyle === 'uppercase' ? 'translate-x-6' : 'translate-x-1'
             }`}
           />
         </button>

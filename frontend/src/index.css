@@ -36,7 +36,20 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Ginevra";
+  src: url("./assets/fonts/ginevra/GinevraDemo.ttf") format("truetype");
+  font-display: swap;
+}
+
 body {
   margin: 0;
   font-family: "Lemon Milk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Attivata dal toggle "Testo maiuscolo" nelle Impostazioni (CaseStyleContext):
+   Lemon Milk non ha minuscole, quindi la modalità "misto" cambia font invece
+   di provare a togliere una trasformazione CSS che non esiste. */
+html.mixed-case body {
+  font-family: "Ginevra", ui-sans-serif, system-ui, sans-serif;
 }
