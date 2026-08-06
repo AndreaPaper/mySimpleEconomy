@@ -61,7 +61,7 @@ export default function RecurringTransactionForm({
         intervalUnit,
         intervalValue: Number(intervalValue),
         startDate,
-        nextDueDate,
+        nextDueDate: initial ? nextDueDate : startDate,
         endDate: endDate || null,
       })
     } catch {
@@ -210,19 +210,21 @@ export default function RecurringTransactionForm({
           className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
-      <div>
-        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-next">
-          Prossima scadenza
-        </label>
-        <input
-          id="rt-next"
-          type="date"
-          required
-          value={nextDueDate}
-          onChange={(e) => setNextDueDate(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-        />
-      </div>
+      {initial && (
+        <div>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-next">
+            Prossima scadenza
+          </label>
+          <input
+            id="rt-next"
+            type="date"
+            required
+            value={nextDueDate}
+            onChange={(e) => setNextDueDate(e.target.value)}
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          />
+        </div>
+      )}
       <div>
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-end">
           Data di fine (opzionale)

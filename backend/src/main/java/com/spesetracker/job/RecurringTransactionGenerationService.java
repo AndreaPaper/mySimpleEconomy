@@ -55,7 +55,11 @@ public class RecurringTransactionGenerationService {
                 .recurringTransaction(rule)
                 .amount(amount)
                 .type(TransactionType.valueOf(rule.getCategory().getType().name()))
-                .occurredOn(rule.getNextDueDate())
+                // Prenotata a inizio mese (non alla data di scadenza reale) per
+                // dare subito una stima del saldo residuo del mese, invece di
+                // aspettare il giorno esatto. La data di scadenza reale resta
+                // usata sopra per il lookup dell'eventuale RecurringOverride.
+                .occurredOn(rule.getNextDueDate().withDayOfMonth(1))
                 .description(rule.getName())
                 .build();
 
