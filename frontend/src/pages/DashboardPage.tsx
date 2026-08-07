@@ -311,13 +311,13 @@ export default function DashboardPage() {
 
   const summaryCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo attuale</p>
-        <p className="text-2xl font-semibold">{currency.format(currentBalance)}</p>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 p-4">
+        <p className="text-sm text-slate-500">Saldo attuale</p>
+        <p className="text-2xl font-semibold text-slate-900">{currency.format(currentBalance)}</p>
       </div>
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo previsto a fine mese</p>
-        <p className="text-2xl font-semibold">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-500 p-4">
+        <p className="text-sm text-slate-500">Saldo previsto a fine mese</p>
+        <p className="text-2xl font-semibold text-slate-900">
           {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
         </p>
       </div>

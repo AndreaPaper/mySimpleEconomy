@@ -67,8 +67,8 @@ export default function Layout() {
   }, [profileMenuOpen])
 
   return (
-    <div className="min-h-screen bg-brand-100 text-slate-900 dark:bg-gradient-to-br dark:from-brand-900 dark:via-black dark:to-black dark:text-white">
-      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-brand-500 dark:border-slate-800 dark:bg-gradient-to-t dark:from-brand-700 dark:via-brand-900 dark:to-black md:flex">
+    <div className="min-h-screen bg-brand-100 text-slate-900 dark:bg-black dark:text-white">
+      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-brand-500 dark:border-slate-800 dark:bg-black md:flex">
         <div className="flex items-center gap-2 px-4 py-4 text-sm font-semibold dark:text-white">
           <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
           MySimpleEconomy
@@ -83,7 +83,7 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex items-center gap-2.5 rounded px-3 py-2 ${
                   isActive
-                    ? 'bg-brand-200 font-medium text-brand-700 dark:bg-black dark:text-brand-500'
+                    ? 'bg-brand-200 font-medium text-brand-700 dark:bg-brand-900 dark:text-white'
                     : 'text-slate-600 hover:bg-brand-200 hover:text-brand-700 dark:text-slate-200'
                 }`
               }

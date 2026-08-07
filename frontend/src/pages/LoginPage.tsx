@@ -30,7 +30,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-brand-100 px-4 dark:bg-gradient-to-br dark:from-brand-900 dark:via-black dark:to-black">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-brand-100 px-4 dark:bg-black">
       <img src={logo} alt="MySimpleEconomy" className="h-16 w-16" />
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-brand-300 p-6 shadow-sm dark:border-slate-800 dark:bg-black">
         <h1 className="text-xl font-semibold dark:text-white">Accedi a MySimpleEconomy</h1>
