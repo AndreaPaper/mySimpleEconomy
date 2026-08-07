@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
+  Area,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -311,11 +312,11 @@ export default function DashboardPage() {
 
   const summaryCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 p-4">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-kpi-a p-4">
         <p className="text-sm text-slate-500">Saldo attuale</p>
         <p className="text-2xl font-semibold text-slate-900">{currency.format(currentBalance)}</p>
       </div>
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-500 p-4">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-kpi-b p-4">
         <p className="text-sm text-slate-500">Saldo previsto a fine mese</p>
         <p className="text-2xl font-semibold text-slate-900">
           {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
@@ -347,12 +348,27 @@ export default function DashboardPage() {
         </div>
       </div>
       <ResponsiveContainer width="100%" height={260}>
-        <LineChart data={chartData}>
+        <ComposedChart data={chartData}>
+          <defs>
+            <linearGradient id="balanceAreaGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-chart-grad-start)" />
+              <stop offset="100%" stopColor="var(--color-chart-grad-end)" />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} width={70} />
           <Tooltip formatter={(value) => currency.format(Number(value))} />
-          <Line type="monotone" dataKey="actual" name="Storico" stroke="var(--color-brand-700)" strokeWidth={2} connectNulls={false} dot={false} />
+          <Area
+            type="monotone"
+            dataKey="actual"
+            name="Storico"
+            stroke="var(--color-brand-700)"
+            strokeWidth={2}
+            fill="url(#balanceAreaGradient)"
+            connectNulls={false}
+            dot={false}
+          />
           <Line
             type="monotone"
             dataKey="projected"
@@ -363,7 +379,7 @@ export default function DashboardPage() {
             connectNulls={false}
             dot={false}
           />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   )

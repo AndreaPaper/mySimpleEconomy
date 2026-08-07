@@ -16,6 +16,20 @@
      numerico non è coerente tra le palette (in "classic" 900 è il navy più
      scuro, non adatto come sfondo di una card in tema chiaro). */
   --color-brand-300: #92EEFF;
+
+  /* Testo della voce di menu attiva/hover: separato da brand-700 perché
+     quest'ultimo resta l'accento generale (bottoni/link) e in "Canvas
+     neutro" i due divergono (sfondo pieno blu → testo bianco). */
+  --color-nav-active: #1C8ADB;
+  /* Le due card "in evidenza" della Dashboard (Saldo attuale/previsto):
+     separate dal token "card" generico (brand-300) perché in "Canvas
+     neutro" le due card KPI hanno tinte diverse dallo sfondo card standard. */
+  --color-kpi-a: #92EEFF;
+  --color-kpi-b: #C4F7CA;
+  /* Riempimento a gradiente sotto la linea del grafico "Andamento saldo":
+     trasparente di default (nessun riempimento, comportamento attuale). */
+  --color-chart-grad-start: transparent;
+  --color-chart-grad-end: transparent;
 }
 
 /* Modalità scura per "Cielo pastello": lasciata con la mappatura
@@ -26,6 +40,7 @@ html.dark {
   --color-brand-500: #C4F7CA;
   --color-brand-100: #D8FFC5;
   --color-brand-200: #92EEFF;
+  --color-nav-active: #FFFFFF;
 }
 
 html[data-palette="classic"] {
@@ -35,6 +50,56 @@ html[data-palette="classic"] {
   --color-brand-100: #E3E3E3;
   --color-brand-200: #E3E3E3;
   --color-brand-300: #ffffff;
+  --color-nav-active: #234C6A;
+  --color-kpi-a: #ffffff;
+  --color-kpi-b: #456882;
+}
+
+/* "Canvas neutro": tema chiaro 60/30/10 — 60% superfici neutre (bianco/
+   quasi bianco), 30% tinte tenui di supporto (ciano/verde), 10% accento
+   blu pieno riservato a pochi punti mirati (voce di menu attiva, linea
+   del grafico, bottoni/link). Pensata solo per la modalità chiara: se si
+   attiva anche il toggle scuro insieme a questa palette, le card
+   torneranno nere (dark:bg-black, invariato) mentre sfondo pagina/sidebar
+   restano quelli di Canvas — combinazione non progettata, accettata come
+   limite noto. */
+html[data-palette="canvas"] {
+  --color-brand-100: #F5FAFF; /* sfondo pagina */
+  --color-brand-500: #FFFFFF; /* sfondo sidebar */
+  --color-brand-200: #30AFFF; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #30AFFF; /* accento: bottoni, link */
+  --color-brand-900: #30AFFF; /* ramo dark: (poco rilevante, Canvas è pensata per il chiaro) */
+  --color-brand-300: #FFFFFF; /* sfondo card/liste generiche */
+  --color-nav-active: #FFFFFF; /* testo della voce di menu attiva/hover, su sfondo blu pieno */
+  --color-kpi-a: #EAF7FF; /* card "Saldo attuale" */
+  --color-kpi-b: #EEFBE7; /* card "Saldo previsto a fine mese" */
+  --color-chart-grad-start: #92EEFF;
+  --color-chart-grad-end: #FFFFFF;
+}
+
+/* Testo, bordi e colori funzionali di "Canvas neutro" applicati con un
+   override mirato sulle classi Tailwind già in uso in tutta l'app
+   (text-slate-*, border-slate-*, text-emerald-600, text-red-600), invece
+   di riscrivere ogni pagina: fuori da @layer, quindi vince sempre sulle
+   utility Tailwind corrispondenti senza bisogno di !important. */
+html[data-palette="canvas"] body,
+html[data-palette="canvas"] .text-slate-900 {
+  color: #0B2A45;
+}
+html[data-palette="canvas"] .text-slate-600,
+html[data-palette="canvas"] .text-slate-500,
+html[data-palette="canvas"] .text-slate-400 {
+  color: #5B7387;
+}
+html[data-palette="canvas"] .border-slate-200,
+html[data-palette="canvas"] .border-slate-300 {
+  border-color: #E3EDF5;
+}
+html[data-palette="canvas"] .text-emerald-600 {
+  color: #1F8A46;
+}
+html[data-palette="canvas"] .text-red-600 {
+  color: #D6455B;
 }
 
 @font-face {

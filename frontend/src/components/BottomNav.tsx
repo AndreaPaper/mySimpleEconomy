@@ -125,7 +125,7 @@ export default function BottomNav({ nickname, email, avatarKey, onLogout }: Bott
                     onClick={() => setMoreOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded px-3 py-3 text-sm ${
-                        isActive ? 'bg-brand-200 dark:bg-brand-900 font-medium text-brand-700 dark:text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-zinc-800'
+                        isActive ? 'bg-brand-200 dark:bg-brand-900 font-medium text-nav-active dark:text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-zinc-800'
                       }`
                     }
                   >

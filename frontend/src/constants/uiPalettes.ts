@@ -15,6 +15,11 @@ export const UI_PALETTES: UiPalette[] = [
     colors: { brand900: '#C4F7CA', brand700: '#30AFFF', brand500: '#92EEFF', brand100: '#D8FFC5' },
   },
   {
+    key: 'canvas',
+    label: 'Canvas neutro',
+    colors: { brand900: '#EEFBE7', brand700: '#30AFFF', brand500: '#FFFFFF', brand100: '#F5FAFF' },
+  },
+  {
     key: 'classic',
     label: 'Blu notte (originale)',
     colors: { brand900: '#1B3C53', brand700: '#234C6A', brand500: '#456882', brand100: '#E3E3E3' },
