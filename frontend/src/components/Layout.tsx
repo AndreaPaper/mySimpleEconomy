@@ -83,8 +83,8 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex items-center gap-2.5 rounded px-3 py-2 ${
                   isActive
-                    ? 'bg-brand-100 font-medium text-brand-700 dark:bg-black dark:text-brand-500'
-                    : 'text-slate-600 hover:bg-brand-700 hover:text-white dark:text-slate-200'
+                    ? 'bg-brand-200 font-medium text-brand-700 dark:bg-black dark:text-brand-500'
+                    : 'text-slate-600 hover:bg-brand-200 hover:text-brand-700 dark:text-slate-200'
                 }`
               }
             >

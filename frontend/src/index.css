@@ -7,14 +7,15 @@
    data-palette su <html>; le regole sotto sovrascrivono queste custom
    property per la modalità scura e per le altre palette. */
 @theme {
-  --color-brand-700: #30AFFF; /* Primary Action / Accent */
-  --color-brand-500: #92EEFF; /* Secondary / Highlights */
-  --color-brand-100: #D8FFC5; /* Soft Background Fill */
-  --color-brand-900: #C4F7CA; /* Supporting / Card Background */
+  --color-brand-700: #1C8ADB; /* Bottoni, link, testo accento — separato dallo sfondo pagina (100) perché altrimenti coinciderebbero */
+  --color-brand-500: #C4F7CA; /* Sfondo sidebar */
+  --color-brand-200: #D8FFC5; /* Hover/selezione delle voci di menu (sidebar e "Altro" su mobile) */
+  --color-brand-100: #30AFFF; /* Sfondo pagina */
+  --color-brand-900: #C4F7CA; /* Supporting */
   /* Sfondo delle card in chiaro: separato da brand-900 perché quel ruolo
      numerico non è coerente tra le palette (in "classic" 900 è il navy più
      scuro, non adatto come sfondo di una card in tema chiaro). */
-  --color-brand-300: #C4F7CA;
+  --color-brand-300: #92EEFF;
 }
 
 /* Modalità scura per "Cielo pastello": lasciata con la mappatura
@@ -24,6 +25,7 @@ html.dark {
   --color-brand-700: #92EEFF;
   --color-brand-500: #C4F7CA;
   --color-brand-100: #D8FFC5;
+  --color-brand-200: #92EEFF;
 }
 
 html[data-palette="classic"] {
@@ -31,6 +33,7 @@ html[data-palette="classic"] {
   --color-brand-700: #234C6A;
   --color-brand-500: #456882;
   --color-brand-100: #E3E3E3;
+  --color-brand-200: #E3E3E3;
   --color-brand-300: #ffffff;
 }
 
