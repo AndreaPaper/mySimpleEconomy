@@ -20,6 +20,11 @@ export const UI_PALETTES: UiPalette[] = [
     colors: { brand900: '#EEFBE7', brand700: '#30AFFF', brand500: '#FFFFFF', brand100: '#F5FAFF' },
   },
   {
+    key: 'vividkpi',
+    label: 'KPI a tinte piene',
+    colors: { brand900: '#BBF1D2', brand700: '#FF8080', brand500: '#FFFFFF', brand100: '#FFF4EF' },
+  },
+  {
     key: 'classic',
     label: 'Blu notte (originale)',
     colors: { brand900: '#1B3C53', brand700: '#234C6A', brand500: '#456882', brand100: '#E3E3E3' },

@@ -326,7 +326,7 @@ export default function DashboardPage() {
   )
 
   const balanceChartCard = (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-chart-card dark:bg-black p-4">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
         <div className="flex items-center gap-2 text-xs">
@@ -334,7 +334,7 @@ export default function DashboardPage() {
             type="date"
             value={rangeStart}
             onChange={(e) => setRangeStart(e.target.value)}
-            className="rounded border border-slate-200 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+            className="rounded border border-slate-200 dark:border-slate-700 bg-chart-card dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
             aria-label="Data inizio"
           />
           <span className="text-slate-400">→</span>
@@ -342,7 +342,7 @@ export default function DashboardPage() {
             type="date"
             value={rangeEnd}
             onChange={(e) => setRangeEnd(e.target.value)}
-            className="rounded border border-slate-200 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+            className="rounded border border-slate-200 dark:border-slate-700 bg-chart-card dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
             aria-label="Data fine"
           />
         </div>
@@ -472,7 +472,7 @@ export default function DashboardPage() {
                   </span>
                   <span className="shrink-0 font-bold">{currency.format(c.amount)}</span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100 dark:bg-zinc-800">
+                <div className="h-2 rounded-full bg-bar-track dark:bg-zinc-800">
                   <div
                     className="h-2 rounded-full"
                     style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}

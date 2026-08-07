@@ -30,6 +30,15 @@
      trasparente di default (nessun riempimento, comportamento attuale). */
   --color-chart-grad-start: transparent;
   --color-chart-grad-end: transparent;
+  /* Sfondo della card del grafico: separato da brand-300 perché in "KPI a
+     tinte piene" il grafico ha un fondo (crema) diverso dalle card generiche
+     (bianco). Default = stesso valore di brand-300, nessun cambiamento per
+     le palette che non lo dichiarano esplicitamente. */
+  --color-chart-card: #92EEFF;
+  /* Sfondo della "traccia" (barra vuota) dietro le barre delle categorie —
+     il colore della barra stessa resta quello scelto dall'utente per la
+     categoria (categoryColor), invariato in tutte le palette. */
+  --color-bar-track: #f1f5f9;
 }
 
 /* Modalità scura per "Cielo pastello": lasciata con la mappatura
@@ -53,6 +62,7 @@ html[data-palette="classic"] {
   --color-nav-active: #234C6A;
   --color-kpi-a: #ffffff;
   --color-kpi-b: #456882;
+  --color-chart-card: #ffffff;
 }
 
 /* "Canvas neutro": tema chiaro 60/30/10 — 60% superfici neutre (bianco/
@@ -75,6 +85,7 @@ html[data-palette="canvas"] {
   --color-kpi-b: #EEFBE7; /* card "Saldo previsto a fine mese" */
   --color-chart-grad-start: #92EEFF;
   --color-chart-grad-end: #FFFFFF;
+  --color-chart-card: #FFFFFF;
 }
 
 /* Testo, bordi e colori funzionali di "Canvas neutro" applicati con un
@@ -100,6 +111,48 @@ html[data-palette="canvas"] .text-emerald-600 {
 }
 html[data-palette="canvas"] .text-red-600 {
   color: #D6455B;
+}
+
+/* "KPI a tinte piene": base chiara e leggibile come "Canvas neutro", ma le
+   card KPI in alto e il grafico usano pesca/menta a saturazione media
+   invece di tinte pastello, con testo bruno caldo per il contrasto. Il
+   corallo pieno (#FF8080) resta l'accento riservato a voce di menu attiva
+   e azioni, mai sfondo di grandi aree — stessa filosofia di Canvas neutro,
+   pensata solo per il chiaro (stesso limite noto sulla combinazione con la
+   modalità scura). */
+html[data-palette="vividkpi"] {
+  --color-brand-100: #FFF4EF; /* sfondo pagina */
+  --color-brand-500: #FFFFFF; /* sfondo sidebar */
+  --color-brand-200: #FF8080; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #FF8080; /* accento: bottoni, link */
+  --color-brand-900: #FF8080; /* ramo dark: (poco rilevante, tema pensato per il chiaro) */
+  --color-brand-300: #FFFFFF; /* sfondo card/liste generiche */
+  --color-nav-active: #FFFFFF; /* testo della voce di menu attiva/hover, su sfondo corallo pieno */
+  --color-kpi-a: #FFC5AA; /* card "Saldo attuale" (pesca) */
+  --color-kpi-b: #BBF1D2; /* card "Saldo previsto a fine mese" (menta) */
+  --color-chart-card: #FFF6EE;
+  --color-chart-grad-start: #FFB48F;
+  --color-chart-grad-end: #FFF6EE;
+  --color-bar-track: #F1E0D8;
+}
+html[data-palette="vividkpi"] body,
+html[data-palette="vividkpi"] .text-slate-900 {
+  color: #4A2A28;
+}
+html[data-palette="vividkpi"] .text-slate-600,
+html[data-palette="vividkpi"] .text-slate-500,
+html[data-palette="vividkpi"] .text-slate-400 {
+  color: #8C6B62;
+}
+html[data-palette="vividkpi"] .border-slate-200,
+html[data-palette="vividkpi"] .border-slate-300 {
+  border-color: #F1DBD1;
+}
+html[data-palette="vividkpi"] .text-emerald-600 {
+  color: #2FA36B;
+}
+html[data-palette="vividkpi"] .text-red-600 {
+  color: #E5546A;
 }
 
 @font-face {
