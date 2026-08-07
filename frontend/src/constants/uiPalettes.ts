@@ -31,4 +31,4 @@ export const UI_PALETTES: UiPalette[] = [
   },
 ]
 
-export const DEFAULT_PALETTE_KEY = 'colorhunt'
+export const DEFAULT_PALETTE_KEY = 'canvas'
