@@ -115,7 +115,7 @@ export default function ImportPage() {
 
   if (result) {
     return (
-      <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+      <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <h1 className="text-lg font-semibold">Importazione completata</h1>
         <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
           <li>Categorie create: {result.categoriesCreated}</li>
@@ -145,7 +145,7 @@ export default function ImportPage() {
       </div>
 
       {!preview && (
-        <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+        <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Carica il tuo diario spese in formato .xlsx. Verrà analizzato senza salvare nulla: potrai controllare e
             correggere le categorie prima di confermare.
@@ -171,7 +171,7 @@ export default function ImportPage() {
 
       {preview && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4 sm:grid-cols-3 lg:grid-cols-6">
             <Stat label="Fogli analizzati" value={preview.summary.sheetsProcessed} />
             <Stat label="Regole ricorrenti" value={preview.summary.recurringDetected} />
             <Stat label="Transazioni singole" value={preview.summary.oneOffDetected} />
@@ -181,7 +181,7 @@ export default function ImportPage() {
           </div>
 
           {preview.balanceCheckpoints.length > 0 && (
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
               <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Saldi di partenza rilevati</p>
               <ul className="space-y-1 text-sm">
                 {preview.balanceCheckpoints.map((c) => (
@@ -194,7 +194,7 @@ export default function ImportPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
             <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Regole ricorrenti rilevate</p>
             {preview.recurringTransactions.length === 0 ? (
               <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna.</p>
@@ -215,7 +215,7 @@ export default function ImportPage() {
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
             <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Transazioni singole</p>
             <ul className="max-h-96 space-y-2 overflow-y-auto text-sm">
               {preview.oneOffTransactions.map((t, i) => (

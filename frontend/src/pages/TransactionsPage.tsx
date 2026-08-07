@@ -240,7 +240,7 @@ export default function TransactionsPage() {
           id="tx-category-filter"
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-full max-w-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full max-w-xs rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         >
           <option value="">Tutte le categorie</option>
           {categories.map((c) => (
@@ -260,7 +260,7 @@ export default function TransactionsPage() {
               <p className="mb-2 text-sm font-medium capitalize text-slate-600 dark:text-slate-300">
                 {monthLabel(group.key)}
               </p>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
+              <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
                 {group.items.map((t) => {
                   const Icon = getCategoryIcon(t.categoryIcon)
                   const actionsDisabled = offlineLike || t.pending

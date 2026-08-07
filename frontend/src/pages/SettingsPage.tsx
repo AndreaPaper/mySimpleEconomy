@@ -75,7 +75,7 @@ export default function SettingsPage() {
     <div className="max-w-lg space-y-6">
       <h1 className="text-lg font-semibold dark:text-white">Impostazioni</h1>
 
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <div>
           <h2 className="font-medium dark:text-white">Aspetto</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -99,7 +99,7 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <h2 className="mb-1 font-medium dark:text-white">Palette colori</h2>
         <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">Scegli i colori dell'interfaccia.</p>
         <div className="flex flex-wrap gap-3">
@@ -125,7 +125,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <div>
           <h2 className="font-medium dark:text-white">Testo maiuscolo</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -149,7 +149,7 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <div>
           <h2 className="font-medium dark:text-white">Importa da Excel</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -164,7 +164,7 @@ export default function SettingsPage() {
         </Link>
       </div>
 
-      <div className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+      <div className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <h2 className="font-medium dark:text-white">Elimina transazioni per periodo</h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Elimina transazioni e saldi di partenza nell'intervallo scelto. Categorie, regole ricorrenti e promemoria
@@ -205,7 +205,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="space-y-3 rounded-lg border border-red-200 bg-white dark:bg-black p-6">
+      <div className="space-y-3 rounded-lg border border-red-200 bg-brand-300 dark:bg-black p-6">
         <h2 className="font-medium text-red-700">Elimina tutti i dati</h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Elimina tutte le transazioni, le regole ricorrenti, i saldi di partenza e i promemoria del tuo account. Le
@@ -241,7 +241,7 @@ export default function SettingsPage() {
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder={CONFIRM_WORD}
-              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
             />
             <div className="flex gap-2">
               <button

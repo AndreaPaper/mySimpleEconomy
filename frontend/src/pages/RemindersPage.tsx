@@ -84,7 +84,7 @@ export default function RemindersPage() {
       {items.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400">Nessun promemoria ancora.</p>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
           {items.map((r) => (
             <li key={r.id} className="flex items-center justify-between px-4 py-3">
               <div>

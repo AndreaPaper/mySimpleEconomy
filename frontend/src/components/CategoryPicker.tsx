@@ -44,7 +44,7 @@ export default function CategoryPicker({
     <select
       value={encode(existingCategoryId, newCategoryTempId)}
       onChange={handleChange}
-      className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-2 py-1 text-sm text-slate-900 dark:text-white"
+      className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-sm text-slate-900 dark:text-white"
     >
       <option value="">Seleziona categoria...</option>
       {existingCategories.length > 0 && (

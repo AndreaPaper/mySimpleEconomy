@@ -90,7 +90,7 @@ export default function DebtsPage() {
             const pct = d.totalAmount > 0 ? Math.min(100, (d.paidAmount / d.totalAmount) * 100) : 0
             const saldato = d.remainingAmount <= 0
             return (
-              <li key={d.id} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+              <li key={d.id} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <span

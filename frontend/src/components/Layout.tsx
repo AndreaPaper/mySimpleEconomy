@@ -67,8 +67,8 @@ export default function Layout() {
   }, [profileMenuOpen])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-100 via-brand-100 to-white text-slate-900 dark:from-brand-900 dark:via-black dark:to-black dark:text-white">
-      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-gradient-to-t from-brand-500 via-brand-100 to-white dark:border-slate-800 dark:from-brand-700 dark:via-brand-900 dark:to-black md:flex">
+    <div className="min-h-screen bg-brand-100 text-slate-900 dark:bg-gradient-to-br dark:from-brand-900 dark:via-black dark:to-black dark:text-white">
+      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col overflow-y-auto border-r border-slate-200 bg-brand-500 dark:border-slate-800 dark:bg-gradient-to-t dark:from-brand-700 dark:via-brand-900 dark:to-black md:flex">
         <div className="flex items-center gap-2 px-4 py-4 text-sm font-semibold dark:text-white">
           <img src={bankIcon} alt="" className="h-7 w-7 shrink-0" />
           MySimpleEconomy
@@ -84,7 +84,7 @@ export default function Layout() {
                 `flex items-center gap-2.5 rounded px-3 py-2 ${
                   isActive
                     ? 'bg-brand-100 font-medium text-brand-700 dark:bg-black dark:text-brand-500'
-                    : 'text-slate-600 hover:bg-brand-500/80 hover:text-white dark:text-slate-200'
+                    : 'text-slate-600 hover:bg-brand-700 hover:text-white dark:text-slate-200'
                 }`
               }
             >
@@ -140,7 +140,7 @@ export default function Layout() {
             onClick={() => setProfileMenuOpen((open) => !open)}
             aria-haspopup="true"
             aria-expanded={profileMenuOpen}
-            className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left font-bold hover:border-brand-500 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
+            className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left font-bold hover:border-brand-700 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
           >
             <AvatarIcon className="h-6 w-6 shrink-0 text-slate-500 dark:text-slate-400" />
             <span className="min-w-0 break-words">{nickname || email}</span>

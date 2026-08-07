@@ -99,7 +99,7 @@ export default function ProfilePage() {
     <div className="max-w-lg space-y-6">
       <h1 className="text-lg font-semibold">Profilo</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6">
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <div>
           <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Email</p>
           <p className="text-sm">{email}</p>
@@ -151,7 +151,7 @@ export default function ProfilePage() {
             onChange={(e) => setNickname(e.target.value)}
             maxLength={100}
             placeholder="Come vuoi essere chiamato"
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
         </label>
 
@@ -164,7 +164,7 @@ export default function ProfilePage() {
             value={defaultSalaryAmount}
             onChange={(e) => setDefaultSalaryAmount(e.target.value)}
             placeholder="Es. 1800.00"
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
           <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">Quanto ti entra di base ogni mese.</span>
         </label>
@@ -179,7 +179,7 @@ export default function ProfilePage() {
             value={salaryDay}
             onChange={(e) => setSalaryDay(e.target.value)}
             placeholder="Es. 27"
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
           <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
             Giorno del mese (1-31) in cui ricevi lo stipendio. Se compili sia questo campo che l'importo, ogni mese
@@ -201,7 +201,7 @@ export default function ProfilePage() {
 
       <form
         onSubmit={handleCheckpointSubmit}
-        className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-6"
+        className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6"
       >
         <div>
           <h2 className="text-sm font-medium text-slate-900 dark:text-white">Saldo</h2>
@@ -219,7 +219,7 @@ export default function ProfilePage() {
               type="date"
               value={checkpointDate}
               onChange={(e) => setCheckpointDate(e.target.value)}
-              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
             />
           </label>
           <label className="flex-1 text-sm">
@@ -231,7 +231,7 @@ export default function ProfilePage() {
               value={checkpointBalance}
               onChange={(e) => setCheckpointBalance(e.target.value)}
               placeholder="Es. 1500.00"
-              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
             />
           </label>
         </div>

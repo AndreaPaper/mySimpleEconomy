@@ -68,7 +68,7 @@ export default function BottomNav({ nickname, email, avatarKey, onLogout }: Bott
         </div>
       )}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-black pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Navigazione principale"
       >
         {primaryItems.map((item) => (
@@ -104,7 +104,7 @@ export default function BottomNav({ nickname, email, avatarKey, onLogout }: Bott
           onClick={() => setMoreOpen(false)}
         >
           <div
-            className="w-full rounded-t-2xl bg-white dark:bg-black pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-lg"
+            className="w-full rounded-t-2xl bg-brand-300 dark:bg-black pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" />

@@ -141,7 +141,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
                 autoFocus
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+                className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
               />
             </div>
             <div>
@@ -213,7 +213,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             id="category"
             value={categoryId}
             onChange={(e) => handleCategorySelectChange(e.target.value)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           >
             {categoriesForType.map((c) => (
               <option key={c.id} value={c.id}>
@@ -236,7 +236,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
           required
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -249,7 +249,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
           required
           value={occurredOn}
           onChange={(e) => setOccurredOn(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -260,7 +260,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div className="flex justify-end gap-2 pt-2">

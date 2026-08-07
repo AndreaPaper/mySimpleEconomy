@@ -86,7 +86,7 @@ export default function RecurringPage() {
       {items.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400">Nessuna regola ricorrente ancora.</p>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-black">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
           {items.map((r) => (
             <li key={r.id} className="px-4 py-3">
               <div className="flex items-center justify-between">

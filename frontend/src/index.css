@@ -11,6 +11,10 @@
   --color-brand-500: #92EEFF; /* Secondary / Highlights */
   --color-brand-100: #D8FFC5; /* Soft Background Fill */
   --color-brand-900: #C4F7CA; /* Supporting / Card Background */
+  /* Sfondo delle card in chiaro: separato da brand-900 perché quel ruolo
+     numerico non è coerente tra le palette (in "classic" 900 è il navy più
+     scuro, non adatto come sfondo di una card in tema chiaro). */
+  --color-brand-300: #C4F7CA;
 }
 
 /* Modalità scura per "Cielo pastello": lasciata con la mappatura
@@ -27,6 +31,7 @@ html[data-palette="classic"] {
   --color-brand-700: #234C6A;
   --color-brand-500: #456882;
   --color-brand-100: #E3E3E3;
+  --color-brand-300: #ffffff;
 }
 
 @font-face {

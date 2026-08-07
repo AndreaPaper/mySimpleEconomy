@@ -311,11 +311,11 @@ export default function DashboardPage() {
 
   const summaryCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
         <p className="text-sm text-slate-500 dark:text-slate-400">Saldo attuale</p>
         <p className="text-2xl font-semibold">{currency.format(currentBalance)}</p>
       </div>
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
         <p className="text-sm text-slate-500 dark:text-slate-400">Saldo previsto a fine mese</p>
         <p className="text-2xl font-semibold">
           {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
@@ -325,7 +325,7 @@ export default function DashboardPage() {
   )
 
   const balanceChartCard = (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
         <div className="flex items-center gap-2 text-xs">
@@ -333,7 +333,7 @@ export default function DashboardPage() {
             type="date"
             value={rangeStart}
             onChange={(e) => setRangeStart(e.target.value)}
-            className="rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+            className="rounded border border-slate-200 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
             aria-label="Data inizio"
           />
           <span className="text-slate-400">→</span>
@@ -341,7 +341,7 @@ export default function DashboardPage() {
             type="date"
             value={rangeEnd}
             onChange={(e) => setRangeEnd(e.target.value)}
-            className="rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+            className="rounded border border-slate-200 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
             aria-label="Data fine"
           />
         </div>
@@ -352,12 +352,12 @@ export default function DashboardPage() {
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} width={70} />
           <Tooltip formatter={(value) => currency.format(Number(value))} />
-          <Line type="monotone" dataKey="actual" name="Storico" stroke="#234C6A" strokeWidth={2} connectNulls={false} dot={false} />
+          <Line type="monotone" dataKey="actual" name="Storico" stroke="var(--color-brand-700)" strokeWidth={2} connectNulls={false} dot={false} />
           <Line
             type="monotone"
             dataKey="projected"
             name="Previsto"
-            stroke="#234C6A"
+            stroke="var(--color-brand-700)"
             strokeWidth={2}
             strokeDasharray="5 5"
             connectNulls={false}
@@ -370,15 +370,15 @@ export default function DashboardPage() {
 
   const periodCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
         <p className="text-sm text-slate-500 dark:text-slate-400">Entrate (mese corrente)</p>
         <p className="text-xl font-semibold text-emerald-600">{currency.format(currentPeriodIncome)}</p>
       </div>
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
         <p className="text-sm text-slate-500 dark:text-slate-400">Uscite (mese corrente)</p>
         <p className="text-xl font-semibold text-red-600">{currency.format(currentPeriodExpense)}</p>
       </div>
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
         <p className="text-sm text-slate-500 dark:text-slate-400">Saldo netto (mese corrente)</p>
         <p className="text-xl font-semibold">{currency.format(currentPeriodNet)}</p>
       </div>
@@ -386,7 +386,7 @@ export default function DashboardPage() {
   )
 
   const categoryCard = (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
       {isMobile && categoryBreakdown.length > 0 && (
         <ResponsiveContainer width="100%" height={200}>
           <PieChart>
@@ -471,7 +471,7 @@ export default function DashboardPage() {
   )
 
   const remindersCard = (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
       <p className="mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Spese fisse nei prossimi mesi</p>
       <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">
         L'importo (~ se stimato dall'ultima spesa della categoria) aiuta a capire quali mesi saranno più pesanti.
@@ -523,7 +523,7 @@ export default function DashboardPage() {
   )
 
   const upcomingRecurringCard = (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
       <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Prossime scadenze ricorrenti</p>
       {upcomingExpenses.length === 0 ? (
         <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa ricorrente in scadenza.</p>
@@ -555,7 +555,7 @@ export default function DashboardPage() {
   )
 
   const recentTransactionsCard = (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-4">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
       <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Ultime transazioni</p>
       {recentTransactions.length === 0 ? (
         <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna transazione ancora.</p>

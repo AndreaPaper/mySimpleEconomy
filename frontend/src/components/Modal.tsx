@@ -21,7 +21,7 @@ export default function Modal({ title, onClose, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg bg-white dark:bg-black p-6 shadow-lg"
+        className="w-full max-w-md rounded-lg bg-brand-300 dark:bg-black p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
