@@ -105,7 +105,7 @@ export default function Layout() {
           className="relative mt-auto border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-200"
         >
           {profileMenuOpen && (
-            <div className="absolute inset-x-4 bottom-full mb-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-zinc-900">
+            <div className="profile-menu absolute inset-x-4 bottom-full mb-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-zinc-900">
               <Link
                 to="/profilo"
                 onClick={() => setProfileMenuOpen(false)}

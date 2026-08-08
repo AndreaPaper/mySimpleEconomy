@@ -155,6 +155,116 @@ html[data-palette="vividkpi"] .text-red-600 {
   color: #E5546A;
 }
 
+/* "Azzurro oceano": sidebar e accento sullo stesso blu pieno, sfondo pagina
+   acquamarina chiaro, card bianche. Pensata solo per il chiaro (stesso
+   limite noto delle due palette precedenti in modalità scura). */
+html[data-palette="azzurro"] {
+  --color-brand-100: #D1F8EF; /* sfondo pagina */
+  --color-brand-500: #3674B5; /* sfondo sidebar */
+  --color-brand-200: #578FCA; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #3674B5; /* accento: bottoni, link */
+  --color-brand-900: #3674B5; /* ramo dark: poco rilevante, tema pensato per il chiaro */
+  --color-brand-300: #FFFFFF; /* sfondo card/liste generiche */
+  --color-nav-active: #FFFFFF; /* testo della voce di menu attiva/hover, su sfondo blu pieno */
+  --color-kpi-a: #A1E3F9; /* card "Saldo attuale" */
+  --color-kpi-b: #E3FBF4; /* card "Saldo previsto a fine mese" */
+  --color-chart-card: #FFFFFF;
+  --color-bar-track: #DDF0F6;
+}
+html[data-palette="azzurro"] body,
+html[data-palette="azzurro"] .text-slate-900 {
+  color: #0F2A3D;
+}
+html[data-palette="azzurro"] .text-slate-600,
+html[data-palette="azzurro"] .text-slate-500,
+html[data-palette="azzurro"] .text-slate-400 {
+  color: #4E7791;
+}
+html[data-palette="azzurro"] .border-slate-200,
+html[data-palette="azzurro"] .border-slate-300 {
+  border-color: #CDEAF5;
+}
+html[data-palette="azzurro"] .text-emerald-600 {
+  color: #1F8A46;
+}
+html[data-palette="azzurro"] .text-red-600 {
+  color: #D6455B;
+}
+/* Sidebar a sfondo pieno: testo chiaro per contrasto, scoped ad <aside> per
+   non toccare il menu profilo a comparsa (classe "profile-menu"), che ha
+   sfondo card bianco e va quindi resettato ai colori normali. */
+html[data-palette="azzurro"] aside {
+  color: #FFFFFF;
+}
+html[data-palette="azzurro"] aside .text-slate-600,
+html[data-palette="azzurro"] aside .text-slate-500,
+html[data-palette="azzurro"] aside .text-slate-400 {
+  color: rgba(255, 255, 255, 0.85);
+}
+html[data-palette="azzurro"] aside .border-slate-200 {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+html[data-palette="azzurro"] aside .profile-menu,
+html[data-palette="azzurro"] aside .profile-menu .text-slate-600 {
+  color: #4E7791;
+}
+html[data-palette="azzurro"] aside .profile-menu .border-slate-200 {
+  border-color: #CDEAF5;
+}
+
+/* "Lavanda vivace": sidebar e accento sullo stesso viola pieno, sfondo
+   pagina rosa chiaro, card bianche. Stessa struttura di "Azzurro oceano". */
+html[data-palette="lavanda"] {
+  --color-brand-100: #FED2E2; /* sfondo pagina */
+  --color-brand-500: #8F87F1; /* sfondo sidebar */
+  --color-brand-200: #C68EFD; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #8F87F1; /* accento: bottoni, link */
+  --color-brand-900: #8F87F1; /* ramo dark: poco rilevante, tema pensato per il chiaro */
+  --color-brand-300: #FFFFFF; /* sfondo card/liste generiche */
+  --color-nav-active: #FFFFFF; /* testo della voce di menu attiva/hover, su sfondo viola pieno */
+  --color-kpi-a: #E9A5F1; /* card "Saldo attuale" */
+  --color-kpi-b: #FDE6EF; /* card "Saldo previsto a fine mese" */
+  --color-chart-card: #FFFFFF;
+  --color-bar-track: #F3E2ED;
+}
+html[data-palette="lavanda"] body,
+html[data-palette="lavanda"] .text-slate-900 {
+  color: #3B2A5C;
+}
+html[data-palette="lavanda"] .text-slate-600,
+html[data-palette="lavanda"] .text-slate-500,
+html[data-palette="lavanda"] .text-slate-400 {
+  color: #7C6EA0;
+}
+html[data-palette="lavanda"] .border-slate-200,
+html[data-palette="lavanda"] .border-slate-300 {
+  border-color: #EEDDF5;
+}
+html[data-palette="lavanda"] .text-emerald-600 {
+  color: #1F8A46;
+}
+html[data-palette="lavanda"] .text-red-600 {
+  color: #D6455B;
+}
+html[data-palette="lavanda"] aside {
+  color: #FFFFFF;
+}
+html[data-palette="lavanda"] aside .text-slate-600,
+html[data-palette="lavanda"] aside .text-slate-500,
+html[data-palette="lavanda"] aside .text-slate-400 {
+  color: rgba(255, 255, 255, 0.85);
+}
+html[data-palette="lavanda"] aside .border-slate-200 {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+html[data-palette="lavanda"] aside .profile-menu,
+html[data-palette="lavanda"] aside .profile-menu .text-slate-600 {
+  color: #7C6EA0;
+}
+html[data-palette="lavanda"] aside .profile-menu .border-slate-200 {
+  border-color: #EEDDF5;
+}
+
 @font-face {
   font-family: "Lemon Milk";
   src: url("./assets/fonts/lemonMilk/LEMONMILK-Regular.otf") format("opentype");
