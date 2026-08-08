@@ -223,7 +223,7 @@ export default function ProfilePage() {
             />
           </label>
           <label className="flex-1 text-sm">
-            <span className="mb-1 block text-slate-600 dark:text-slate-300">Saldo a quella data</span>
+            <span className="mb-1 block text-slate-600 dark:text-slate-300">Saldo a inizio giornata</span>
             <input
               type="number"
               step="0.01"
@@ -236,7 +236,9 @@ export default function ProfilePage() {
           </label>
         </div>
         <span className="block text-xs text-slate-400 dark:text-slate-500">
-          Se inserisci un saldo per una data già registrata, la sovrascrive.
+          Le transazioni registrate a partire da quella data (compresa) vengono sommate o sottratte a questo saldo:
+          inserisci quindi il saldo <em>prima</em> delle spese di quel giorno. Se inserisci un saldo per una data già
+          registrata, la sovrascrive.
         </span>
 
         {checkpointError && <p className="text-sm text-red-600">{checkpointError}</p>}

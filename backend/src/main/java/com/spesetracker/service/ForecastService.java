@@ -65,10 +65,15 @@ public class ForecastService {
 
         Map<UUID, Category> categoryLookup = new HashMap<>();
 
-        // Transazioni reali già registrate dopo il checkpoint: coprono sia il "recupero"
+        // Transazioni reali già registrate a partire dal checkpoint: coprono sia il "recupero"
         // fino a oggi (mesi precedenti l'orizzonte) sia la parte già trascorsa del mese corrente.
+        // Il checkpoint è il saldo a INIZIO giornata, quindi la finestra include anche le
+        // transazioni datate esattamente checkpointDate: senza questo, un saldo registrato
+        // oggi (il default del form in Profilo) renderebbe la finestra vuota e il saldo
+        // attuale resterebbe congelato per tutto il giorno. Stessa semantica dell'import
+        // Excel, che legge saldi di inizio periodo ("SALDO INIZIO MESE").
         List<Transaction> actualSinceCheckpoint = transactionRepository
-                .findByUserIdAndOccurredOnBetween(userId, checkpointDate.plusDays(1), today);
+                .findByUserIdAndOccurredOnBetween(userId, checkpointDate, today);
         actualSinceCheckpoint.forEach(t -> categoryLookup.putIfAbsent(t.getCategory().getId(), t.getCategory()));
 
         // Saldo vero, adesso: checkpoint più tutte le transazioni reali da allora ad
