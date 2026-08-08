@@ -55,10 +55,6 @@ public class ForecastService {
     private record Occurrence(Category category, BigDecimal amount) {
     }
 
-    // Chiave per riconoscere che un'occorrenza proiettata è già stata registrata a mano.
-    private record CategoryMonth(UUID categoryId, YearMonth month) {
-    }
-
     @Transactional(readOnly = true)
     public ForecastResponse forecast(UUID userId, int months) {
         LocalDate today = LocalDate.now();
@@ -101,25 +97,15 @@ public class ForecastService {
                 .filter(t -> !t.getOccurredOn().isBefore(currentMonth.atDay(1)))
                 .collect(Collectors.groupingBy(t -> YearMonth.from(t.getOccurredOn())));
 
-        // Una transazione inserita a mano con data futura può essere la registrazione
-        // anticipata di un'occorrenza che stiamo già proiettando (es. si segna la rata
-        // del mese prossimo appena la si programma in banca). A differenza dei promemoria
-        // non esiste un collegamento alla regola, quindi ci si basa su categoria e mese:
-        // ogni occorrenza proiettata su quella coppia "consuma" una delle transazioni
-        // manuali future e non viene sommata. È un conteggio e non un semplice flag
-        // perché le regole infra-mensili (settimanali, giornaliere) hanno legittimamente
-        // più occorrenze nello stesso mese.
-        Map<CategoryMonth, Integer> manualFutureByCategoryMonth = new HashMap<>();
-        for (Transaction t : actualSinceCheckpoint) {
-            boolean manual = t.getRecurringTransaction() == null && t.getExpenseReminder() == null;
-            if (manual && t.getOccurredOn().isAfter(today)) {
-                manualFutureByCategoryMonth.merge(
-                        new CategoryMonth(t.getCategory().getId(), YearMonth.from(t.getOccurredOn())),
-                        1,
-                        Integer::sum);
-            }
-        }
-
+        // Nota: una transazione inserita a mano con data futura non viene mai interpretata
+        // come l'occorrenza di una regola ricorrente, nemmeno se cade nella stessa
+        // categoria e nello stesso mese. Una categoria ospita legittimamente sia una
+        // ricorrenza sia acquisti occasionali (es. "Farmaci": la terapia mensile più i
+        // farmaci comprati una tantum), quindi dedurre il collegamento dalla categoria
+        // farebbe sparire dalla previsione una spesa ricorrente reale. Il collegamento
+        // esiste solo quando è esplicito: le transazioni generate dal job portano il
+        // riferimento alla regola e non passano di qui.
+        //
         // Componente deterministica: proietta le regole ricorrenti attive oltre oggi, applicando le eccezioni.
         List<RecurringTransaction> activeRules = recurringTransactionRepository.findByUserIdAndActiveTrue(userId);
         activeRules.forEach(r -> categoryLookup.putIfAbsent(r.getCategory().getId(), r.getCategory()));
@@ -138,17 +124,9 @@ public class ForecastService {
             LocalDate cursor = rule.getNextDueDate();
             while (!cursor.isAfter(horizonEndDate) && rule.isCurrentlyActive(cursor)) {
                 if (cursor.isAfter(today)) {
-                    YearMonth occurrenceMonth = YearMonth.from(cursor);
-                    CategoryMonth key = new CategoryMonth(rule.getCategory().getId(), occurrenceMonth);
-                    Integer alreadyRecordedByHand = manualFutureByCategoryMonth.get(key);
-                    if (alreadyRecordedByHand != null && alreadyRecordedByHand > 0) {
-                        // Già registrata a mano: vale l'importo reale inserito dall'utente.
-                        manualFutureByCategoryMonth.put(key, alreadyRecordedByHand - 1);
-                    } else {
-                        BigDecimal amount = overrideByDate.getOrDefault(cursor, rule.getDefaultAmount());
-                        projectedByMonth.computeIfAbsent(occurrenceMonth, k -> new ArrayList<>())
-                                .add(new Occurrence(rule.getCategory(), amount));
-                    }
+                    BigDecimal amount = overrideByDate.getOrDefault(cursor, rule.getDefaultAmount());
+                    projectedByMonth.computeIfAbsent(YearMonth.from(cursor), k -> new ArrayList<>())
+                            .add(new Occurrence(rule.getCategory(), amount));
                 }
                 cursor = rule.addInterval(cursor);
             }
