@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   Area,
@@ -113,7 +113,7 @@ function buildCategoryBreakdown(transactions: Transaction[]): CategoryAmount[] {
 
 export default function DashboardPage() {
   const { salaryDay } = useAuth()
-  const { isOnline, backendReachable, addOfflineTransaction } = useOfflineSync()
+  const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
   const isMobile = useIsMobile()
   const [forecast, setForecast] = useState<ForecastResponse | null>(null)
   const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
@@ -159,7 +159,10 @@ export default function DashboardPage() {
     // data futura ma ancora dentro il periodo corrente non viene esclusa.
     const currentPeriodEnd = periodRangeOf(periodKeyOf(todayStr, salaryDay), salaryDay).end
 
-    return Promise.all([
+    // Promise.allSettled invece di Promise.all: un singolo fallimento (es.
+    // promemoria o ricorrenti) non deve impedire l'aggiornamento del saldo
+    // attuale e della previsione, che dipendono solo da forecastRes.
+    return Promise.allSettled([
       forecastApi.get(monthsParam),
       checkpointsApi.list(),
       transactionsApi.list(),
@@ -174,18 +177,41 @@ export default function DashboardPage() {
         })
         .catch(() => setCategories(loadCachedCategories())),
     ]).then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
-      setForecast(forecastRes)
-      setCheckpoints(checkpointsRes)
-      setRecentTransactions(recentRes.content)
-      setHistoricalTransactions(historicalRes.content)
-      setRecurring(recurringRes)
-      setUpcomingReminders(remindersRes)
+      if (forecastRes.status === 'fulfilled') setForecast(forecastRes.value)
+      else console.error('Aggiornamento previsione non riuscito', forecastRes.reason)
+
+      if (checkpointsRes.status === 'fulfilled') setCheckpoints(checkpointsRes.value)
+      else console.error('Aggiornamento saldi di partenza non riuscito', checkpointsRes.reason)
+
+      if (recentRes.status === 'fulfilled') setRecentTransactions(recentRes.value.content)
+      else console.error('Aggiornamento transazioni recenti non riuscito', recentRes.reason)
+
+      if (historicalRes.status === 'fulfilled') setHistoricalTransactions(historicalRes.value.content)
+      else console.error('Aggiornamento storico transazioni non riuscito', historicalRes.reason)
+
+      if (recurringRes.status === 'fulfilled') setRecurring(recurringRes.value)
+      else console.error('Aggiornamento ricorrenti non riuscito', recurringRes.reason)
+
+      if (remindersRes.status === 'fulfilled') setUpcomingReminders(remindersRes.value)
+      else console.error('Aggiornamento promemoria non riuscito', remindersRes.reason)
     })
   }
 
   useEffect(() => {
     reload().finally(() => setLoading(false))
   }, [salaryDay, rangeStart, rangeEnd])
+
+  // Una transazione aggiunta offline viene sincronizzata in background da
+  // OfflineSyncContext: se l'utente resta sul Dashboard, senza questo
+  // effetto il saldo attuale e la previsione non si aggiornerebbero mai
+  // finché non si naviga altrove e si torna (che rimonta la pagina).
+  const prevPendingCount = useRef(pendingCount)
+  useEffect(() => {
+    if (prevPendingCount.current > 0 && pendingCount === 0) {
+      reload()
+    }
+    prevPendingCount.current = pendingCount
+  }, [pendingCount])
 
   const closeQuickAdd = () => setQuickAddOpen(false)
 
@@ -213,7 +239,7 @@ export default function DashboardPage() {
       throw err
     }
     closeQuickAdd()
-    reload()
+    await reload()
   }
 
   const handleCreateCategory = async (data: { name: string; type: 'INCOME' | 'EXPENSE'; color: string | null; icon: string | null }) => {
