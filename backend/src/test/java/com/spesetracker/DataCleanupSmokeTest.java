@@ -1,11 +1,11 @@
 package com.spesetracker;
 
+import com.spesetracker.support.AbstractIntegrationTest;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -21,9 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Verifica sia la cancellazione per intervallo di date (solo transazioni e saldi,
 // senza toccare regole ricorrenti/promemoria/categorie) sia il reset completo
 // dell'account (tutto tranne le categorie, per permettere un reimport pulito da Excel).
-@SpringBootTest
-@AutoConfigureMockMvc
-class DataCleanupSmokeTest {
+class DataCleanupSmokeTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -84,14 +82,14 @@ class DataCleanupSmokeTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createReminder(String token, LocalDate due) throws Exception {
+    private void createReminder(String token, String categoryId, LocalDate due) throws Exception {
         mockMvc.perform(post("/api/expense-reminders")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"Bollo auto","intervalUnit":"YEAR","intervalValue":1,\
+                                {"categoryId":"%s","name":"Bollo auto","intervalUnit":"YEAR","intervalValue":1,\
                                 "startDate":"%s","nextDueDate":"%s"}
-                                """.formatted(due, due)))
+                                """.formatted(categoryId, due, due)))
                 .andExpect(status().isCreated());
     }
 
@@ -100,19 +98,28 @@ class DataCleanupSmokeTest {
         String token = registerAndLogin();
         String categoryId = createCategory(token, "Varie" + UUID.randomUUID());
 
-        LocalDate inRange = LocalDate.of(2026, 3, 15);
-        LocalDate outOfRange = LocalDate.of(2026, 6, 15);
+        // Date ancorate a oggi invece che fisse: una regola ricorrente con data di
+        // scadenza nel passato materializza subito le occorrenze arretrate
+        // (RecurringTransactionService.create -> processDueRule), quindi con date
+        // fisse i conteggi cambiano man mano che il tempo passa. La regola parte nel
+        // futuro perché qui interessa solo che il cleanup per intervallo non la tocchi.
+        LocalDate inRange = LocalDate.now().minusMonths(3).withDayOfMonth(15);
+        LocalDate outOfRange = LocalDate.now().minusMonths(1).withDayOfMonth(15);
+        LocalDate rangeFrom = inRange.withDayOfMonth(1);
+        LocalDate rangeTo = inRange.withDayOfMonth(inRange.lengthOfMonth());
+        LocalDate futureDue = LocalDate.now().plusMonths(1);
+
         createTransaction(token, categoryId, inRange, "50.00");
         createTransaction(token, categoryId, outOfRange, "70.00");
         createCheckpoint(token, inRange, "1000.00");
         createCheckpoint(token, outOfRange, "1200.00");
-        createRecurring(token, categoryId, inRange);
-        createReminder(token, inRange);
+        createRecurring(token, categoryId, futureDue);
+        createReminder(token, categoryId, futureDue);
 
         MvcResult cleanupResult = mockMvc.perform(delete("/api/data-cleanup")
                         .header("Authorization", "Bearer " + token)
-                        .param("from", "2026-03-01")
-                        .param("to", "2026-03-31"))
+                        .param("from", rangeFrom.toString())
+                        .param("to", rangeTo.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
         JsonNode summary = objectMapper.readTree(cleanupResult.getResponse().getContentAsString());
@@ -125,7 +132,9 @@ class DataCleanupSmokeTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode transactions = objectMapper.readTree(transactionsResult.getResponse().getContentAsString());
+        // /api/transactions restituisce una pagina ({content, hasNext}), non un array.
+        JsonNode transactions = objectMapper.readTree(transactionsResult.getResponse().getContentAsString())
+                .get("content");
         assertThat(transactions).hasSize(1);
         assertThat(transactions.get(0).get("occurredOn").asText()).isEqualTo(outOfRange.toString());
 
@@ -154,11 +163,15 @@ class DataCleanupSmokeTest {
         String token = registerAndLogin();
         String categoryId = createCategory(token, "Varie" + UUID.randomUUID());
 
-        LocalDate date = LocalDate.of(2026, 4, 10);
+        // Vedi il commento nell'altro test: la regola ricorrente parte nel futuro per
+        // non materializzare occorrenze arretrate, che falserebbero transactionsDeleted.
+        LocalDate date = LocalDate.now().minusMonths(4).withDayOfMonth(10);
+        LocalDate futureDue = LocalDate.now().plusMonths(1);
+
         createTransaction(token, categoryId, date, "50.00");
         createCheckpoint(token, date, "1000.00");
-        createRecurring(token, categoryId, date);
-        createReminder(token, date);
+        createRecurring(token, categoryId, futureDue);
+        createReminder(token, categoryId, futureDue);
 
         MvcResult cleanupResult = mockMvc.perform(delete("/api/data-cleanup")
                         .header("Authorization", "Bearer " + token))
@@ -173,7 +186,8 @@ class DataCleanupSmokeTest {
         MvcResult transactionsResult = mockMvc.perform(get("/api/transactions")
                         .header("Authorization", "Bearer " + token))
                 .andReturn();
-        assertThat(objectMapper.readTree(transactionsResult.getResponse().getContentAsString())).isEmpty();
+        assertThat(objectMapper.readTree(transactionsResult.getResponse().getContentAsString()).get("content"))
+                .isEmpty();
 
         MvcResult recurringResult = mockMvc.perform(get("/api/recurring-transactions")
                         .header("Authorization", "Bearer " + token))

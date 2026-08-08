@@ -1,5 +1,7 @@
 package com.spesetracker;
 
+import com.spesetracker.support.AbstractIntegrationTest;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -7,8 +9,6 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -25,9 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // Verifica che l'endpoint di esportazione produca un .xlsx leggibile contenente
 // esattamente le transazioni create per l'utente.
-@SpringBootTest
-@AutoConfigureMockMvc
-class ExcelExportSmokeTest {
+class ExcelExportSmokeTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -70,15 +68,22 @@ class ExcelExportSmokeTest {
         assertThat(content).isNotEmpty();
 
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(content))) {
-            Sheet sheet = workbook.getSheetAt(0);
+            // Il foglio 0 è il riepilogo per mese; le transazioni stanno nei fogli
+            // successivi, uno per mese.
+            Sheet summary = workbook.getSheetAt(0);
+            assertThat(summary.getSheetName()).isEqualTo("Riepilogo");
+            assertThat(summary.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Mese");
+
+            Sheet sheet = workbook.getSheetAt(1);
             Row header = sheet.getRow(0);
             assertThat(header.getCell(0).getStringCellValue()).isEqualTo("Data");
 
             Row dataRow = sheet.getRow(1);
             assertThat(dataRow.getCell(1).getStringCellValue()).isEqualTo("Spesa");
             assertThat(dataRow.getCell(2).getStringCellValue()).isEqualTo("EXPENSE");
-            assertThat(dataRow.getCell(3).getNumericCellValue()).isEqualTo(42.50);
-            assertThat(dataRow.getCell(4).getStringCellValue()).isEqualTo("Test export");
+            assertThat(dataRow.getCell(3).getStringCellValue()).isEqualTo("No");
+            assertThat(dataRow.getCell(4).getNumericCellValue()).isEqualTo(42.50);
+            assertThat(dataRow.getCell(5).getStringCellValue()).isEqualTo("Test export");
         }
     }
 }

@@ -1,0 +1,19 @@
+# Profilo "test": valori segnaposto per i placeholder che in produzione arrivano
+# dalle variabili d'ambiente. La connessione al database NON usa questi valori —
+# viene sovrascritta da @ServiceConnection sul container Postgres di
+# AbstractIntegrationTest — ma i placeholder devono comunque risolversi.
+DATABASE_URL: jdbc:postgresql://localhost:5432/placeholder
+DATABASE_USERNAME: placeholder
+DATABASE_PASSWORD: placeholder
+JWT_SECRET: test-only-jwt-secret-not-a-real-credential-0123456789abcdef
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN

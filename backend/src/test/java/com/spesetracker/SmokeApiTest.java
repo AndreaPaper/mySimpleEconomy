@@ -1,11 +1,11 @@
 package com.spesetracker;
 
+import com.spesetracker.support.AbstractIntegrationTest;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -22,9 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Percorre l'intero flusso applicativo (auth, categorie, transazioni, ricorrenze,
 // checkpoint, previsione) contro un vero database Postgres di test, senza aprire
 // una porta HTTP reale: verifica end-to-end sicurezza + JPA + logica di business.
-@SpringBootTest
-@AutoConfigureMockMvc
-class SmokeApiTest {
+class SmokeApiTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
