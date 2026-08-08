@@ -224,6 +224,84 @@ class ForecastApiTest extends AbstractIntegrationTest {
         assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("850.00");
     }
 
+    // Registrare a mano l'occorrenza futura di una ricorrenza non deve farla contare
+    // due volte: vale l'importo reale inserito, non la proiezione.
+    @Test
+    void manuallyRecordingAFutureRecurringOccurrenceDoesNotDoubleCount() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        LocalDate nextMonthDue = LocalDate.now().plusMonths(1).withDayOfMonth(15);
+        api.createRecurring(token, category, "Netflix", "9.99", nextMonthDue);
+        api.createTransaction(token, category, nextMonthDue, "9.99", "EXPENSE");
+
+        JsonNode nextMonth = api.forecast(token, 2).get("months").get(1);
+        assertThat(nextMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("9.99");
+    }
+
+    // L'importo realmente registrato prevale sulla stima della regola.
+    @Test
+    void theHandEnteredAmountWinsOverTheRuleDefault() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        LocalDate nextMonthDue = LocalDate.now().plusMonths(1).withDayOfMonth(15);
+        api.createRecurring(token, category, "Enel", "50.00", nextMonthDue);
+        api.createTransaction(token, category, nextMonthDue, "73.40", "EXPENSE");
+
+        JsonNode nextMonth = api.forecast(token, 2).get("months").get(1);
+        assertThat(nextMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("73.40");
+    }
+
+    // Il riconoscimento è per categoria: una spesa futura in un'altra categoria non
+    // deve far sparire la ricorrenza dalla previsione.
+    @Test
+    void aFutureTransactionInAnotherCategoryDoesNotSuppressTheProjection() throws Exception {
+        String token = api.registerAndLogin();
+        String subscriptions = api.createExpenseCategory(token);
+        String groceries = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        LocalDate nextMonthDue = LocalDate.now().plusMonths(1).withDayOfMonth(15);
+        api.createRecurring(token, subscriptions, "Netflix", "9.99", nextMonthDue);
+        api.createTransaction(token, groceries, nextMonthDue, "40.00", "EXPENSE");
+
+        JsonNode nextMonth = api.forecast(token, 2).get("months").get(1);
+        assertThat(nextMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("49.99");
+    }
+
+    // Una regola settimanale ha più occorrenze legittime nello stesso mese: una sola
+    // registrazione manuale deve annullarne una sola, non tutte.
+    @Test
+    void onlyOneOccurrenceIsSuppressedPerHandEnteredTransaction() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        // Regola settimanale che parte dal primo giorno del mese prossimo.
+        LocalDate start = LocalDate.now().plusMonths(1).withDayOfMonth(1);
+        mockMvc.perform(post("/api/recurring-transactions")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":"%s","name":"Spesa settimanale","defaultAmount":10.00,\
+                                "intervalUnit":"WEEK","intervalValue":1,"startDate":"%s","nextDueDate":"%s"}
+                                """.formatted(category, start, start)))
+                .andExpect(status().isCreated());
+
+        JsonNode withoutManual = api.forecast(token, 2).get("months").get(1);
+        java.math.BigDecimal projectedAlone = withoutManual.get("projectedExpense").decimalValue();
+
+        api.createTransaction(token, category, start.plusDays(1), "10.00", "EXPENSE");
+
+        JsonNode withManual = api.forecast(token, 2).get("months").get(1);
+        // Una proiezione da 10.00 sostituita dalla transazione reale da 10.00: il totale
+        // del mese non cambia, ma non raddoppia nemmeno.
+        assertThat(withManual.get("projectedExpense").decimalValue()).isEqualByComparingTo(projectedAlone);
+    }
+
     @Test
     void forecastIsScopedToTheRequestingUser() throws Exception {
         String alice = api.registerAndLogin();
