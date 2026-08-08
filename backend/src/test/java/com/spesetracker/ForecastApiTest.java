@@ -1,18 +1,27 @@
 package com.spesetracker;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.spesetracker.job.ExpenseReminderGenerationService;
 import com.spesetracker.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // Confini di data del calcolo del saldo: è la parte più delicata del backend e ha già
 // prodotto un bug in produzione (un saldo registrato "oggi" congelava il saldo attuale
 // per tutto il giorno, perché la finestra partiva da checkpointDate + 1).
 class ForecastApiTest extends AbstractIntegrationTest {
+
+    // Usato per simulare il job di inizio mese senza aspettare lo scheduler.
+    @Autowired
+    private ExpenseReminderGenerationService reminderGenerationService;
 
     @Test
     void newUserWithoutCheckpointStartsFromZero() throws Exception {
@@ -79,8 +88,8 @@ class ForecastApiTest extends AbstractIntegrationTest {
         assertThat(api.currentBalance(token)).isEqualByComparingTo("770.00");
     }
 
-    // Documenta il comportamento attuale: "Saldo attuale" è il saldo di oggi, quindi una
-    // spesa con data futura non lo tocca ancora (comparirà nella previsione del mese).
+    // "Saldo attuale" è il saldo di oggi: una spesa con data futura non lo tocca ancora,
+    // ma essendo un movimento certo deve entrare nella previsione di fine mese.
     @Test
     void futureDatedTransactionDoesNotAffectCurrentBalance() throws Exception {
         String token = api.registerAndLogin();
@@ -90,6 +99,86 @@ class ForecastApiTest extends AbstractIntegrationTest {
         api.createTransaction(token, expense, LocalDate.now().plusDays(3), "250.00", "EXPENSE");
 
         assertThat(api.currentBalance(token)).isEqualByComparingTo("1000.00");
+    }
+
+    @Test
+    void futureDatedTransactionInThisMonthIsCountedInTheEndOfMonthForecast() throws Exception {
+        String token = api.registerAndLogin();
+        String expense = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        // Una data futura ancora dentro il mese corrente (il giorno 1 non è mai futuro,
+        // quindi si usa la fine del mese quando oggi è già a fine mese).
+        LocalDate futureThisMonth = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+        api.createTransaction(token, expense, futureThisMonth, "250.00", "EXPENSE");
+
+        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("250.00");
+        assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("750.00");
+    }
+
+    @Test
+    void anActiveReminderIsIncludedInTheMonthItFallsIn() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        // Promemoria con prezzo noto in scadenza entro il mese corrente.
+        LocalDate due = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+        mockMvc.perform(post("/api/expense-reminders")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":"%s","name":"Affitto","amount":400.00,"intervalUnit":"MONTH",\
+                                "intervalValue":1,"startDate":"%s","nextDueDate":"%s"}
+                                """.formatted(category, due, due)))
+                .andExpect(status().isCreated());
+
+        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("400.00");
+        assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("600.00");
+    }
+
+    // Il job di inizio mese trasforma il promemoria in una transazione reale: da quel
+    // momento l'importo deve essere contato una volta sola.
+    @Test
+    void aReminderAlreadyMaterialisedAsATransactionIsNotCountedTwice() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        LocalDate due = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+        String reminderId = api.json(mockMvc.perform(post("/api/expense-reminders")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":"%s","name":"Affitto","amount":400.00,"intervalUnit":"MONTH",\
+                                "intervalValue":1,"startDate":"%s","nextDueDate":"%s"}
+                                """.formatted(category, due, due)))
+                .andExpect(status().isCreated())
+                .andReturn())
+                .get("id").asText();
+
+        reminderGenerationService.generateForMonth(
+                java.util.UUID.fromString(reminderId), java.time.YearMonth.now());
+
+        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("400.00");
+        assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("600.00");
+    }
+
+    @Test
+    void aReminderWithoutAPriceOrHistoryIsNotGuessed() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+
+        api.createReminder(token, category, "Importo ignoto",
+                LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()));
+
+        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("0");
+        assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("1000.00");
     }
 
     @Test
