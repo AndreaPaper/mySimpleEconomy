@@ -30,8 +30,8 @@ export const UI_PALETTES: UiPalette[] = [
     colors: { brand900: '#1B3C53', brand700: '#234C6A', brand500: '#456882', brand100: '#E3E3E3' },
   },
   {
-    key: 'azzurro',
-    label: 'Azzurro oceano',
+    key: 'brezza',
+    label: 'Brezza marina',
     colors: { brand900: '#3674B5', brand700: '#578FCA', brand500: '#A1E3F9', brand100: '#D1F8EF' },
   },
   {
