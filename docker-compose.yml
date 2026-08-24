@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: spesometro
+      POSTGRES_USER: spesometro
+      POSTGRES_PASSWORD: spesometro
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Eseguito automaticamente da Postgres solo alla prima creazione del
+      # volume (data dir vuota): se lo schema cambia dopo il primo avvio,
+      # va applicato a mano (es. con `docker compose exec db psql ...`) o
+      # ricreando il volume con `docker compose down -v`.
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spesometro -d spesometro"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
