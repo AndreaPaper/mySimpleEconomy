@@ -21,5 +21,25 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    # Gira dentro un container Linux invece che sull'host Windows: aggira il
+    # bug locale per cui la JVM non riesce ad aprire un selettore NIO
+    # (Tomcat/RestClient falliscono con "Unable to establish loopback
+    # connection" per un blocco a livello di sistema sui socket AF_UNIX).
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/spesometro
+      DATABASE_USERNAME: spesometro
+      DATABASE_PASSWORD: spesometro
+      JWT_SECRET: local-dev-secret-not-for-production-0123456789abcdef0123456789
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    ports:
+      - "8080:8080"
+
 volumes:
   pgdata:
