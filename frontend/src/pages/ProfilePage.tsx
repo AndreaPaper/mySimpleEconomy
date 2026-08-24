@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { checkpointsApi, profileApi } from '../api/endpoints'
 import type { BalanceCheckpoint } from '../api/types'
 import { useAuth } from '../context/AuthContext'
@@ -13,8 +14,16 @@ function formatDate(dateStr: string): string {
   return dateFormatter.format(new Date(year, month - 1, day))
 }
 
+// Ripartizione proposta alla prima attivazione (regola 50/30/20).
+const DEFAULT_SAVINGS_SPLIT = { savings: '20', needs: '50', wants: '30' }
+
 export default function ProfilePage() {
-  const { setNickname: setGlobalNickname, setAvatarKey: setGlobalAvatarKey } = useAuth()
+  const {
+    setNickname: setGlobalNickname,
+    setAvatarKey: setGlobalAvatarKey,
+    setSalaryDay: setGlobalSalaryDay,
+    setSavings: setGlobalSavings,
+  } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +42,17 @@ export default function ProfilePage() {
   const [checkpointError, setCheckpointError] = useState<string | null>(null)
   const [checkpointSaved, setCheckpointSaved] = useState(false)
 
+  const [savingsEnabled, setSavingsEnabled] = useState(false)
+  const [savingsPercent, setSavingsPercent] = useState(DEFAULT_SAVINGS_SPLIT.savings)
+  const [needsPercent, setNeedsPercent] = useState(DEFAULT_SAVINGS_SPLIT.needs)
+  const [wantsPercent, setWantsPercent] = useState(DEFAULT_SAVINGS_SPLIT.wants)
+  const [savingsSaving, setSavingsSaving] = useState(false)
+  const [savingsError, setSavingsError] = useState<string | null>(null)
+  const [savingsSaved, setSavingsSaved] = useState(false)
+
+  const percentTotal = Number(savingsPercent || 0) + Number(needsPercent || 0) + Number(wantsPercent || 0)
+  const percentTotalValid = percentTotal === 100
+
   const reloadCheckpoints = () => checkpointsApi.list().then(setCheckpoints)
 
   useEffect(() => {
@@ -43,6 +63,12 @@ export default function ProfilePage() {
         setDefaultSalaryAmount(profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '')
         setSalaryDay(profile.salaryDay != null ? String(profile.salaryDay) : '')
         setAvatarKey(profile.avatarKey)
+        setSavingsEnabled(profile.savingsEnabled)
+        // Se non è mai stata configurata si parte dalla proposta 20/50/30,
+        // così attivando la modalità i campi sono già validi.
+        setSavingsPercent(profile.savingsPercent != null ? String(profile.savingsPercent) : DEFAULT_SAVINGS_SPLIT.savings)
+        setNeedsPercent(profile.needsPercent != null ? String(profile.needsPercent) : DEFAULT_SAVINGS_SPLIT.needs)
+        setWantsPercent(profile.wantsPercent != null ? String(profile.wantsPercent) : DEFAULT_SAVINGS_SPLIT.wants)
       }),
       reloadCheckpoints(),
     ]).finally(() => setLoading(false))
@@ -67,6 +93,38 @@ export default function ProfilePage() {
     }
   }
 
+  const handleSavingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingsError(null)
+    setSavingsSaved(false)
+    setSavingsSaving(true)
+    try {
+      // Si rimandano anche gli altri campi del profilo: l'endpoint fa una
+      // sostituzione completa, quindi ometterli li azzererebbe.
+      const profile = await profileApi.update({
+        nickname: nickname.trim() || null,
+        defaultSalaryAmount: defaultSalaryAmount ? Number(defaultSalaryAmount) : null,
+        salaryDay: salaryDay ? Number(salaryDay) : null,
+        avatarKey,
+        savingsEnabled,
+        savingsPercent: Number(savingsPercent),
+        needsPercent: Number(needsPercent),
+        wantsPercent: Number(wantsPercent),
+      })
+      setGlobalSavings({
+        enabled: profile.savingsEnabled,
+        savingsPercent: profile.savingsPercent,
+        needsPercent: profile.needsPercent,
+        wantsPercent: profile.wantsPercent,
+      })
+      setSavingsSaved(true)
+    } catch {
+      setSavingsError('Salvataggio non riuscito. Controlla che le percentuali sommino a 100.')
+    } finally {
+      setSavingsSaving(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -78,6 +136,12 @@ export default function ProfilePage() {
         defaultSalaryAmount: defaultSalaryAmount ? Number(defaultSalaryAmount) : null,
         salaryDay: salaryDay ? Number(salaryDay) : null,
         avatarKey,
+        // Rimandati invariati: l'endpoint sostituisce l'intero profilo, quindi
+        // ometterli qui spegnerebbe la modalità risparmio a ogni salvataggio.
+        savingsEnabled,
+        savingsPercent: Number(savingsPercent),
+        needsPercent: Number(needsPercent),
+        wantsPercent: Number(wantsPercent),
       })
       setNickname(profile.nickname ?? '')
       setDefaultSalaryAmount(profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '')
@@ -85,6 +149,9 @@ export default function ProfilePage() {
       setAvatarKey(profile.avatarKey)
       setGlobalNickname(profile.nickname)
       setGlobalAvatarKey(profile.avatarKey)
+      // salaryDay definisce i confini del periodo in Dashboard: senza questo
+      // resterebbe indietro fino al refresh successivo.
+      setGlobalSalaryDay(profile.salaryDay)
       setSaved(true)
     } catch {
       setError('Salvataggio non riuscito. Controlla i valori inseriti.')
@@ -250,6 +317,89 @@ export default function ProfilePage() {
           className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {checkpointSaving ? 'Salvataggio in corso...' : 'Salva saldo'}
+        </button>
+      </form>
+
+      <form
+        onSubmit={handleSavingsSubmit}
+        className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-medium text-slate-900 dark:text-white">Risparmio</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Dividi le entrate del periodo tra risparmio, necessità e piacere: in Dashboard compare una card che
+              confronta gli obiettivi con quanto hai speso davvero.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={savingsEnabled}
+            aria-label="Attiva la modalità risparmio"
+            onClick={() => setSavingsEnabled((on) => !on)}
+            className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              savingsEnabled ? 'bg-brand-700' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                savingsEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        {savingsEnabled && (
+          <>
+            <div className="flex gap-2">
+              {[
+                { label: 'Risparmio', value: savingsPercent, onChange: setSavingsPercent },
+                { label: 'Necessità', value: needsPercent, onChange: setNeedsPercent },
+                { label: 'Piacere', value: wantsPercent, onChange: setWantsPercent },
+              ].map((field) => (
+                <label key={field.label} className="flex-1 text-sm">
+                  <span className="mb-1 block text-slate-600 dark:text-slate-300">{field.label}</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      required
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+                    />
+                    <span className="text-slate-400 dark:text-slate-500">%</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <p className={`text-xs ${percentTotalValid ? 'text-slate-400 dark:text-slate-500' : 'text-red-600'}`}>
+              Totale: {percentTotal}%{percentTotalValid ? '' : ' — deve essere 100% per poter salvare'}
+            </p>
+
+            <span className="block text-xs text-slate-400 dark:text-slate-500">
+              Perché la card sappia distinguere necessità e piacere, classifica le categorie di spesa in{' '}
+              <Link to="/categorie" className="text-brand-700 hover:underline">
+                Categorie
+              </Link>
+              . Le sottocategorie ereditano dal padre salvo diversa indicazione.
+            </span>
+          </>
+        )}
+
+        {savingsError && <p className="text-sm text-red-600">{savingsError}</p>}
+        {savingsSaved && !savingsError && <p className="text-sm text-emerald-600">Impostazioni salvate.</p>}
+
+        <button
+          type="submit"
+          disabled={savingsSaving || (savingsEnabled && !percentTotalValid)}
+          className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
+        >
+          {savingsSaving ? 'Salvataggio in corso...' : 'Salva impostazioni'}
         </button>
       </form>
     </div>

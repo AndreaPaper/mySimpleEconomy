@@ -1,5 +1,6 @@
 package com.spesetracker.dto.category;
 
+import com.spesetracker.model.enums.SpendingBucket;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
@@ -12,6 +13,9 @@ public record CategoryUpdateRequest(
         String icon,
         // Permette di agganciare una categoria esistente a un padre (o di
         // staccarla passando null): il tipo resta comunque immutabile.
-        UUID parentId
+        UUID parentId,
+        // Modalità risparmio, solo per le categorie di spesa. Null = eredita
+        // dal padre (sottocategorie) o non classificata (principali).
+        SpendingBucket spendingBucket
 ) {
 }

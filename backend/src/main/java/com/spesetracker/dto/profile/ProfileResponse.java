@@ -7,6 +7,10 @@ public record ProfileResponse(
         String nickname,
         BigDecimal defaultSalaryAmount,
         Short salaryDay,
-        String avatarKey
+        String avatarKey,
+        boolean savingsEnabled,
+        Short savingsPercent,
+        Short needsPercent,
+        Short wantsPercent
 ) {
 }

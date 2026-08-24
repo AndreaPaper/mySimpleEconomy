@@ -1,4 +1,4 @@
-import type { Category } from '../api/types'
+import type { Category, SpendingBucket } from '../api/types'
 
 export interface FlatCategoryEntry {
   category: Category
@@ -42,6 +42,17 @@ export function flattenCategoryTree(categories: Category[]): FlatCategoryEntry[]
   }
 
   return entries
+}
+
+// Classificazione effettiva di una categoria per la modalità risparmio:
+// una sottocategoria senza bucket proprio eredita quello del padre, mentre
+// una categoria principale senza bucket resta non classificata (null).
+// Unica implementazione della regola, condivisa da Dashboard, CategoryForm
+// e CategoriesPage.
+export function effectiveBucket(category: Category, categories: Category[]): SpendingBucket | null {
+  if (category.spendingBucket) return category.spendingBucket
+  if (!category.parentId) return null
+  return categories.find((c) => c.id === category.parentId)?.spendingBucket ?? null
 }
 
 // Etichetta per i menu a tendina: le sottocategorie sono rientrate con un

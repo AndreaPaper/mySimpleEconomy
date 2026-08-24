@@ -11,6 +11,7 @@ import type {
   Profile,
   RecurringOverride,
   RecurringTransaction,
+  SpendingBucket,
   Transaction,
   TransactionPage,
   UpcomingRemindersResponse,
@@ -38,10 +39,17 @@ export const categoriesApi = {
     color?: string | null
     icon?: string | null
     parentId?: string | null
+    spendingBucket?: SpendingBucket | null
   }) => client.post<Category>('/categories', data).then((r) => r.data),
   update: (
     id: string,
-    data: { name: string; color?: string | null; icon?: string | null; parentId?: string | null },
+    data: {
+      name: string
+      color?: string | null
+      icon?: string | null
+      parentId?: string | null
+      spendingBucket?: SpendingBucket | null
+    },
   ) => client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
   archive: (id: string) => client.post(`/categories/${id}/archive`),
   generateDefaults: () => client.post<Category[]>('/categories/generate-defaults').then((r) => r.data),
@@ -179,6 +187,10 @@ export const profileApi = {
     defaultSalaryAmount?: number | null
     salaryDay?: number | null
     avatarKey?: string | null
+    savingsEnabled?: boolean
+    savingsPercent?: number | null
+    needsPercent?: number | null
+    wantsPercent?: number | null
   }) => client.put<Profile>('/profile', data).then((r) => r.data),
 }
 

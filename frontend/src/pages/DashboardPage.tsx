@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   Area,
@@ -23,6 +24,7 @@ import { useOfflineSync } from '../context/OfflineSyncContext'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
+import { effectiveBucket } from '../utils/categoryTree'
 import type {
   BalanceCheckpoint,
   Category,
@@ -156,7 +158,7 @@ function buildCategoryBreakdown(transactions: Transaction[], categories: Categor
 }
 
 export default function DashboardPage() {
-  const { salaryDay } = useAuth()
+  const { salaryDay, savings } = useAuth()
   const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
   const isMobile = useIsMobile()
   const [forecast, setForecast] = useState<ForecastResponse | null>(null)
@@ -385,6 +387,20 @@ export default function DashboardPage() {
     .reduce((sum, t) => sum + t.amount, 0)
   const currentPeriodNet = currentPeriodIncome - currentPeriodExpense
 
+  // Modalità risparmio: le percentuali si applicano alle entrate EFFETTIVE del
+  // periodo, quindi finché non è entrato nulla gli obiettivi non esistono e la
+  // card lo dice invece di mostrare tre zeri.
+  const savingsSpentByBucket = { NEED: 0, WANT: 0, UNCLASSIFIED: 0 }
+  for (const t of currentPeriodTransactions) {
+    if (t.type !== 'EXPENSE') continue
+    const category = categories.find((c) => c.id === t.categoryId)
+    const bucket = category ? effectiveBucket(category, categories) : null
+    savingsSpentByBucket[bucket ?? 'UNCLASSIFIED'] += t.amount
+  }
+  const savingsTarget = (currentPeriodIncome * (savings.savingsPercent ?? 0)) / 100
+  const needsTarget = (currentPeriodIncome * (savings.needsPercent ?? 0)) / 100
+  const wantsTarget = (currentPeriodIncome * (savings.wantsPercent ?? 0)) / 100
+
   const summaryCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-kpi-a p-4">
@@ -397,6 +413,80 @@ export default function DashboardPage() {
           {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
         </p>
       </div>
+    </div>
+  )
+
+  // Una riga della card Risparmio: barra "speso su obiettivo". `goodWhenFull`
+  // distingue il risparmio (raggiungere l'obiettivo è positivo) dalle spese
+  // (superarlo è negativo).
+  const savingsRow = (
+    label: string,
+    spent: number,
+    target: number,
+    percent: number | null,
+    goodWhenFull: boolean,
+  ) => {
+    const ratio = target > 0 ? spent / target : 0
+    const over = ratio > 1
+    const barColor = goodWhenFull
+      ? ratio >= 1
+        ? '#2FA36B'
+        : 'var(--color-brand-700)'
+      : over
+        ? '#E5546A'
+        : 'var(--color-brand-700)'
+    return (
+      <li className="text-sm">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate">{label}</span>
+            <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{percent ?? 0}%</span>
+          </span>
+          <span className={`shrink-0 font-bold ${over && !goodWhenFull ? 'text-red-600' : ''}`}>
+            {currency.format(spent)}
+            <span className="font-normal text-slate-400 dark:text-slate-500"> / {currency.format(target)}</span>
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-bar-track dark:bg-zinc-800">
+          <div
+            className="h-2 rounded-full"
+            style={{ width: `${Math.min(ratio, 1) * 100}%`, backgroundColor: barColor }}
+          />
+        </div>
+      </li>
+    )
+  }
+
+  const savingsCard = (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Risparmio</p>
+        <span className="text-xs text-slate-400 dark:text-slate-500">
+          su {currency.format(currentPeriodIncome)} di entrate
+        </span>
+      </div>
+      {currentPeriodIncome <= 0 ? (
+        <p className="text-sm text-slate-400 dark:text-slate-500">
+          Nessuna entrata ancora in questo periodo: gli obiettivi compaiono appena arriva lo stipendio.
+        </p>
+      ) : (
+        <>
+          <ul className="space-y-3">
+            {savingsRow('Risparmiato', currentPeriodNet, savingsTarget, savings.savingsPercent, true)}
+            {savingsRow('Necessità', savingsSpentByBucket.NEED, needsTarget, savings.needsPercent, false)}
+            {savingsRow('Piacere', savingsSpentByBucket.WANT, wantsTarget, savings.wantsPercent, false)}
+          </ul>
+          {savingsSpentByBucket.UNCLASSIFIED > 0 && (
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              {currency.format(savingsSpentByBucket.UNCLASSIFIED)} di spese non rientrano in nessuna delle due voci:{' '}
+              <Link to="/categorie" className="text-brand-700 hover:underline">
+                classifica le categorie
+              </Link>
+              .
+            </p>
+          )}
+        </>
+      )}
     </div>
   )
 
@@ -745,6 +835,7 @@ export default function DashboardPage() {
       {isMobile ? (
         <>
           {summaryCards}
+          {savings.enabled && savingsCard}
           {categoryCard}
           {periodCards}
           {balanceChartCard}
@@ -754,6 +845,7 @@ export default function DashboardPage() {
       ) : (
         <>
           {summaryCards}
+          {savings.enabled && savingsCard}
           {balanceChartCard}
           {periodCards}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

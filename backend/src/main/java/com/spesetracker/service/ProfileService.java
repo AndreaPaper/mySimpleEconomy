@@ -49,10 +49,18 @@ public class ProfileService {
         BigDecimal previousSalaryAmount = user.getDefaultSalaryAmount();
         Short previousSalaryDay = user.getSalaryDay();
 
+        validateSavingsSettings(request);
+
         user.setNickname(request.nickname());
         user.setDefaultSalaryAmount(request.defaultSalaryAmount());
         user.setSalaryDay(request.salaryDay());
         user.setAvatarKey(validateAvatarKey(request.avatarKey()));
+        user.setSavingsEnabled(Boolean.TRUE.equals(request.savingsEnabled()));
+        // Le percentuali si salvano anche a modalità spenta: riaccendendola,
+        // l'utente ritrova la configurazione invece di doverla rifare.
+        user.setSavingsPercent(request.savingsPercent());
+        user.setNeedsPercent(request.needsPercent());
+        user.setWantsPercent(request.wantsPercent());
 
         // Solo se stipendio o giorno sono davvero cambiati in questo salvataggio:
         // così un salvataggio che tocca solo il nickname non "resuscita" una
@@ -146,6 +154,28 @@ public class ProfileService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utente non trovato"));
     }
 
+    // A modalità risparmio attiva le tre percentuali devono esserci tutte e
+    // sommare esattamente a 100: senza questo vincolo gli obiettivi mostrati in
+    // Dashboard non coprirebbero (o supererebbero) le entrate del periodo.
+    private void validateSavingsSettings(ProfileUpdateRequest request) {
+        if (!Boolean.TRUE.equals(request.savingsEnabled())) {
+            return;
+        }
+
+        if (request.savingsPercent() == null || request.needsPercent() == null || request.wantsPercent() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Con la modalità risparmio attiva servono tutte e tre le percentuali");
+        }
+
+        int total = request.savingsPercent() + request.needsPercent() + request.wantsPercent();
+        if (total != 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Le percentuali devono sommare a 100 (attuale: " + total + ")");
+        }
+    }
+
     // L'utente può solo scegliere tra gli avatar offerti dall'app (AvatarCatalog),
     // non caricare un'immagine propria: qualsiasi altro valore è rifiutato.
     private String validateAvatarKey(String avatarKey) {
@@ -158,6 +188,14 @@ public class ProfileService {
 
     private ProfileResponse toResponse(User user) {
         return new ProfileResponse(
-                user.getEmail(), user.getNickname(), user.getDefaultSalaryAmount(), user.getSalaryDay(), user.getAvatarKey());
+                user.getEmail(),
+                user.getNickname(),
+                user.getDefaultSalaryAmount(),
+                user.getSalaryDay(),
+                user.getAvatarKey(),
+                Boolean.TRUE.equals(user.getSavingsEnabled()),
+                user.getSavingsPercent(),
+                user.getNeedsPercent(),
+                user.getWantsPercent());
     }
 }

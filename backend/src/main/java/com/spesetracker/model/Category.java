@@ -1,6 +1,7 @@
 package com.spesetracker.model;
 
 import com.spesetracker.model.enums.CategoryType;
+import com.spesetracker.model.enums.SpendingBucket;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -48,6 +49,13 @@ public class Category {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Category parent;
+
+    // Modalità risparmio: null = eredita dal padre (sottocategorie) o non
+    // classificata (categorie principali). Solo per le categorie di spesa.
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "spending_bucket", length = 20)
+    private SpendingBucket spendingBucket;
 
     @Column(nullable = false)
     private Boolean archived;

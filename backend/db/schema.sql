@@ -11,10 +11,22 @@ CREATE TABLE users (
     -- caricata dall'utente: NULL = icona utente generica di default.
     avatar_key VARCHAR(30) CHECK (avatar_key IS NULL OR avatar_key IN
         ('cat', 'dog', 'rabbit', 'bird', 'fish', 'turtle', 'squirrel', 'panda', 'mouse', 'snail')),
+    -- Modalità risparmio (opt-in): percentuali delle entrate del periodo da
+    -- destinare a risparmio / necessità / piacere. Devono sommare a 100 quando
+    -- la modalità è attiva (vincolo applicato in ProfileService: qui non si può
+    -- esprimere senza vietare le configurazioni parziali salvate a modalità
+    -- spenta).
+    savings_enabled BOOLEAN NOT NULL DEFAULT false,
+    savings_percent SMALLINT CHECK (savings_percent IS NULL OR savings_percent BETWEEN 0 AND 100),
+    needs_percent SMALLINT CHECK (needs_percent IS NULL OR needs_percent BETWEEN 0 AND 100),
+    wants_percent SMALLINT CHECK (wants_percent IS NULL OR wants_percent BETWEEN 0 AND 100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TYPE category_type AS ENUM ('INCOME', 'EXPENSE');
+
+-- Classificazione di una categoria di spesa per la modalità risparmio.
+CREATE TYPE spending_bucket AS ENUM ('NEED', 'WANT');
 
 CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,6 +40,10 @@ CREATE TABLE categories (
     -- uguale al padre sono applicati in CategoryService, non qui. RESTRICT come
     -- le altre FK verso categories: un padre con figli non si cancella.
     parent_id UUID REFERENCES categories(id) ON DELETE RESTRICT,
+    -- Modalità risparmio: NULL su una sottocategoria significa "eredita dal
+    -- padre", su una categoria principale "non classificata". Valorizzabile
+    -- solo sulle categorie di spesa (vincolo in CategoryService).
+    spending_bucket spending_bucket,
     archived BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, name)
