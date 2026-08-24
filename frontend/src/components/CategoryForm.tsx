@@ -5,24 +5,43 @@ import type { Category, CategoryType } from '../api/types'
 
 interface CategoryFormProps {
   initial?: Category
-  onSubmit: (data: { name: string; type: CategoryType; color: string | null; icon: string | null }) => Promise<void>
+  // Serve solo a popolare il menu "Categoria padre": l'elenco completo di
+  // quelle non archiviate, da cui si filtrano i padri ammessi.
+  categories: Category[]
+  onSubmit: (data: {
+    name: string
+    type: CategoryType
+    color: string | null
+    icon: string | null
+    parentId: string | null
+  }) => Promise<void>
   onCancel: () => void
 }
 
-export default function CategoryForm({ initial, onSubmit, onCancel }: CategoryFormProps) {
+export default function CategoryForm({ initial, categories, onSubmit, onCancel }: CategoryFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [type, setType] = useState<CategoryType>(initial?.type ?? 'EXPENSE')
   const [color, setColor] = useState<string | null>(initial?.color ?? CATEGORY_COLORS[0])
   const [icon, setIcon] = useState<string | null>(initial?.icon ?? null)
+  const [parentId, setParentId] = useState<string | null>(initial?.parentId ?? null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // Padri ammessi, con le stesse regole applicate dal backend: stesso tipo,
+  // non già sottocategorie, e diversi dalla categoria in modifica. In più si
+  // escludono quelle che hanno già figli, perché agganciarle creerebbe un
+  // terzo livello (non supportato).
+  const hasChildren = (categoryId: string) => categories.some((c) => c.parentId === categoryId)
+  const parentOptions = categories
+    .filter((c) => c.type === type && !c.parentId && c.id !== initial?.id)
+    .sort((a, b) => a.name.localeCompare(b.name, 'it'))
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     setSaving(true)
     try {
-      await onSubmit({ name, type, color, icon })
+      await onSubmit({ name, type, color, icon, parentId })
     } catch {
       setError('Salvataggio non riuscito. Controlla che il nome non sia già in uso.')
     } finally {
@@ -57,7 +76,12 @@ export default function CategoryForm({ initial, onSubmit, onCancel }: CategoryFo
               <button
                 key={t}
                 type="button"
-                onClick={() => setType(t)}
+                onClick={() => {
+                  setType(t)
+                  // Il padre deve avere lo stesso tipo: cambiandolo, una
+                  // scelta fatta prima non sarebbe più valida.
+                  setParentId(null)
+                }}
                 className={`rounded border px-3 py-1.5 text-sm ${
                   type === t ? 'border-brand-700 bg-brand-100 text-brand-700' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                 }`}
@@ -66,6 +90,36 @@ export default function CategoryForm({ initial, onSubmit, onCancel }: CategoryFo
               </button>
             ))}
           </div>
+        )}
+      </div>
+      <div>
+        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="parent">
+          Categoria padre (opzionale)
+        </label>
+        {initial && hasChildren(initial.id) ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Ha già delle sottocategorie, quindi non può diventare a sua volta una sottocategoria.
+          </p>
+        ) : (
+          <>
+            <select
+              id="parent"
+              value={parentId ?? ''}
+              onChange={(e) => setParentId(e.target.value || null)}
+              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            >
+              <option value="">— Nessuna (categoria principale) —</option>
+              {parentOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
+              Scegliendo un padre, questa diventa una sua sottocategoria (es. "Supermercato" sotto "Alimentari") e le
+              sue spese confluiscono nel totale del padre in Dashboard.
+            </span>
+          </>
         )}
       </div>
       <div>

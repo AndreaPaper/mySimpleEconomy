@@ -267,7 +267,11 @@ export default function ImportPage() {
 
       {newCategoryTarget !== null && (
         <Modal title="Nuova categoria" onClose={() => setNewCategoryTarget(null)}>
-          <CategoryForm onSubmit={handleNewCategoryCreated} onCancel={() => setNewCategoryTarget(null)} />
+          <CategoryForm
+            categories={existingCategories}
+            onSubmit={handleNewCategoryCreated}
+            onCancel={() => setNewCategoryTarget(null)}
+          />
         </Modal>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   Area,
   CartesianGrid,
@@ -27,6 +27,7 @@ import type {
   BalanceCheckpoint,
   Category,
   CategoryAmount,
+  CategoryAmountNode,
   ForecastResponse,
   RecurringTransaction,
   Transaction,
@@ -90,7 +91,15 @@ function dayBadge(dateStr: string): { day: string; month: string } {
 
 // Aggrega le transazioni di spesa di un mese per categoria, per i mesi passati
 // dove non abbiamo un forecast.categoryBreakdown già pronto dal backend.
-function buildCategoryBreakdown(transactions: Transaction[]): CategoryAmount[] {
+//
+// Le sottocategorie confluiscono nella riga del padre: `amount` della riga
+// padre è il totale complessivo (sue spese dirette + tutti i figli), mentre
+// `children` contiene il dettaglio da mostrare quando la riga viene espansa.
+// Le spese registrate direttamente sul padre restano nel totale ma non
+// generano una riga figlia. Se il padre non è tra le categorie note (es.
+// archiviato, che `categoriesApi.list()` non restituisce) la riga resta al
+// livello principale, cioè il comportamento precedente a questa feature.
+function buildCategoryBreakdown(transactions: Transaction[], categories: Category[]): CategoryAmountNode[] {
   const byCategory = new Map<string, CategoryAmount>()
   for (const t of transactions) {
     if (t.type !== 'EXPENSE') continue
@@ -108,7 +117,42 @@ function buildCategoryBreakdown(transactions: Transaction[]): CategoryAmount[] {
       })
     }
   }
-  return Array.from(byCategory.values()).sort((a, b) => b.amount - a.amount)
+
+  const parentOf = new Map(categories.map((c) => [c.id, c.parentId]))
+  const knownIds = new Set(categories.map((c) => c.id))
+  const roots = new Map<string, CategoryAmountNode>()
+
+  const rootFor = (row: CategoryAmount): CategoryAmountNode => {
+    const existing = roots.get(row.categoryId)
+    if (existing) return existing
+    const created: CategoryAmountNode = { ...row, amount: 0, children: [] }
+    roots.set(row.categoryId, created)
+    return created
+  }
+
+  for (const row of byCategory.values()) {
+    const parentId = parentOf.get(row.categoryId)
+    if (parentId && knownIds.has(parentId)) {
+      const parentCategory = categories.find((c) => c.id === parentId)!
+      const parentRow = rootFor({
+        categoryId: parentCategory.id,
+        categoryName: parentCategory.name,
+        categoryIcon: parentCategory.icon,
+        categoryColor: parentCategory.color,
+        type: 'EXPENSE',
+        amount: 0,
+      })
+      parentRow.amount += row.amount
+      parentRow.children.push(row)
+    } else {
+      rootFor(row).amount += row.amount
+    }
+  }
+
+  const byAmountDesc = (a: CategoryAmount, b: CategoryAmount) => b.amount - a.amount
+  return Array.from(roots.values())
+    .map((node) => ({ ...node, children: node.children.sort(byAmountDesc) }))
+    .sort(byAmountDesc)
 }
 
 export default function DashboardPage() {
@@ -124,6 +168,8 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [monthCursor, setMonthCursor] = useState(0)
+  // Categorie padre attualmente espanse nella card "Spese per categoria".
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [rangeStart, setRangeStart] = useState(defaultRangeStart())
   const [rangeEnd, setRangeEnd] = useState(defaultRangeEnd())
@@ -307,11 +353,14 @@ export default function DashboardPage() {
   periodKeysSet.add(currentPeriodKey) // compare anche senza transazioni
   const breakdownMonthKeys = Array.from(periodKeysSet).sort()
 
-  const breakdownByMonth = new Map<string, CategoryAmount[]>()
+  const breakdownByMonth = new Map<string, CategoryAmountNode[]>()
   for (const key of breakdownMonthKeys) {
     breakdownByMonth.set(
       key,
-      buildCategoryBreakdown(historicalTransactions.filter((t) => periodKeyOf(t.occurredOn, salaryDay) === key)),
+      buildCategoryBreakdown(
+        historicalTransactions.filter((t) => periodKeyOf(t.occurredOn, salaryDay) === key),
+        categories,
+      ),
     )
   }
   const currentMonthBreakdownIndex = breakdownMonthKeys.indexOf(currentPeriodKey)
@@ -484,10 +533,26 @@ export default function DashboardPage() {
           {categoryBreakdown.map((c) => {
             const Icon = getCategoryIcon(c.categoryIcon)
             const widthPct = maxCategoryAmount > 0 ? (c.amount / maxCategoryAmount) * 100 : 0
-            return (
-              <li key={c.categoryId} className="text-sm">
+            const hasChildren = c.children.length > 0
+            const expanded = expandedCategories.has(c.categoryId)
+            const toggle = () =>
+              setExpandedCategories((prev) => {
+                const next = new Set(prev)
+                if (next.has(c.categoryId)) next.delete(c.categoryId)
+                else next.add(c.categoryId)
+                return next
+              })
+
+            const row = (
+              <>
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
+                    {hasChildren &&
+                      (expanded ? (
+                        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+                      ))}
                     <span
                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
                       style={{ backgroundColor: c.categoryColor ?? '#94a3b8' }}
@@ -504,6 +569,59 @@ export default function DashboardPage() {
                     style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}
                   />
                 </div>
+              </>
+            )
+
+            return (
+              <li key={c.categoryId} className="text-sm">
+                {hasChildren ? (
+                  <button
+                    type="button"
+                    onClick={toggle}
+                    aria-expanded={expanded}
+                    className="w-full text-left"
+                    title={expanded ? 'Nascondi le sottocategorie' : 'Mostra le sottocategorie'}
+                  >
+                    {row}
+                  </button>
+                ) : (
+                  row
+                )}
+                {hasChildren && expanded && (
+                  <ul className="mt-2 space-y-2 pl-6">
+                    {c.children.map((child) => {
+                      const ChildIcon = getCategoryIcon(child.categoryIcon)
+                      // Stessa scala del padre, così le barre restano confrontabili.
+                      const childWidthPct = maxCategoryAmount > 0 ? (child.amount / maxCategoryAmount) * 100 : 0
+                      return (
+                        <li key={child.categoryId} className="text-xs">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="shrink-0 text-slate-300 dark:text-slate-600">└</span>
+                              <span
+                                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                                style={{ backgroundColor: child.categoryColor ?? '#94a3b8' }}
+                              >
+                                <ChildIcon className="h-3 w-3 text-white" />
+                              </span>
+                              <span className="truncate">{child.categoryName}</span>
+                            </span>
+                            <span className="shrink-0 font-medium">{currency.format(child.amount)}</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-bar-track dark:bg-zinc-800">
+                            <div
+                              className="h-1.5 rounded-full"
+                              style={{
+                                width: `${childWidthPct}%`,
+                                backgroundColor: child.categoryColor ?? '#94a3b8',
+                              }}
+                            />
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
               </li>
             )
           })}

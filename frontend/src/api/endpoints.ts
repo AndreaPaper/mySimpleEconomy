@@ -32,10 +32,17 @@ export const authApi = {
 
 export const categoriesApi = {
   list: () => client.get<Category[]>('/categories').then((r) => r.data),
-  create: (data: { name: string; type: string; color?: string | null; icon?: string | null }) =>
-    client.post<Category>('/categories', data).then((r) => r.data),
-  update: (id: string, data: { name: string; color?: string | null; icon?: string | null }) =>
-    client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
+  create: (data: {
+    name: string
+    type: string
+    color?: string | null
+    icon?: string | null
+    parentId?: string | null
+  }) => client.post<Category>('/categories', data).then((r) => r.data),
+  update: (
+    id: string,
+    data: { name: string; color?: string | null; icon?: string | null; parentId?: string | null },
+  ) => client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
   archive: (id: string) => client.post(`/categories/${id}/archive`),
   generateDefaults: () => client.post<Category[]>('/categories/generate-defaults').then((r) => r.data),
   delete: (id: string) => client.delete(`/categories/${id}`),

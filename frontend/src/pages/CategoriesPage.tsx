@@ -5,6 +5,7 @@ import Modal from '../components/Modal'
 import CategoryForm from '../components/CategoryForm'
 import { getCategoryIcon } from '../constants/icons'
 import { ListPageSkeleton } from '../components/Skeleton'
+import { flattenCategoryTree } from '../utils/categoryTree'
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -32,9 +33,20 @@ export default function CategoriesPage() {
 
   const closeModal = () => setModalMode(null)
 
-  const handleSubmit = async (data: { name: string; type: CategoryType; color: string | null; icon: string | null }) => {
+  const handleSubmit = async (data: {
+    name: string
+    type: CategoryType
+    color: string | null
+    icon: string | null
+    parentId: string | null
+  }) => {
     if (modalMode === 'edit' && editing) {
-      await categoriesApi.update(editing.id, { name: data.name, color: data.color, icon: data.icon })
+      await categoriesApi.update(editing.id, {
+        name: data.name,
+        color: data.color,
+        icon: data.icon,
+        parentId: data.parentId,
+      })
     } else {
       await categoriesApi.create(data)
     }
@@ -108,11 +120,12 @@ export default function CategoriesPage() {
         <p className="text-slate-500 dark:text-slate-400">Nessuna categoria ancora.</p>
       ) : (
         <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
-          {categories.map((c) => {
+          {flattenCategoryTree(categories).map(({ category: c, depth }) => {
             const Icon = getCategoryIcon(c.icon)
             return (
-            <li key={c.id} className="flex items-center justify-between px-4 py-3">
+            <li key={c.id} className={`flex items-center justify-between py-3 pr-4 ${depth === 1 ? 'pl-12' : 'pl-4'}`}>
               <div className="flex items-center gap-2">
+                {depth === 1 && <span className="text-slate-300 dark:text-slate-600">└</span>}
                 <span
                   className="flex h-7 w-7 items-center justify-center rounded-full"
                   style={{ backgroundColor: c.color ?? '#94a3b8' }}
@@ -120,7 +133,9 @@ export default function CategoriesPage() {
                   <Icon className="h-4 w-4 text-white" />
                 </span>
                 <span>{c.name}</span>
-                <span className="text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
+                {depth === 0 && (
+                  <span className="text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
+                )}
               </div>
               <div className="flex gap-3 text-sm">
                 <button type="button" onClick={() => openEdit(c)} className="text-brand-700 hover:underline">
@@ -141,7 +156,12 @@ export default function CategoriesPage() {
 
       {modalMode && (
         <Modal title={modalMode === 'edit' ? 'Modifica categoria' : 'Nuova categoria'} onClose={closeModal}>
-          <CategoryForm initial={editing ?? undefined} onSubmit={handleSubmit} onCancel={closeModal} />
+          <CategoryForm
+            initial={editing ?? undefined}
+            categories={categories}
+            onSubmit={handleSubmit}
+            onCancel={closeModal}
+          />
         </Modal>
       )}
     </div>

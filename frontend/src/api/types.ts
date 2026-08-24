@@ -8,6 +8,9 @@ export interface Category {
   type: CategoryType
   color: string | null
   icon: string | null
+  // Null = categoria principale. La gerarchia è a un solo livello: una
+  // categoria con parentId valorizzato non può avere sottocategorie proprie.
+  parentId: string | null
   archived: boolean
 }
 
@@ -60,6 +63,13 @@ export interface CategoryAmount {
   categoryColor: string | null
   type: CategoryType
   amount: number
+}
+
+// Riga aggregata della card "Spese per categoria": `amount` è il totale
+// complessivo (spese dirette sulla categoria + quelle di tutte le sue
+// sottocategorie), `children` il dettaglio da mostrare quando si espande.
+export interface CategoryAmountNode extends CategoryAmount {
+  children: CategoryAmount[]
 }
 
 export interface MonthlyForecast {

@@ -23,10 +23,17 @@ CREATE TABLE categories (
     type category_type NOT NULL,
     color VARCHAR(7),
     icon VARCHAR(50),
+    -- Sottocategorie a un solo livello (es. "Supermercato" sotto "Alimentari"):
+    -- il vincolo "un figlio non può avere figli a sua volta" e quello sul tipo
+    -- uguale al padre sono applicati in CategoryService, non qui. RESTRICT come
+    -- le altre FK verso categories: un padre con figli non si cancella.
+    parent_id UUID REFERENCES categories(id) ON DELETE RESTRICT,
     archived BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, name)
 );
+
+CREATE INDEX idx_categories_parent ON categories(parent_id);
 
 CREATE TYPE interval_unit AS ENUM ('DAY', 'WEEK', 'MONTH', 'YEAR');
 

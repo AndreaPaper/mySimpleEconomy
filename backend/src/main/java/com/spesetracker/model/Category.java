@@ -43,6 +43,12 @@ public class Category {
     @Column(length = 50)
     private String icon;
 
+    // Categoria padre per le sottocategorie (un solo livello: se parent != null
+    // questa categoria non può a sua volta averne, vedi CategoryService).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Category parent;
+
     @Column(nullable = false)
     private Boolean archived;
 
