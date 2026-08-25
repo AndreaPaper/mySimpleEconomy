@@ -8,12 +8,10 @@ export interface UiPalette {
 // custom property --color-brand-* in index.css). Non va confusa con
 // CATEGORY_COLORS in constants/colors.ts, che è la palette delle categorie
 // di spesa, indipendente da questa.
+// "Canvas neutro" è la predefinita: i suoi valori stanno nel blocco @theme di
+// index.css, non in una regola html[data-palette], così valgono anche prima
+// che PaletteContext scriva l'attributo.
 export const UI_PALETTES: UiPalette[] = [
-  {
-    key: 'colorhunt',
-    label: 'Cielo pastello',
-    colors: { brand900: '#C4F7CA', brand700: '#30AFFF', brand500: '#92EEFF', brand100: '#D8FFC5' },
-  },
   {
     key: 'canvas',
     label: 'Canvas neutro',
@@ -23,11 +21,6 @@ export const UI_PALETTES: UiPalette[] = [
     key: 'vividkpi',
     label: 'KPI a tinte piene',
     colors: { brand900: '#BBF1D2', brand700: '#FF8080', brand500: '#FFFFFF', brand100: '#FFF4EF' },
-  },
-  {
-    key: 'classic',
-    label: 'Blu notte (originale)',
-    colors: { brand900: '#1B3C53', brand700: '#234C6A', brand500: '#456882', brand100: '#E3E3E3' },
   },
   {
     key: 'brezza',
