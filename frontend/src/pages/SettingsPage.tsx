@@ -72,31 +72,60 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="max-w-3xl space-y-6">
       <h1 className="text-lg font-semibold dark:text-white">Impostazioni</h1>
 
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
-        <div>
-          <h2 className="font-medium dark:text-white">Aspetto</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Modalità scura per l'interfaccia.
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={theme === 'dark'}
-          onClick={toggleTheme}
-          className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-            theme === 'dark' ? 'bg-brand-700' : 'bg-slate-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-              theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+      {/* I due interruttori semplici stanno affiancati: da soli occupavano
+          una riga intera ciascuno pur contenendo poco. La palette resta a
+          piena larghezza perché le sue anteprime hanno bisogno di spazio. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
+          <div>
+            <h2 className="font-medium dark:text-white">Aspetto</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Modalità scura per l'interfaccia.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={theme === 'dark'}
+            onClick={toggleTheme}
+            className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              theme === 'dark' ? 'bg-brand-700' : 'bg-slate-300'
             }`}
-          />
-        </button>
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
+          <div>
+            <h2 className="font-medium dark:text-white">Testo maiuscolo</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Disattiva per vedere le scritte (incluse le categorie che crei) come le scrivi, non tutte in maiuscolo.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={caseStyle === 'uppercase'}
+            onClick={toggleCaseStyle}
+            className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              caseStyle === 'uppercase' ? 'bg-brand-700' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                caseStyle === 'uppercase' ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
@@ -123,30 +152,6 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
-        <div>
-          <h2 className="font-medium dark:text-white">Testo maiuscolo</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Disattiva per vedere le scritte (incluse le categorie che crei) come le scrivi, non tutte in maiuscolo.
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={caseStyle === 'uppercase'}
-          onClick={toggleCaseStyle}
-          className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-            caseStyle === 'uppercase' ? 'bg-brand-700' : 'bg-slate-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-              caseStyle === 'uppercase' ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
-        </button>
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
