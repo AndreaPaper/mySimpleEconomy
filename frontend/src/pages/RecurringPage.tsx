@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { categoriesApi, recurringApi } from '../api/endpoints'
 import type { Category, IntervalUnit, RecurringTransaction } from '../api/types'
+import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
 import RecurringTransactionForm from '../components/RecurringTransactionForm'
 import OverridesPanel from '../components/OverridesPanel'
@@ -62,10 +63,28 @@ export default function RecurringPage() {
     await reload()
   }
 
-  const handleDelete = async (item: RecurringTransaction) => {
-    if (!window.confirm(`Eliminare "${item.name}"? Le transazioni già generate non vengono toccate.`)) return
-    await recurringApi.delete(item.id)
-    await reload()
+  const [pendingDelete, setPendingDelete] = useState<RecurringTransaction | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const askDelete = (item: RecurringTransaction) => {
+    setDeleteError(null)
+    setPendingDelete(item)
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await recurringApi.delete(pendingDelete.id)
+      setPendingDelete(null)
+      await reload()
+    } catch {
+      setDeleteError('Eliminazione non riuscita. Riprova.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) return <ListPageSkeleton />
@@ -126,7 +145,7 @@ export default function RecurringPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(r)}
+                    onClick={() => askDelete(r)}
                     className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
                   >
                     Elimina
@@ -148,6 +167,29 @@ export default function RecurringPage() {
             onCancel={closeModal}
           />
         </Modal>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Elimina regola ricorrente"
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        >
+          <p>
+            La regola non genererà più transazioni. Quelle già generate non vengono toccate.
+          </p>
+          {/* Stessa riga che si legge in elenco: importo, cadenza e prossima
+              scadenza, cioè quello che si sta per smettere di generare. */}
+          <p className="mt-2 rounded border border-slate-200 dark:border-slate-800 px-3 py-2">
+            <span className="font-medium text-slate-900 dark:text-white">{pendingDelete.name}</span>
+            <br />
+            {currency.format(pendingDelete.defaultAmount)} · {pendingDelete.categoryName} · ogni{' '}
+            {pendingDelete.intervalValue} {pendingDelete.intervalUnit.toLowerCase()} · prossima:{' '}
+            {pendingDelete.nextDueDate}
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   )

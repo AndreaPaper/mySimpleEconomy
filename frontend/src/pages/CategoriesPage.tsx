@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { categoriesApi } from '../api/endpoints'
 import type { Category, CategoryType } from '../api/types'
+import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
 import CategoryForm from '../components/CategoryForm'
 import { getCategoryIcon } from '../constants/icons'
@@ -54,25 +55,37 @@ export default function CategoriesPage() {
     closeModal()
   }
 
-  const handleArchive = async (category: Category) => {
-    if (!window.confirm(`Archiviare "${category.name}"? Non comparirà più nei menu, ma resterà nello storico.`)) {
-      return
-    }
-    await categoriesApi.archive(category.id)
-    await reload()
+  // Archiviazione ed eliminazione condividono lo stesso dialogo: cambiano solo
+  // l'avvertenza e il colore del pulsante, non la sostanza della domanda.
+  const [pending, setPending] = useState<{ category: Category; action: 'archive' | 'delete' } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [pendingError, setPendingError] = useState<string | null>(null)
+
+  const ask = (category: Category, action: 'archive' | 'delete') => {
+    setPendingError(null)
+    setPending({ category, action })
   }
 
-  const handleDelete = async (category: Category) => {
-    if (!window.confirm(`Eliminare definitivamente "${category.name}"? A differenza dell'archiviazione, non si può annullare.`)) {
-      return
-    }
+  const confirmPending = async () => {
+    if (!pending) return
+    setBusy(true)
+    setPendingError(null)
     try {
-      await categoriesApi.delete(category.id)
+      if (pending.action === 'archive') await categoriesApi.archive(pending.category.id)
+      else await categoriesApi.delete(pending.category.id)
+      setPending(null)
       await reload()
     } catch {
-      window.alert(
-        'Impossibile eliminare: la categoria è collegata a transazioni, spese ricorrenti, debiti o promemoria. Prova ad archiviarla invece.',
+      // Il caso tipico è l'eliminazione di una categoria ancora collegata a
+      // qualcosa: prima finiva in un window.alert dopo la chiusura del confirm,
+      // adesso resta sotto gli occhi insieme al suggerimento di archiviarla.
+      setPendingError(
+        pending.action === 'delete'
+          ? 'Impossibile eliminare: la categoria è collegata a transazioni, spese ricorrenti, debiti o promemoria. Prova ad archiviarla invece.'
+          : 'Archiviazione non riuscita. Riprova.',
       )
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -141,10 +154,10 @@ export default function CategoriesPage() {
                 <button type="button" onClick={() => openEdit(c)} className="text-brand-700 hover:underline">
                   Modifica
                 </button>
-                <button type="button" onClick={() => handleArchive(c)} className="text-slate-500 dark:text-slate-400 hover:underline">
+                <button type="button" onClick={() => ask(c, 'archive')} className="text-slate-500 dark:text-slate-400 hover:underline">
                   Archivia
                 </button>
-                <button type="button" onClick={() => handleDelete(c)} className="text-slate-500 dark:text-slate-400 hover:underline">
+                <button type="button" onClick={() => ask(c, 'delete')} className="text-slate-500 dark:text-slate-400 hover:underline">
                   Elimina
                 </button>
               </div>
@@ -163,6 +176,40 @@ export default function CategoriesPage() {
             onCancel={closeModal}
           />
         </Modal>
+      )}
+
+      {pending && (
+        <ConfirmDialog
+          title={pending.action === 'archive' ? 'Archivia categoria' : 'Elimina categoria'}
+          confirmLabel={pending.action === 'archive' ? 'Archivia' : 'Elimina'}
+          destructive={pending.action === 'delete'}
+          busy={busy}
+          error={pendingError}
+          onConfirm={confirmPending}
+          onCancel={() => setPending(null)}
+        >
+          <p>
+            {pending.action === 'archive'
+              ? 'Non comparirà più nei menu, ma resterà nello storico e potrai riattivarla.'
+              : 'A differenza dell\u2019archiviazione, questa operazione non si può annullare.'}
+          </p>
+          {/* Quante sottocategorie ha se ne ha: eliminando una principale si
+              porta dietro un ramo intero, e il confirm del browser non poteva
+              dirlo. */}
+          <p className="mt-2 rounded border border-slate-200 dark:border-slate-800 px-3 py-2">
+            <span className="font-medium text-slate-900 dark:text-white">{pending.category.name}</span>
+            <br />
+            {pending.category.type === 'INCOME' ? 'Entrata' : 'Uscita'}
+            {(() => {
+              const parent = categories.find((c) => c.id === pending.category.parentId)
+              if (parent) return ` · sottocategoria di ${parent.name}`
+              const children = categories.filter((c) => c.parentId === pending.category.id)
+              return children.length > 0
+                ? ` · ${children.length} ${children.length === 1 ? 'sottocategoria' : 'sottocategorie'}`
+                : ''
+            })()}
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { recurringApi } from '../api/endpoints'
 import type { RecurringOverride } from '../api/types'
+import ConfirmDialog from './ConfirmDialog'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -15,6 +16,9 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
   const [overrideAmount, setOverrideAmount] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<RecurringOverride | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const reload = () => recurringApi.listOverrides(recurringTransactionId).then(setOverrides)
 
@@ -39,10 +43,24 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
     }
   }
 
-  const handleDelete = async (overrideId: string) => {
-    if (!window.confirm('Eliminare questa eccezione?')) return
-    await recurringApi.deleteOverride(recurringTransactionId, overrideId)
-    await reload()
+  const askDelete = (override: RecurringOverride) => {
+    setDeleteError(null)
+    setPendingDelete(override)
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await recurringApi.deleteOverride(recurringTransactionId, pendingDelete.id)
+      setPendingDelete(null)
+      await reload()
+    } catch {
+      setDeleteError('Eliminazione non riuscita. Riprova.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) return <p className="text-sm text-slate-400 dark:text-slate-500">Caricamento eccezioni...</p>
@@ -60,7 +78,7 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
               </span>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{currency.format(o.overrideAmount)}</span>
-                <button type="button" onClick={() => handleDelete(o.id)} className="text-xs text-slate-500 dark:text-slate-400 hover:underline">
+                <button type="button" onClick={() => askDelete(o)} className="text-xs text-slate-500 dark:text-slate-400 hover:underline">
                   Elimina
                 </button>
               </div>
@@ -114,6 +132,26 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
           Aggiungi
         </button>
       </form>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Elimina eccezione"
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        >
+          <p>
+            Per quella data la regola tornerà a usare il suo importo abituale.
+          </p>
+          <p className="mt-2 rounded border border-slate-200 dark:border-slate-800 px-3 py-2">
+            <span className="font-medium text-slate-900 dark:text-white">{pendingDelete.occurrenceDate}</span>
+            <br />
+            {currency.format(pendingDelete.overrideAmount)}
+            {pendingDelete.note ? ` · ${pendingDelete.note}` : ''}
+          </p>
+        </ConfirmDialog>
+      )}
     </div>
   )
 }

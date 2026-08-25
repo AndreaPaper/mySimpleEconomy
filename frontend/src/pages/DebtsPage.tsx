@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { categoriesApi, debtsApi } from '../api/endpoints'
 import type { Category, Debt } from '../api/types'
+import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
 import DebtForm from '../components/DebtForm'
 import { getCategoryIcon } from '../constants/icons'
@@ -60,10 +61,28 @@ export default function DebtsPage() {
     closeModal()
   }
 
-  const handleDelete = async (debt: Debt) => {
-    if (!window.confirm(`Eliminare "${debt.name}"? Le transazioni della categoria collegata non vengono toccate.`)) return
-    await debtsApi.delete(debt.id)
-    await reload()
+  const [pendingDelete, setPendingDelete] = useState<Debt | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const askDelete = (debt: Debt) => {
+    setDeleteError(null)
+    setPendingDelete(debt)
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await debtsApi.delete(pendingDelete.id)
+      setPendingDelete(null)
+      await reload()
+    } catch {
+      setDeleteError('Eliminazione non riuscita. Riprova.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) return <ListPageSkeleton />
@@ -108,7 +127,7 @@ export default function DebtsPage() {
                     <button type="button" onClick={() => openEdit(d)} className="text-brand-700 hover:underline">
                       Modifica
                     </button>
-                    <button type="button" onClick={() => handleDelete(d)} className="text-slate-500 dark:text-slate-400 hover:underline">
+                    <button type="button" onClick={() => askDelete(d)} className="text-slate-500 dark:text-slate-400 hover:underline">
                       Elimina
                     </button>
                   </div>
@@ -149,6 +168,28 @@ export default function DebtsPage() {
         <Modal title={modalMode === 'edit' ? 'Modifica debito' : 'Nuovo debito'} onClose={closeModal}>
           <DebtForm categories={categories} initial={editing ?? undefined} onSubmit={handleSubmit} onCancel={closeModal} />
         </Modal>
+      )}
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Elimina debito"
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        >
+          <p>
+            Il debito verrà eliminato definitivamente. Le transazioni della categoria collegata non vengono toccate.
+          </p>
+          {/* Quanto è già stato pagato e quanto resta: sono i numeri che fanno
+              capire se si sta buttando via il tracciamento di un debito quasi
+              saldato o di uno appena aperto. */}
+          <p className="mt-2 rounded border border-slate-200 dark:border-slate-800 px-3 py-2">
+            <span className="font-medium text-slate-900 dark:text-white">{pendingDelete.name}</span>
+            <br />
+            {pendingDelete.categoryName} · {currency.format(pendingDelete.paidAmount)} pagati su{' '}
+            {currency.format(pendingDelete.totalAmount)} · restano {currency.format(pendingDelete.remainingAmount)}
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   )
