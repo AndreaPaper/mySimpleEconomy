@@ -551,29 +551,6 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-      {/* Barra segmentata: mostra da dove esce quel numero. */}
-      {budget.income > 0 && (
-        <div className="mt-3 border-t border-slate-900/10 pt-2.5">
-          <div className="flex h-2 overflow-hidden rounded-full bg-white/60">
-            <div
-              style={{ width: `${(budget.fixedExpenses / budget.income) * 100}%`, backgroundColor: '#94a3b8' }}
-              title="Spese fisse"
-            />
-            <div
-              style={{ width: `${(budget.savingsTarget / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
-              title="Risparmio"
-            />
-            <div
-              style={{
-                width: `${(Math.max(budget.remaining, 0) / budget.income) * 100}%`,
-                backgroundColor: tone.ring,
-              }}
-              title="Disponibile"
-            />
-          </div>
-          <p className="mt-1.5 text-[11px] text-slate-500">Fisse · Risparmio · Disponibile</p>
-        </div>
-      )}
     </div>
   )
 
