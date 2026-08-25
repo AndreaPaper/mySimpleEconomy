@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
 import type { Category, Transaction, TransactionType } from '../api/types'
+import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
 import { getCategoryIcon } from '../constants/icons'
@@ -67,6 +68,9 @@ export default function TransactionsPage() {
   const [pendingItems, setPendingItems] = useState<QueuedTransaction[]>(() => getQueue())
   const [loading, setLoading] = useState(true)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [exporting, setExporting] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -208,10 +212,27 @@ export default function TransactionsPage() {
     return category
   }
 
-  const handleDelete = async (transaction: Transaction) => {
-    if (!window.confirm('Eliminare questa transazione?')) return
-    await transactionsApi.delete(transaction.id)
-    await reloadTransactions()
+  const askDelete = (transaction: Transaction) => {
+    setDeleteError(null)
+    setPendingDelete(transaction)
+  }
+
+  // Con window.confirm la cancellazione era istantanea e un errore spariva in
+  // silenzio. Ora la richiesta parte a dialogo aperto, quindi va detto quando
+  // sta lavorando e va mostrato l'errore lì dentro invece di chiudere e basta.
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await transactionsApi.delete(pendingDelete.id)
+      setPendingDelete(null)
+      await reloadTransactions()
+    } catch {
+      setDeleteError('Eliminazione non riuscita. Riprova.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const handleExport = async () => {
@@ -385,7 +406,7 @@ export default function TransactionsPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(t)}
+                          onClick={() => askDelete(t)}
                           disabled={actionsDisabled}
                           title={offlineLike ? 'Non disponibile offline' : undefined}
                           className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
@@ -424,6 +445,31 @@ export default function TransactionsPage() {
             onCancel={closeModal}
           />
         </Modal>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Elimina transazione"
+          busy={deleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        >
+          <p>Questa transazione verrà eliminata definitivamente.</p>
+          {/* La riga in grassetto è la descrizione, che però è facoltativa:
+              quando manca ci va la categoria, e allora non la si ripete sotto
+              perché la stessa parola due volte sembra un errore. */}
+          <p className="mt-2 rounded border border-slate-200 dark:border-slate-800 px-3 py-2">
+            <span className="font-medium text-slate-900 dark:text-white">
+              {pendingDelete.description || pendingDelete.categoryName}
+            </span>
+            <br />
+            {pendingDelete.occurredOn}
+            {pendingDelete.description ? ` · ${pendingDelete.categoryName}` : ''} ·{' '}
+            {pendingDelete.type === 'EXPENSE' ? '-' : '+'}
+            {currency.format(pendingDelete.amount)}
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   )
