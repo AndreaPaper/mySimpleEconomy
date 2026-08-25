@@ -194,6 +194,16 @@ export default function DashboardPage() {
   const [rangeStart, setRangeStart] = useState(defaultRangeStart())
   const [rangeEnd, setRangeEnd] = useState(defaultRangeEnd())
 
+  // La larghezza del badge di stato si misura invece di fissarla: dipende
+  // dall'etichetta e dal font, e serve alla mascotte della card "Budget
+  // disponibile" per condividerne il centro. L'osservatore la tiene aggiornata
+  // da solo, sia quando cambia lo stato (le tre etichette non sono larghe
+  // uguale) sia quando la card viene ridimensionata. Sta qui in cima e non
+  // accanto alla card perché sotto c'è un return anticipato per il caricamento,
+  // e gli hook non possono stargli dopo.
+  const badgeRef = useRef<HTMLSpanElement>(null)
+  const [badgeWidth, setBadgeWidth] = useState<number | null>(null)
+
   const today = new Date()
   // Quanti mesi di forecast servono per coprire rangeEnd, partendo dal mese
   // corrente (il forecast engine parte sempre da oggi, mai da rangeStart).
@@ -266,6 +276,16 @@ export default function DashboardPage() {
   useEffect(() => {
     reload().finally(() => setLoading(false))
   }, [salaryDay, rangeStart, rangeEnd])
+
+  useEffect(() => {
+    const badge = badgeRef.current
+    if (!badge) return
+    const measure = () => setBadgeWidth(badge.getBoundingClientRect().width)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(badge)
+    return () => observer.disconnect()
+  }, [loading, savings.enabled])
 
   // Una transazione aggiunta offline viene sincronizzata in background da
   // OfflineSyncContext: se l'utente resta sul Dashboard, senza questo
@@ -576,6 +596,7 @@ export default function DashboardPage() {
           Budget disponibile
         </span>
         <span
+          ref={badgeRef}
           className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold tracking-wide"
           style={{ color: tone.ring }}
         >
@@ -584,7 +605,10 @@ export default function DashboardPage() {
       </div>
       <div className="flex items-center gap-4">
         {savingsRing(budgetRingPct, tone.ring, 'rgba(255,255,255,.6)')}
-        <div className="min-w-0">
+        {/* Niente min-w-0 qui: la colonna non deve poter scendere sotto la
+            larghezza dell'importo, altrimenti in due colonne la cifra si
+            taglia. Chi cede spazio è la mascotte accanto. */}
+        <div>
           {/* A sforamento avvenuto il numero utile non è più "quanto resta" (è
               zero) ma di quanto si è ecceduto: l'effetto sul risparmio lo
               racconta già la card accanto, qui si direbbe due volte la stessa
@@ -600,15 +624,18 @@ export default function DashboardPage() {
           </p>
           <p className="mt-1 text-xs text-slate-600">{daysLeftLabel}</p>
         </div>
-        {/* Spinta a destra dal margine automatico, e lasciata restringere fino
-            a 32px: l'importo qui può arrivare a cinque cifre e non deve mai
-            essere lui a cedere lo spazio, quindi è la mascotte a rimpicciolirsi
-            quando la card è stretta. */}
-        <img
-          src={tone.husky}
-          alt={tone.huskyAlt}
-          className="ml-auto w-14 min-w-8 shrink self-center"
-        />
+        {/* La mascotte occupa una fetta larga quanto il badge e ci sta centrata:
+            così i due condividono lo stesso centro orizzontale invece di essere
+            solo allineati a destra, che con etichette di larghezza diversa
+            ("IN LINEA" 74px, "ATTENZIONE" 98px) li faceva sembrare storti.
+            La fetta può restringersi, perché l'importo può arrivare a cinque
+            cifre e non deve mai essere lui a cedere lo spazio. */}
+        <div
+          className="ml-auto flex shrink justify-center self-center"
+          style={{ width: badgeWidth ?? undefined }}
+        >
+          <img src={tone.husky} alt={tone.huskyAlt} className="w-14 min-w-8 shrink sm:w-[72px]" />
+        </div>
       </div>
     </div>
   )
