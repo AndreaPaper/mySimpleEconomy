@@ -9,6 +9,7 @@ import {
   Line,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -53,6 +54,13 @@ interface ChartPoint {
   label: string
   actual: number | null
   projected: number | null
+  /**
+   * Periodo della card "Spese per categoria" a cui questo punto rimanda al
+   * click. Il grafico ragiona per mese di calendario, la card per periodo
+   * stipendio-to-stipendio: null sui mesi futuri, che non hanno spese
+   * registrate da mostrare.
+   */
+  periodKey: string | null
 }
 
 function monthKey(dateStr: string): string {
@@ -333,14 +341,28 @@ export default function DashboardPage() {
   const historicalPoints: ChartPoint[] = historicalKeys
     .map((key) => {
       running += netByMonth.get(key) ?? 0
-      return { key, label: monthLabel(key), actual: running, projected: null }
+      return {
+        key,
+        label: monthLabel(key),
+        actual: running,
+        projected: null,
+        // Il periodo che contiene la metà di questo mese di calendario: con
+        // un accredito a inizio mese il periodo omonimo cadrebbe quasi tutto
+        // nel mese precedente, quindi non basta riusare la stessa chiave.
+        periodKey: periodKeyOf(`${key}-15`, salaryDay),
+      }
     })
     .filter((p) => p.key >= startMonthKey && p.key <= endMonthKey)
 
   const chartData: ChartPoint[] = [
     ...historicalPoints,
-    { label: 'Ora', actual: currentBalance, projected: currentBalance },
-    ...futureMonths.map((m) => ({ label: monthLabel(m.yearMonth), actual: null, projected: m.runningBalance })),
+    { label: 'Ora', actual: currentBalance, projected: currentBalance, periodKey: periodKeyOf(todayStr, salaryDay) },
+    ...futureMonths.map((m) => ({
+      label: monthLabel(m.yearMonth),
+      actual: null,
+      projected: m.runningBalance,
+      periodKey: null,
+    })),
   ]
 
   const upcomingExpenses = recurring
@@ -382,6 +404,26 @@ export default function DashboardPage() {
   const maxCategoryAmount = categoryBreakdown[0]?.amount ?? 0
   const canGoPrevMonth = selectedBreakdownIndex > 0
   const canGoNextMonth = selectedBreakdownIndex < breakdownMonthKeys.length - 1
+
+  // Cliccando un punto del grafico "Andamento saldo" si sposta la card "Spese
+  // per categoria" su quel periodo. monthCursor è uno scostamento dal periodo
+  // corrente, quindi si converte l'indice di destinazione in differenza.
+  const selectPeriod = (periodKey: string | null | undefined) => {
+    if (!periodKey) return
+    const index = breakdownMonthKeys.indexOf(periodKey)
+    if (index === -1) return
+    setMonthCursor(index - currentMonthBreakdownIndex)
+  }
+
+  const handleChartClick = (state: { activeLabel?: string | number }) => {
+    const label = state?.activeLabel
+    if (label == null) return
+    selectPeriod(chartData.find((p) => p.label === label)?.periodKey)
+  }
+
+  // Etichetta del punto attualmente mostrato dalla card categorie, per
+  // evidenziarlo sul grafico.
+  const selectedChartLabel = chartData.find((p) => p.periodKey === selectedBreakdownMonthKey)?.label
 
   const currentPeriodTransactions = historicalTransactions.filter(
     (t) => periodKeyOf(t.occurredOn, salaryDay) === currentPeriodKey,
@@ -566,7 +608,12 @@ export default function DashboardPage() {
   const balanceChartCard = (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-chart-card dark:bg-black p-4">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
+        <div>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Clicca un mese per vederne le spese per categoria
+          </p>
+        </div>
         <div className="flex items-center gap-2 text-xs">
           <input
             type="date"
@@ -586,7 +633,7 @@ export default function DashboardPage() {
         </div>
       </div>
       <ResponsiveContainer width="100%" height={260}>
-        <ComposedChart data={chartData}>
+        <ComposedChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
           <defs>
             <linearGradient id="balanceAreaGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--color-chart-grad-start)" />
@@ -597,6 +644,10 @@ export default function DashboardPage() {
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} width={70} />
           <Tooltip formatter={(value) => currency.format(Number(value))} />
+          {/* Segna il mese le cui spese sono mostrate nella card sotto. */}
+          {selectedChartLabel && (
+            <ReferenceLine x={selectedChartLabel} stroke="var(--color-brand-700)" strokeDasharray="4 3" />
+          )}
           <Area
             type="monotone"
             dataKey="actual"
