@@ -157,10 +157,14 @@ export default function ProfilePage() {
   if (loading) return <ProfilePageSkeleton />
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="max-w-3xl space-y-6">
       <h1 className="text-lg font-semibold">Profilo</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
+        {/* Identità a sinistra, dati dello stipendio a destra: su schermi
+            stretti le due colonne tornano una sopra l'altra. */}
+        <div className="flex flex-col gap-5 sm:flex-row sm:gap-8">
+        <div className="flex-1 space-y-4">
         <div>
           <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Email</p>
           <p className="text-sm">{email}</p>
@@ -203,7 +207,9 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
+        </div>
 
+        <div className="flex-1 space-y-4">
         <label className="block text-sm">
           <span className="mb-1 block text-slate-600 dark:text-slate-300">Nickname</span>
           <input
@@ -247,6 +253,8 @@ export default function ProfilePage() {
             viene aggiunta in automatico la transazione dello stipendio (visibile e modificabile in "Ricorrenti").
           </span>
         </label>
+        </div>
+        </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {saved && !error && <p className="text-sm text-emerald-600">Profilo salvato.</p>}
@@ -264,17 +272,17 @@ export default function ProfilePage() {
         onSubmit={handleCheckpointSubmit}
         className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6"
       >
-        <div>
-          <h2 className="text-sm font-medium text-slate-900 dark:text-white">Saldo</h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        <h2 className="text-sm font-medium text-slate-900 dark:text-white">Saldo</h2>
+
+        {/* Riepilogo e campi sulla stessa riga, così la card sfrutta la
+            larghezza invece di impilare tre blocchi stretti. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+          <p className="flex-1 text-xs text-slate-500 dark:text-slate-400">
             {latestCheckpoint
               ? `Ultimo saldo registrato: ${currency.format(latestCheckpoint.balance)} al ${formatDate(latestCheckpoint.checkpointDate)}.`
               : 'Nessun saldo registrato ancora: la Dashboard parte da 0€ finché non ne inserisci uno.'}
           </p>
-        </div>
-
-        <div className="flex gap-2">
-          <label className="flex-1 text-sm">
+          <label className="text-sm sm:w-40">
             <span className="mb-1 block text-slate-600 dark:text-slate-300">Data</span>
             <input
               type="date"
@@ -283,7 +291,7 @@ export default function ProfilePage() {
               className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
             />
           </label>
-          <label className="flex-1 text-sm">
+          <label className="text-sm sm:w-44">
             <span className="mb-1 block text-slate-600 dark:text-slate-300">Saldo a inizio giornata</span>
             <input
               type="number"
@@ -295,7 +303,15 @@ export default function ProfilePage() {
               className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
             />
           </label>
+          <button
+            type="submit"
+            disabled={checkpointSaving}
+            className="shrink-0 rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
+          >
+            {checkpointSaving ? 'Salvataggio...' : 'Salva saldo'}
+          </button>
         </div>
+
         <span className="block text-xs text-slate-400 dark:text-slate-500">
           Le transazioni registrate a partire da quella data (compresa) vengono sommate o sottratte a questo saldo:
           inserisci quindi il saldo <em>prima</em> delle spese di quel giorno. Se inserisci un saldo per una data già
@@ -304,14 +320,6 @@ export default function ProfilePage() {
 
         {checkpointError && <p className="text-sm text-red-600">{checkpointError}</p>}
         {checkpointSaved && !checkpointError && <p className="text-sm text-emerald-600">Saldo salvato.</p>}
-
-        <button
-          type="submit"
-          disabled={checkpointSaving}
-          className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
-        >
-          {checkpointSaving ? 'Salvataggio in corso...' : 'Salva saldo'}
-        </button>
       </form>
 
       <form
@@ -321,7 +329,7 @@ export default function ProfilePage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-sm font-medium text-slate-900 dark:text-white">Risparmio</h2>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 max-w-xl text-xs text-slate-500 dark:text-slate-400">
               Metti da parte una quota delle entrate del periodo: in Dashboard compare una card che mostra quanto hai
               risparmiato e quanto puoi ancora spendere restando in linea con l'obiettivo.
             </p>
