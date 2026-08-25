@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, PiggyBank, Plus, Wallet } from 'lucide-react'
+import angryHusky from '../assets/husky/angry-husky.png'
+import happyHusky from '../assets/husky/happy-husky.png'
+import warningHusky from '../assets/husky/warning-husky.png'
 import {
   Area,
   CartesianGrid,
@@ -478,10 +481,13 @@ export default function DashboardPage() {
   // toggle: l'anello verde con il salvadanaio è sempre e solo l'accumulo,
   // quello colorato con il portafoglio sempre e solo il consumo, così i due
   // significati opposti non possono essere scambiati.
+  // La mascotte cambia espressione insieme al colore: chi guarda la card di
+  // sfuggita capisce come sta andando il periodo prima ancora di leggere la
+  // cifra, e lo stato non resta affidato al solo colore.
   const BUDGET_TONES = {
-    neutral: { bg: '#eff6ff', ring: '#1C8ADB', head: '#1e40af', label: 'In linea' },
-    warning: { bg: '#fffbeb', ring: '#d97706', head: '#92400e', label: 'Attenzione' },
-    danger: { bg: '#fef2f2', ring: '#dc2626', head: '#991b1b', label: 'Sforato' },
+    neutral: { bg: '#eff6ff', ring: '#1C8ADB', head: '#1e40af', label: 'In linea', husky: happyHusky, huskyAlt: 'Husky contento' },
+    warning: { bg: '#fffbeb', ring: '#d97706', head: '#92400e', label: 'Attenzione', husky: warningHusky, huskyAlt: 'Husky preoccupato' },
+    danger: { bg: '#fef2f2', ring: '#dc2626', head: '#991b1b', label: 'Sforato', husky: angryHusky, huskyAlt: 'Husky arrabbiato' },
   } as const
   const tone = BUDGET_TONES[budget.status]
   const RING = 276.46
@@ -594,6 +600,15 @@ export default function DashboardPage() {
           </p>
           <p className="mt-1 text-xs text-slate-600">{daysLeftLabel}</p>
         </div>
+        {/* Spinta a destra dal margine automatico, e lasciata restringere fino
+            a 32px: l'importo qui può arrivare a cinque cifre e non deve mai
+            essere lui a cedere lo spazio, quindi è la mascotte a rimpicciolirsi
+            quando la card è stretta. */}
+        <img
+          src={tone.husky}
+          alt={tone.huskyAlt}
+          className="ml-auto w-14 min-w-8 shrink self-center"
+        />
       </div>
     </div>
   )
