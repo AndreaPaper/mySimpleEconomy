@@ -11,8 +11,6 @@ import type {
   Profile,
   RecurringOverride,
   RecurringTransaction,
-  SavingsGoal,
-  SavingsMovement,
   Transaction,
   TransactionPage,
   UpcomingRemindersResponse,
@@ -184,26 +182,6 @@ export const profileApi = {
     savingsEnabled?: boolean
     savingsPercent?: number | null
   }) => client.put<Profile>('/profile', data).then((r) => r.data),
-}
-
-export interface SavingsGoalPayload {
-  name: string
-  targetAmount?: number | null
-  deadline?: string | null
-  icon?: string | null
-  color?: string | null
-}
-
-export const savingsApi = {
-  listGoals: () => client.get<SavingsGoal[]>('/savings/goals').then((r) => r.data),
-  createGoal: (data: SavingsGoalPayload) => client.post<SavingsGoal>('/savings/goals', data).then((r) => r.data),
-  updateGoal: (id: string, data: SavingsGoalPayload) =>
-    client.put<SavingsGoal>(`/savings/goals/${id}`, data).then((r) => r.data),
-  deleteGoal: (id: string) => client.delete(`/savings/goals/${id}`),
-  listMovements: () => client.get<SavingsMovement[]>('/savings/movements').then((r) => r.data),
-  createMovement: (data: { goalId: string; amount: number; occurredOn: string; note?: string | null }) =>
-    client.post<SavingsMovement>('/savings/movements', data).then((r) => r.data),
-  deleteMovement: (id: string) => client.delete(`/savings/movements/${id}`),
 }
 
 export const dataCleanupApi = {

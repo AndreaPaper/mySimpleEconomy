@@ -15,13 +15,6 @@ export interface BudgetBreakdown {
   income: number
   /** Obiettivo del periodo: entrate × percentuale configurata. */
   savingsTarget: number
-  /**
-   * Quanto è effettivamente sottratto alle spese: il maggiore tra ciò che si è
-   * già accantonato davvero e l'obiettivo ancora da raggiungere. Accantonare
-   * più del previsto toglie budget (quei soldi non ci sono più), accantonare
-   * meno non lo restituisce (l'obiettivo resta da coprire).
-   */
-  reservedForSavings: number
   fixedExpenses: number
   /** Quanto resta per le spese discrezionali una volta tolti risparmio e spese fisse. */
   available: number
@@ -30,10 +23,12 @@ export interface BudgetBreakdown {
   remaining: number
   status: BudgetStatus
   /**
-   * Quanto si riuscirà davvero a mettere da parte se lo sforamento resta:
-   * lo sforamento erode il risparmio, non il budget (che è già a zero).
+   * Il risparmio vero del periodo: entrate meno tutte le uscite. Non si
+   * accantona nulla a mano — quello che avanza *è* il risparmio. Coincide per
+   * costruzione con `savingsTarget + remaining`, quindi le due card della
+   * Dashboard non possono dire cose incompatibili.
    */
-  projectedSavings: number
+  saved: number
   /** Giorni che mancano alla fine del periodo, estremo incluso. */
   daysLeft: number
   /** Quanto si può spendere al giorno per arrivare a fine periodo in pari. */
@@ -63,18 +58,15 @@ function daysBetween(fromIso: string, toIso: string): number {
  * abbonamenti). Il collegamento esiste già su ogni transazione, quindi non
  * serve classificare nulla a mano.
  *
- * Risparmio: `savedThisPeriod` è quanto è stato realmente accantonato (al netto
- * dei prelievi) nel periodo. Quei soldi sono usciti dalla disponibilità, quindi
- * accantonare più dell'obiettivo riduce il budget invece di lasciarlo intatto —
- * senza questo, si potrebbe dichiarare un risparmio che il flusso di cassa non
- * copre e le due card della Dashboard direbbero cose incompatibili.
+ * Risparmio: non è qualcosa da accantonare a mano, è quello che avanza. La
+ * percentuale configurata serve solo a fissare l'obiettivo e quindi a decidere
+ * quanto tenere da parte prima di considerare il resto spendibile.
  */
 export function computeBudget(
   periodTransactions: Transaction[],
   settings: SavingsSettings,
   period: { start: string; end: string },
   todayIso: string,
-  savedThisPeriod: number,
 ): BudgetBreakdown {
   const incomeTransactions = periodTransactions.filter((t) => t.type === 'INCOME')
   const totalIncome = sum(incomeTransactions)
@@ -100,11 +92,7 @@ export function computeBudget(
   const discretionarySpent = sum(expenses.filter((t) => t.recurringTransactionId === null))
 
   const savingsTarget = (income * (settings.savingsPercent ?? 0)) / 100
-  // Un prelievo netto (savedThisPeriod negativo) non aumenta il budget: quei
-  // soldi vengono da periodi precedenti, e usarli per spendere di più adesso
-  // vanificherebbe l'obiettivo del periodo corrente.
-  const reservedForSavings = Math.max(savedThisPeriod, savingsTarget)
-  const available = income - reservedForSavings - fixedExpenses
+  const available = income - savingsTarget - fixedExpenses
   const remaining = available - discretionarySpent
 
   // Quota di periodo trascorsa vs quota di budget consumata: spendere il 70%
@@ -125,16 +113,52 @@ export function computeBudget(
   return {
     income,
     savingsTarget,
-    reservedForSavings,
     fixedExpenses,
     available,
     discretionarySpent,
     remaining,
     status,
-    // Lo sforamento intacca quanto si riuscirà davvero a tenere da parte: se si
-    // è già spostato il denaro, vorrà dire doverne riprendere una parte.
-    projectedSavings: remaining < 0 ? Math.max(reservedForSavings + remaining, 0) : reservedForSavings,
+    saved: income - fixedExpenses - discretionarySpent,
     daysLeft,
     dailyAllowance: daysLeft > 0 ? Math.max(remaining, 0) / daysLeft : Math.max(remaining, 0),
   }
+}
+
+export interface PeriodSavings {
+  /** Chiave del periodo (stessa di periodKeyOf), es. "2026-08". */
+  periodKey: string
+  income: number
+  expenses: number
+  /** income - expenses: negativo se nel periodo si è intaccato il risparmio. */
+  saved: number
+}
+
+/**
+ * Risparmio periodo per periodo, ricostruito dalle sole transazioni realmente
+ * registrate. A differenza di `computeBudget` qui non si usa mai la stima dello
+ * stipendio: su un periodo concluso vale quello che è successo davvero, e una
+ * stima gonfierebbe un mese in cui semplicemente non è entrato nulla.
+ *
+ * Restituisce i periodi in ordine cronologico, inclusi quelli senza movimenti,
+ * così il grafico non salta i mesi vuoti.
+ */
+export function buildPeriodSavings(
+  transactions: Transaction[],
+  periodKeyOf: (dateIso: string) => string,
+  periodKeys: string[],
+): PeriodSavings[] {
+  const byPeriod = new Map<string, { income: number; expenses: number }>()
+  for (const key of periodKeys) byPeriod.set(key, { income: 0, expenses: 0 })
+
+  for (const t of transactions) {
+    const bucket = byPeriod.get(periodKeyOf(t.occurredOn))
+    if (!bucket) continue
+    if (t.type === 'INCOME') bucket.income += t.amount
+    else bucket.expenses += t.amount
+  }
+
+  return periodKeys.map((periodKey) => {
+    const { income, expenses } = byPeriod.get(periodKey)!
+    return { periodKey, income, expenses, saved: income - expenses }
+  })
 }

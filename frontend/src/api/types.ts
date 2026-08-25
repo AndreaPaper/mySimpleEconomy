@@ -221,23 +221,3 @@ export interface Profile {
   salaryCategoryId: string | null
 }
 
-export interface SavingsGoal {
-  id: string
-  name: string
-  // Null per il risparmio generico, che non ha un traguardo.
-  targetAmount: number | null
-  deadline: string | null
-  icon: string | null
-  color: string | null
-  currentAmount: number
-}
-
-export interface SavingsMovement {
-  id: string
-  goalId: string
-  goalName: string
-  // Positivo = accantonamento, negativo = prelievo.
-  amount: number
-  occurredOn: string
-  note: string | null
-}

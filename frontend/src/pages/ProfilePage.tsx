@@ -369,8 +369,9 @@ export default function ProfilePage() {
               <Link to="/ricorrenti" className="text-brand-700 hover:underline">
                 transazioni ricorrenti
               </Link>{' '}
-              (affitto, bollette, abbonamenti) vengono considerate fisse e tolte dal budget disponibile. Gli obiettivi e
-              i movimenti si gestiscono in{' '}
+              (affitto, bollette, abbonamenti) vengono considerate fisse e tolte dal budget disponibile. Non devi
+              accantonare nulla a mano: quanto hai risparmiato si ricava dalle entrate e uscite del periodo, e lo storico
+              lo trovi in{' '}
               <Link to="/risparmio" className="text-brand-700 hover:underline">
                 Risparmio
               </Link>

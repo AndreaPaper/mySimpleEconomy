@@ -154,32 +154,7 @@ CREATE INDEX idx_expense_reminders_next_due ON expense_reminders (next_due_date)
 -- expense_reminders viene creata solo a questo punto del file.
 ALTER TABLE transactions ADD COLUMN expense_reminder_id UUID REFERENCES expense_reminders(id) ON DELETE SET NULL;
 
--- Obiettivi di risparmio: il caso d'uso principale resta un unico salvadanaio
--- ("Risparmio generico"), ma il modello supporta più obiettivi fin da subito.
-CREATE TABLE savings_goals (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    -- Opzionale: il risparmio generico non ha un traguardo, "Vacanza Giappone" sì.
-    target_amount NUMERIC(10,2) CHECK (target_amount IS NULL OR target_amount > 0),
-    deadline DATE,
-    icon VARCHAR(50),
-    color VARCHAR(7),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (user_id, name)
-);
-
--- Movimenti di risparmio: importo positivo = accantonamento, negativo =
--- prelievo. Tabella separata da transactions perché un accantonamento non è
--- né una spesa né un'entrata: resta fuori dai totali di spesa del periodo.
--- Si tiene lo storico dei movimenti, non solo il saldo, per poter ricostruire
--- l'andamento nel tempo.
-CREATE TABLE savings_transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    goal_id UUID NOT NULL REFERENCES savings_goals(id) ON DELETE CASCADE,
-    amount NUMERIC(10,2) NOT NULL CHECK (amount <> 0),
-    occurred_on DATE NOT NULL,
-    note VARCHAR(255),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_savings_transactions_goal ON savings_transactions (goal_id, occurred_on DESC);
+-- Nota: il risparmio non ha tabelle proprie. È una grandezza derivata
+-- (entrate - uscite del periodo), calcolata dalle transazioni già presenti:
+-- non c'è nulla da accantonare a mano, quindi non c'è nulla da memorizzare.
+-- L'unica impostazione persistita è la percentuale obiettivo, su users.

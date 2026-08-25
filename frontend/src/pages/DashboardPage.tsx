@@ -20,7 +20,6 @@ import {
   forecastApi,
   recurringApi,
   remindersApi,
-  savingsApi,
   transactionsApi,
 } from '../api/endpoints'
 import { getCategoryIcon } from '../constants/icons'
@@ -32,7 +31,7 @@ import { useOfflineSync } from '../context/OfflineSyncContext'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
-import { computeBudget } from '../utils/savings'
+import { buildPeriodSavings, computeBudget } from '../utils/savings'
 import type {
   BalanceCheckpoint,
   Category,
@@ -40,8 +39,6 @@ import type {
   CategoryAmountNode,
   ForecastResponse,
   RecurringTransaction,
-  SavingsGoal,
-  SavingsMovement,
   Transaction,
   UpcomingRemindersResponse,
 } from '../api/types'
@@ -178,8 +175,6 @@ export default function DashboardPage() {
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([])
   const [upcomingReminders, setUpcomingReminders] = useState<UpcomingRemindersResponse | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([])
-  const [savingsMovements, setSavingsMovements] = useState<SavingsMovement[]>([])
   const [loading, setLoading] = useState(true)
   const [monthCursor, setMonthCursor] = useState(0)
   // Categorie padre attualmente espanse nella card "Spese per categoria".
@@ -236,19 +231,7 @@ export default function DashboardPage() {
           setCategories(cats)
         })
         .catch(() => setCategories(loadCachedCategories())),
-      savingsApi.listGoals(),
-      savingsApi.listMovements(),
-    ]).then(([
-      forecastRes,
-      checkpointsRes,
-      recentRes,
-      historicalRes,
-      recurringRes,
-      remindersRes,
-      ,
-      goalsRes,
-      movementsRes,
-    ]) => {
+    ]).then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
       if (forecastRes.status === 'fulfilled') setForecast(forecastRes.value)
       else console.error('Aggiornamento previsione non riuscito', forecastRes.reason)
 
@@ -266,12 +249,6 @@ export default function DashboardPage() {
 
       if (remindersRes.status === 'fulfilled') setUpcomingReminders(remindersRes.value)
       else console.error('Aggiornamento promemoria non riuscito', remindersRes.reason)
-
-      if (goalsRes.status === 'fulfilled') setSavingsGoals(goalsRes.value)
-      else console.error('Aggiornamento obiettivi di risparmio non riuscito', goalsRes.reason)
-
-      if (movementsRes.status === 'fulfilled') setSavingsMovements(movementsRes.value)
-      else console.error('Aggiornamento movimenti di risparmio non riuscito', movementsRes.reason)
     })
   }
 
@@ -417,24 +394,28 @@ export default function DashboardPage() {
     .reduce((sum, t) => sum + t.amount, 0)
   const currentPeriodNet = currentPeriodIncome - currentPeriodExpense
 
-  // Sezione risparmio: saldo degli obiettivi e budget disponibile del periodo.
-  const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0)
-  const savedThisPeriod = savingsMovements
-    .filter((m) => periodKeyOf(m.occurredOn, salaryDay) === currentPeriodKey)
-    .reduce((sum, m) => sum + m.amount, 0)
-  // Quanto è già stato accantonato entra nel calcolo: quei soldi non sono più
-  // disponibili per le spese.
+  // Sezione risparmio: budget disponibile e risparmio del periodo, entrambi
+  // ricavati dalle transazioni — non c'è nulla da accantonare a mano.
   const budget = computeBudget(
     currentPeriodTransactions,
     savings,
     periodRangeOf(currentPeriodKey, salaryDay),
     todayStr,
-    savedThisPeriod,
   )
-  // Progresso dell'anello: quanto si è già accantonato rispetto all'obiettivo
-  // del periodo. Sempre verde, perché "accumulo" ha sempre semantica positiva.
+  // Media del risparmio sui periodi conclusi, come termine di paragone per
+  // capire se questo mese si sta andando meglio o peggio del solito.
+  const closedPeriods = buildPeriodSavings(
+    historicalTransactions,
+    (d) => periodKeyOf(d, salaryDay),
+    breakdownMonthKeys.filter((k) => k < currentPeriodKey),
+  )
+  const averageSaved =
+    closedPeriods.length > 0 ? closedPeriods.reduce((s, p) => s + p.saved, 0) / closedPeriods.length : null
+
+  // Progresso dell'anello: quanto si è risparmiato rispetto all'obiettivo del
+  // periodo. Sempre verde, perché "accumulo" ha sempre semantica positiva.
   const savingsRingPct =
-    budget.savingsTarget > 0 ? Math.min(Math.max(savedThisPeriod / budget.savingsTarget, 0), 1) : 0
+    budget.savingsTarget > 0 ? Math.min(Math.max(budget.saved / budget.savingsTarget, 0), 1) : 0
 
   const summaryCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -501,17 +482,19 @@ export default function DashboardPage() {
           <PiggyBank className="h-[15px] w-[15px]" />
           Risparmio
         </Link>
-        {savingsGoals.length > 0 && (
-          <span className="text-[11px] text-slate-500">
-            {savingsGoals.length} {savingsGoals.length === 1 ? 'obiettivo attivo' : 'obiettivi attivi'}
-          </span>
-        )}
+        <span className="text-[11px] text-slate-500">
+          {budget.daysLeft > 0 ? 'periodo in corso' : 'periodo concluso'}
+        </span>
       </div>
       <div className="flex items-center gap-4">
         {savingsRing(savingsRingPct, '#2FA36B', 'rgba(255,255,255,.6)')}
         <div className="min-w-0">
-          <p className="text-xs text-slate-600">Messo da parte in questo periodo</p>
-          <p className="text-2xl font-bold leading-tight text-slate-900">{currency.format(savedThisPeriod)}</p>
+          <p className="text-xs text-slate-600">Risparmiato in questo periodo</p>
+          <p
+            className={`text-2xl font-bold leading-tight ${budget.saved < 0 ? 'text-red-600' : 'text-slate-900'}`}
+          >
+            {currency.format(budget.saved)}
+          </p>
           <p className="mt-1 text-xs text-slate-600">
             {budget.savingsTarget > 0
               ? `su ${currency.format(budget.savingsTarget)} obiettivo del periodo`
@@ -520,17 +503,9 @@ export default function DashboardPage() {
         </div>
       </div>
       <p className="mt-3 border-t border-slate-900/10 pt-2.5 text-[11px] text-slate-600">
-        {savingsGoals.length === 0 ? (
-          <>
-            Nessun obiettivo ancora:{' '}
-            <Link to="/risparmio" className="underline">
-              creane uno
-            </Link>{' '}
-            per iniziare ad accantonare.
-          </>
-        ) : (
-          `${currency.format(totalSaved)} risparmiati in totale`
-        )}
+        {averageSaved === null
+          ? 'Si calcola da solo: è quello che resta tra entrate e uscite del periodo.'
+          : `Media dei periodi precedenti: ${currency.format(averageSaved)}`}
       </p>
     </div>
   )
@@ -552,22 +527,24 @@ export default function DashboardPage() {
       <div className="flex items-center gap-4">
         {savingsRing(budgetRingPct, tone.ring, 'rgba(255,255,255,.6)')}
         <div className="min-w-0">
-          <p className="text-xs text-slate-600">Puoi ancora spendere</p>
-          {budget.status === 'danger' ? (
-            <p className="text-xl font-bold leading-tight" style={{ color: tone.ring }}>
-              {currency.format(budget.projectedSavings)}
-              <span className="block text-xs font-normal text-slate-600">
-                di risparmio invece di {currency.format(budget.reservedForSavings)}
-              </span>
-            </p>
-          ) : (
-            <p className="text-2xl font-bold leading-tight text-slate-900">{currency.format(budget.remaining)}</p>
-          )}
+          {/* A sforamento avvenuto il numero utile non è più "quanto resta" (è
+              zero) ma di quanto si è ecceduto: l'effetto sul risparmio lo
+              racconta già la card accanto, qui si direbbe due volte la stessa
+              cosa. */}
+          <p className="text-xs text-slate-600">
+            {budget.status === 'danger' ? 'Hai superato il budget di' : 'Puoi ancora spendere'}
+          </p>
+          <p
+            className="text-2xl font-bold leading-tight"
+            style={budget.status === 'danger' ? { color: tone.ring } : undefined}
+          >
+            {currency.format(Math.abs(budget.remaining))}
+          </p>
           <p className="mt-1 text-xs text-slate-600">
-            {budget.daysLeft === 0
-              ? 'Ultimo giorno del periodo'
-              : budget.status === 'danger'
-                ? `${budget.daysLeft} ${budget.daysLeft === 1 ? 'giorno' : 'giorni'} al prossimo stipendio`
+            {budget.status === 'danger'
+              ? `il risparmio scende a ${currency.format(budget.saved)} invece di ${currency.format(budget.savingsTarget)}`
+              : budget.daysLeft === 0
+                ? 'Ultimo giorno del periodo'
                 : `${currency.format(budget.dailyAllowance)} al giorno per ${
                     budget.daysLeft === 1 ? 'il giorno che resta' : `i ${budget.daysLeft} giorni che restano`
                   }`}
@@ -583,7 +560,7 @@ export default function DashboardPage() {
               title="Spese fisse"
             />
             <div
-              style={{ width: `${(budget.reservedForSavings / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
+              style={{ width: `${(budget.savingsTarget / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
               title="Risparmio"
             />
             <div
