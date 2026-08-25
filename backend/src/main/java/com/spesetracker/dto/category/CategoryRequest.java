@@ -1,7 +1,6 @@
 package com.spesetracker.dto.category;
 
 import com.spesetracker.model.enums.CategoryType;
-import com.spesetracker.model.enums.SpendingBucket;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -16,9 +15,6 @@ public record CategoryRequest(
         String icon,
         // Null = categoria principale. Se valorizzato, deve puntare a una
         // categoria dello stesso tipo che non sia già una sottocategoria.
-        UUID parentId,
-        // Modalità risparmio, solo per le categorie di spesa. Null = eredita
-        // dal padre (sottocategorie) o non classificata (principali).
-        SpendingBucket spendingBucket
+        UUID parentId
 ) {
 }

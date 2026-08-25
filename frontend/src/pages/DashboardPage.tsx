@@ -14,7 +14,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { categoriesApi, checkpointsApi, forecastApi, recurringApi, remindersApi, transactionsApi } from '../api/endpoints'
+import {
+  categoriesApi,
+  checkpointsApi,
+  forecastApi,
+  recurringApi,
+  remindersApi,
+  savingsApi,
+  transactionsApi,
+} from '../api/endpoints'
 import { getCategoryIcon } from '../constants/icons'
 import { DashboardPageSkeleton } from '../components/Skeleton'
 import Modal from '../components/Modal'
@@ -24,7 +32,7 @@ import { useOfflineSync } from '../context/OfflineSyncContext'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
-import { effectiveBucket } from '../utils/categoryTree'
+import { computeBudget } from '../utils/savings'
 import type {
   BalanceCheckpoint,
   Category,
@@ -32,6 +40,8 @@ import type {
   CategoryAmountNode,
   ForecastResponse,
   RecurringTransaction,
+  SavingsGoal,
+  SavingsMovement,
   Transaction,
   UpcomingRemindersResponse,
 } from '../api/types'
@@ -168,6 +178,8 @@ export default function DashboardPage() {
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([])
   const [upcomingReminders, setUpcomingReminders] = useState<UpcomingRemindersResponse | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([])
+  const [savingsMovements, setSavingsMovements] = useState<SavingsMovement[]>([])
   const [loading, setLoading] = useState(true)
   const [monthCursor, setMonthCursor] = useState(0)
   // Categorie padre attualmente espanse nella card "Spese per categoria".
@@ -224,7 +236,19 @@ export default function DashboardPage() {
           setCategories(cats)
         })
         .catch(() => setCategories(loadCachedCategories())),
-    ]).then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
+      savingsApi.listGoals(),
+      savingsApi.listMovements(),
+    ]).then(([
+      forecastRes,
+      checkpointsRes,
+      recentRes,
+      historicalRes,
+      recurringRes,
+      remindersRes,
+      ,
+      goalsRes,
+      movementsRes,
+    ]) => {
       if (forecastRes.status === 'fulfilled') setForecast(forecastRes.value)
       else console.error('Aggiornamento previsione non riuscito', forecastRes.reason)
 
@@ -242,6 +266,12 @@ export default function DashboardPage() {
 
       if (remindersRes.status === 'fulfilled') setUpcomingReminders(remindersRes.value)
       else console.error('Aggiornamento promemoria non riuscito', remindersRes.reason)
+
+      if (goalsRes.status === 'fulfilled') setSavingsGoals(goalsRes.value)
+      else console.error('Aggiornamento obiettivi di risparmio non riuscito', goalsRes.reason)
+
+      if (movementsRes.status === 'fulfilled') setSavingsMovements(movementsRes.value)
+      else console.error('Aggiornamento movimenti di risparmio non riuscito', movementsRes.reason)
     })
   }
 
@@ -387,19 +417,21 @@ export default function DashboardPage() {
     .reduce((sum, t) => sum + t.amount, 0)
   const currentPeriodNet = currentPeriodIncome - currentPeriodExpense
 
-  // Modalità risparmio: le percentuali si applicano alle entrate EFFETTIVE del
-  // periodo, quindi finché non è entrato nulla gli obiettivi non esistono e la
-  // card lo dice invece di mostrare tre zeri.
-  const savingsSpentByBucket = { NEED: 0, WANT: 0, UNCLASSIFIED: 0 }
-  for (const t of currentPeriodTransactions) {
-    if (t.type !== 'EXPENSE') continue
-    const category = categories.find((c) => c.id === t.categoryId)
-    const bucket = category ? effectiveBucket(category, categories) : null
-    savingsSpentByBucket[bucket ?? 'UNCLASSIFIED'] += t.amount
-  }
-  const savingsTarget = (currentPeriodIncome * (savings.savingsPercent ?? 0)) / 100
-  const needsTarget = (currentPeriodIncome * (savings.needsPercent ?? 0)) / 100
-  const wantsTarget = (currentPeriodIncome * (savings.wantsPercent ?? 0)) / 100
+  // Sezione risparmio: budget disponibile del periodo e saldo degli obiettivi.
+  const budget = computeBudget(
+    currentPeriodTransactions,
+    savings,
+    periodRangeOf(currentPeriodKey, salaryDay),
+    todayStr,
+  )
+  const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0)
+  const savedThisPeriod = savingsMovements
+    .filter((m) => periodKeyOf(m.occurredOn, salaryDay) === currentPeriodKey)
+    .reduce((sum, m) => sum + m.amount, 0)
+  // Progresso dell'anello: quanto si è già accantonato rispetto all'obiettivo
+  // del periodo. Sempre verde, perché "accumulo" ha sempre semantica positiva.
+  const savingsRingPct =
+    budget.savingsTarget > 0 ? Math.min(Math.max(savedThisPeriod / budget.savingsTarget, 0), 1) : 0
 
   const summaryCards = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -416,77 +448,120 @@ export default function DashboardPage() {
     </div>
   )
 
-  // Una riga della card Risparmio: barra "speso su obiettivo". `goodWhenFull`
-  // distingue il risparmio (raggiungere l'obiettivo è positivo) dalle spese
-  // (superarlo è negativo).
-  const savingsRow = (
-    label: string,
-    spent: number,
-    target: number,
-    percent: number | null,
-    goodWhenFull: boolean,
-  ) => {
-    const ratio = target > 0 ? spent / target : 0
-    const over = ratio > 1
-    const barColor = goodWhenFull
-      ? ratio >= 1
-        ? '#2FA36B'
-        : 'var(--color-brand-700)'
-      : over
-        ? '#E5546A'
-        : 'var(--color-brand-700)'
-    return (
-      <li className="text-sm">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">{label}</span>
-            <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{percent ?? 0}%</span>
-          </span>
-          <span className={`shrink-0 font-bold ${over && !goodWhenFull ? 'text-red-600' : ''}`}>
-            {currency.format(spent)}
-            <span className="font-normal text-slate-400 dark:text-slate-500"> / {currency.format(target)}</span>
-          </span>
-        </div>
-        <div className="h-2 rounded-full bg-bar-track dark:bg-zinc-800">
-          <div
-            className="h-2 rounded-full"
-            style={{ width: `${Math.min(ratio, 1) * 100}%`, backgroundColor: barColor }}
-          />
-        </div>
-      </li>
-    )
-  }
+  // Card Risparmio: sfondo che segue lo stato del budget (in linea / attenzione
+  // / sforato) con risparmio e budget mostrati insieme, senza toggle — l'anello
+  // resta sempre e solo il risparmio (accumulo, verde), il numero grande sempre
+  // e solo il budget, così i due significati non si confondono mai.
+  const BUDGET_TONES = {
+    neutral: { bg: '#eff6ff', color: '#1C8ADB', label: 'In linea' },
+    warning: { bg: '#fffbeb', color: '#d97706', label: 'Attenzione' },
+    danger: { bg: '#fef2f2', color: '#dc2626', label: 'Sforato' },
+  } as const
+  const tone = BUDGET_TONES[budget.status]
+  const RING_CIRCUMFERENCE = 276.46
 
   const savingsCard = (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Risparmio</p>
-        <span className="text-xs text-slate-400 dark:text-slate-500">
-          su {currency.format(currentPeriodIncome)} di entrate
+    <div
+      className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 dark:bg-black"
+      style={{ backgroundColor: tone.bg }}
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <Link to="/risparmio" className="text-sm font-medium text-slate-600 hover:underline dark:text-slate-300">
+          Risparmio
+        </Link>
+        <span
+          className="rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide"
+          style={{ backgroundColor: '#ffffff', color: tone.color }}
+        >
+          {tone.label.toUpperCase()}
         </span>
       </div>
-      {currentPeriodIncome <= 0 ? (
-        <p className="text-sm text-slate-400 dark:text-slate-500">
-          Nessuna entrata ancora in questo periodo: gli obiettivi compaiono appena arriva lo stipendio.
-        </p>
-      ) : (
-        <>
-          <ul className="space-y-3">
-            {savingsRow('Risparmiato', currentPeriodNet, savingsTarget, savings.savingsPercent, true)}
-            {savingsRow('Necessità', savingsSpentByBucket.NEED, needsTarget, savings.needsPercent, false)}
-            {savingsRow('Piacere', savingsSpentByBucket.WANT, wantsTarget, savings.wantsPercent, false)}
-          </ul>
-          {savingsSpentByBucket.UNCLASSIFIED > 0 && (
-            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              {currency.format(savingsSpentByBucket.UNCLASSIFIED)} di spese non rientrano in nessuna delle due voci:{' '}
-              <Link to="/categorie" className="text-brand-700 hover:underline">
-                classifica le categorie
-              </Link>
-              .
+
+      <div className="flex items-center gap-4">
+        <div className="relative h-[104px] w-[104px] shrink-0">
+          <svg viewBox="0 0 104 104" className="h-[104px] w-[104px] -rotate-90">
+            <circle cx="52" cy="52" r="44" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="11" />
+            <circle
+              cx="52"
+              cy="52"
+              r="44"
+              fill="none"
+              stroke="#2FA36B"
+              strokeWidth="11"
+              strokeLinecap="round"
+              strokeDasharray={RING_CIRCUMFERENCE}
+              strokeDashoffset={RING_CIRCUMFERENCE * (1 - savingsRingPct)}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-xl font-bold leading-none text-slate-900">{Math.round(savingsRingPct * 100)}%</span>
+            <span className="mt-0.5 text-[10px] text-slate-500">messo da parte</span>
+          </div>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-slate-600">Puoi ancora spendere questo periodo</p>
+          {budget.status === 'danger' ? (
+            <p className="text-xl font-bold leading-tight text-red-600">
+              {currency.format(budget.projectedSavings)}{' '}
+              <span className="text-sm font-normal text-slate-500">
+                invece di {currency.format(budget.savingsTarget)}
+              </span>
             </p>
+          ) : (
+            <p className="text-2xl font-bold leading-tight text-slate-900">{currency.format(budget.remaining)}</p>
           )}
-        </>
-      )}
+          <p className="mt-0.5 text-xs text-slate-600">
+            {budget.status === 'danger'
+              ? 'Lo sforamento erode il risparmio del periodo'
+              : budget.daysLeft > 0
+                ? `${currency.format(budget.dailyAllowance)} al giorno per i ${budget.daysLeft} giorni che restano`
+                : 'Ultimo giorno del periodo'}
+          </p>
+
+          {/* Barra segmentata: mostra *perché* quel numero è quello. */}
+          {budget.income > 0 && (
+            <>
+              <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-white/70">
+                <div
+                  style={{ width: `${(budget.fixedExpenses / budget.income) * 100}%`, backgroundColor: '#94a3b8' }}
+                  title="Spese fisse"
+                />
+                <div
+                  style={{ width: `${(budget.savingsTarget / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
+                  title="Risparmio"
+                />
+                <div
+                  style={{
+                    width: `${(Math.max(budget.remaining, 0) / budget.income) * 100}%`,
+                    backgroundColor: tone.color,
+                  }}
+                  title="Disponibile"
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-slate-500">Fisse · Risparmio · Disponibile</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 border-t border-slate-900/10 pt-2.5 text-[11px] text-slate-600">
+        {savingsGoals.length === 0 ? (
+          <>
+            Nessun obiettivo ancora:{' '}
+            <Link to="/risparmio" className="underline">
+              creane uno
+            </Link>{' '}
+            per iniziare ad accantonare.
+          </>
+        ) : (
+          <>
+            {currency.format(totalSaved)} risparmiati · {savingsGoals.length}{' '}
+            {savingsGoals.length === 1 ? 'obiettivo attivo' : 'obiettivi attivi'}
+            {savedThisPeriod !== 0 && ` · ${savedThisPeriod > 0 ? '+' : ''}${currency.format(savedThisPeriod)} in questo periodo`}
+          </>
+        )}
+      </div>
     </div>
   )
 

@@ -1,20 +1,21 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { authApi, profileApi } from '../api/endpoints'
 
-// Impostazioni della modalità risparmio, lette dal profilo e usate dalla
-// Dashboard per decidere se mostrare la card e con quali obiettivi.
+// Impostazioni della sezione risparmio più i dati del profilo che servono a
+// calcolare il budget disponibile (stipendio stimato e categoria dello
+// stipendio, per capire se è già stato incassato nel periodo).
 export interface SavingsSettings {
   enabled: boolean
   savingsPercent: number | null
-  needsPercent: number | null
-  wantsPercent: number | null
+  defaultSalaryAmount: number | null
+  salaryCategoryId: string | null
 }
 
 const SAVINGS_DISABLED: SavingsSettings = {
   enabled: false,
   savingsPercent: null,
-  needsPercent: null,
-  wantsPercent: null,
+  defaultSalaryAmount: null,
+  salaryCategoryId: null,
 }
 
 interface AuthContextValue {
@@ -54,8 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSavings({
           enabled: profile.savingsEnabled,
           savingsPercent: profile.savingsPercent,
-          needsPercent: profile.needsPercent,
-          wantsPercent: profile.wantsPercent,
+          defaultSalaryAmount: profile.defaultSalaryAmount,
+          salaryCategoryId: profile.salaryCategoryId,
         })
       })
       .catch(() => {})

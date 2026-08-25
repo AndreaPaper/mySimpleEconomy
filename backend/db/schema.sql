@@ -11,22 +11,15 @@ CREATE TABLE users (
     -- caricata dall'utente: NULL = icona utente generica di default.
     avatar_key VARCHAR(30) CHECK (avatar_key IS NULL OR avatar_key IN
         ('cat', 'dog', 'rabbit', 'bird', 'fish', 'turtle', 'squirrel', 'panda', 'mouse', 'snail')),
-    -- Modalità risparmio (opt-in): percentuali delle entrate del periodo da
-    -- destinare a risparmio / necessità / piacere. Devono sommare a 100 quando
-    -- la modalità è attiva (vincolo applicato in ProfileService: qui non si può
-    -- esprimere senza vietare le configurazioni parziali salvate a modalità
-    -- spenta).
+    -- Sezione risparmio (opt-in): quota delle entrate del periodo da mettere
+    -- da parte, come percentuale e non importo fisso, così si ricalcola da sola
+    -- quando le entrate cambiano nel corso del mese.
     savings_enabled BOOLEAN NOT NULL DEFAULT false,
     savings_percent SMALLINT CHECK (savings_percent IS NULL OR savings_percent BETWEEN 0 AND 100),
-    needs_percent SMALLINT CHECK (needs_percent IS NULL OR needs_percent BETWEEN 0 AND 100),
-    wants_percent SMALLINT CHECK (wants_percent IS NULL OR wants_percent BETWEEN 0 AND 100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TYPE category_type AS ENUM ('INCOME', 'EXPENSE');
-
--- Classificazione di una categoria di spesa per la modalità risparmio.
-CREATE TYPE spending_bucket AS ENUM ('NEED', 'WANT');
 
 CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -40,10 +33,6 @@ CREATE TABLE categories (
     -- uguale al padre sono applicati in CategoryService, non qui. RESTRICT come
     -- le altre FK verso categories: un padre con figli non si cancella.
     parent_id UUID REFERENCES categories(id) ON DELETE RESTRICT,
-    -- Modalità risparmio: NULL su una sottocategoria significa "eredita dal
-    -- padre", su una categoria principale "non classificata". Valorizzabile
-    -- solo sulle categorie di spesa (vincolo in CategoryService).
-    spending_bucket spending_bucket,
     archived BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, name)
@@ -164,3 +153,33 @@ CREATE INDEX idx_expense_reminders_next_due ON expense_reminders (next_due_date)
 -- Aggiunta qui (non nella CREATE TABLE transactions più sopra) perché
 -- expense_reminders viene creata solo a questo punto del file.
 ALTER TABLE transactions ADD COLUMN expense_reminder_id UUID REFERENCES expense_reminders(id) ON DELETE SET NULL;
+
+-- Obiettivi di risparmio: il caso d'uso principale resta un unico salvadanaio
+-- ("Risparmio generico"), ma il modello supporta più obiettivi fin da subito.
+CREATE TABLE savings_goals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    -- Opzionale: il risparmio generico non ha un traguardo, "Vacanza Giappone" sì.
+    target_amount NUMERIC(10,2) CHECK (target_amount IS NULL OR target_amount > 0),
+    deadline DATE,
+    icon VARCHAR(50),
+    color VARCHAR(7),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, name)
+);
+
+-- Movimenti di risparmio: importo positivo = accantonamento, negativo =
+-- prelievo. Tabella separata da transactions perché un accantonamento non è
+-- né una spesa né un'entrata: resta fuori dai totali di spesa del periodo.
+-- Si tiene lo storico dei movimenti, non solo il saldo, per poter ricostruire
+-- l'andamento nel tempo.
+CREATE TABLE savings_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    goal_id UUID NOT NULL REFERENCES savings_goals(id) ON DELETE CASCADE,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount <> 0),
+    occurred_on DATE NOT NULL,
+    note VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_savings_transactions_goal ON savings_transactions (goal_id, occurred_on DESC);

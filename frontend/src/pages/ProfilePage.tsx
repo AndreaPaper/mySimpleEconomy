@@ -14,8 +14,8 @@ function formatDate(dateStr: string): string {
   return dateFormatter.format(new Date(year, month - 1, day))
 }
 
-// Ripartizione proposta alla prima attivazione (regola 50/30/20).
-const DEFAULT_SAVINGS_SPLIT = { savings: '20', needs: '50', wants: '30' }
+// Quota proposta alla prima attivazione.
+const DEFAULT_SAVINGS_PERCENT = '15'
 
 export default function ProfilePage() {
   const {
@@ -43,15 +43,10 @@ export default function ProfilePage() {
   const [checkpointSaved, setCheckpointSaved] = useState(false)
 
   const [savingsEnabled, setSavingsEnabled] = useState(false)
-  const [savingsPercent, setSavingsPercent] = useState(DEFAULT_SAVINGS_SPLIT.savings)
-  const [needsPercent, setNeedsPercent] = useState(DEFAULT_SAVINGS_SPLIT.needs)
-  const [wantsPercent, setWantsPercent] = useState(DEFAULT_SAVINGS_SPLIT.wants)
+  const [savingsPercent, setSavingsPercent] = useState(DEFAULT_SAVINGS_PERCENT)
   const [savingsSaving, setSavingsSaving] = useState(false)
   const [savingsError, setSavingsError] = useState<string | null>(null)
   const [savingsSaved, setSavingsSaved] = useState(false)
-
-  const percentTotal = Number(savingsPercent || 0) + Number(needsPercent || 0) + Number(wantsPercent || 0)
-  const percentTotalValid = percentTotal === 100
 
   const reloadCheckpoints = () => checkpointsApi.list().then(setCheckpoints)
 
@@ -64,11 +59,7 @@ export default function ProfilePage() {
         setSalaryDay(profile.salaryDay != null ? String(profile.salaryDay) : '')
         setAvatarKey(profile.avatarKey)
         setSavingsEnabled(profile.savingsEnabled)
-        // Se non è mai stata configurata si parte dalla proposta 20/50/30,
-        // così attivando la modalità i campi sono già validi.
-        setSavingsPercent(profile.savingsPercent != null ? String(profile.savingsPercent) : DEFAULT_SAVINGS_SPLIT.savings)
-        setNeedsPercent(profile.needsPercent != null ? String(profile.needsPercent) : DEFAULT_SAVINGS_SPLIT.needs)
-        setWantsPercent(profile.wantsPercent != null ? String(profile.wantsPercent) : DEFAULT_SAVINGS_SPLIT.wants)
+        setSavingsPercent(profile.savingsPercent != null ? String(profile.savingsPercent) : DEFAULT_SAVINGS_PERCENT)
       }),
       reloadCheckpoints(),
     ]).finally(() => setLoading(false))
@@ -108,18 +99,16 @@ export default function ProfilePage() {
         avatarKey,
         savingsEnabled,
         savingsPercent: Number(savingsPercent),
-        needsPercent: Number(needsPercent),
-        wantsPercent: Number(wantsPercent),
       })
       setGlobalSavings({
         enabled: profile.savingsEnabled,
         savingsPercent: profile.savingsPercent,
-        needsPercent: profile.needsPercent,
-        wantsPercent: profile.wantsPercent,
+        defaultSalaryAmount: profile.defaultSalaryAmount,
+        salaryCategoryId: profile.salaryCategoryId,
       })
       setSavingsSaved(true)
     } catch {
-      setSavingsError('Salvataggio non riuscito. Controlla che le percentuali sommino a 100.')
+      setSavingsError('Salvataggio non riuscito. Controlla i valori inseriti.')
     } finally {
       setSavingsSaving(false)
     }
@@ -140,8 +129,6 @@ export default function ProfilePage() {
         // ometterli qui spegnerebbe la modalità risparmio a ogni salvataggio.
         savingsEnabled,
         savingsPercent: Number(savingsPercent),
-        needsPercent: Number(needsPercent),
-        wantsPercent: Number(wantsPercent),
       })
       setNickname(profile.nickname ?? '')
       setDefaultSalaryAmount(profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '')
@@ -149,9 +136,16 @@ export default function ProfilePage() {
       setAvatarKey(profile.avatarKey)
       setGlobalNickname(profile.nickname)
       setGlobalAvatarKey(profile.avatarKey)
-      // salaryDay definisce i confini del periodo in Dashboard: senza questo
+      // salaryDay definisce i confini del periodo in Dashboard e lo stipendio
+      // entra nel calcolo del budget: senza ripropagarli la Dashboard
       // resterebbe indietro fino al refresh successivo.
       setGlobalSalaryDay(profile.salaryDay)
+      setGlobalSavings({
+        enabled: profile.savingsEnabled,
+        savingsPercent: profile.savingsPercent,
+        defaultSalaryAmount: profile.defaultSalaryAmount,
+        salaryCategoryId: profile.salaryCategoryId,
+      })
       setSaved(true)
     } catch {
       setError('Salvataggio non riuscito. Controlla i valori inseriti.')
@@ -328,8 +322,8 @@ export default function ProfilePage() {
           <div>
             <h2 className="text-sm font-medium text-slate-900 dark:text-white">Risparmio</h2>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Dividi le entrate del periodo tra risparmio, necessità e piacere: in Dashboard compare una card che
-              confronta gli obiettivi con quanto hai speso davvero.
+              Metti da parte una quota delle entrate del periodo: in Dashboard compare una card che mostra quanto hai
+              risparmiato e quanto puoi ancora spendere restando in linea con l'obiettivo.
             </p>
           </div>
           <button
@@ -352,41 +346,35 @@ export default function ProfilePage() {
 
         {savingsEnabled && (
           <>
-            <div className="flex gap-2">
-              {[
-                { label: 'Risparmio', value: savingsPercent, onChange: setSavingsPercent },
-                { label: 'Necessità', value: needsPercent, onChange: setNeedsPercent },
-                { label: 'Piacere', value: wantsPercent, onChange: setWantsPercent },
-              ].map((field) => (
-                <label key={field.label} className="flex-1 text-sm">
-                  <span className="mb-1 block text-slate-600 dark:text-slate-300">{field.label}</span>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      required
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-                    />
-                    <span className="text-slate-400 dark:text-slate-500">%</span>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <p className={`text-xs ${percentTotalValid ? 'text-slate-400 dark:text-slate-500' : 'text-red-600'}`}>
-              Totale: {percentTotal}%{percentTotalValid ? '' : ' — deve essere 100% per poter salvare'}
-            </p>
+            <label className="block max-w-[200px] text-sm">
+              <span className="mb-1 block text-slate-600 dark:text-slate-300">Quota da mettere da parte</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  required
+                  value={savingsPercent}
+                  onChange={(e) => setSavingsPercent(e.target.value)}
+                  className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+                />
+                <span className="text-slate-400 dark:text-slate-500">%</span>
+              </div>
+            </label>
 
             <span className="block text-xs text-slate-400 dark:text-slate-500">
-              Perché la card sappia distinguere necessità e piacere, classifica le categorie di spesa in{' '}
-              <Link to="/categorie" className="text-brand-700 hover:underline">
-                Categorie
+              È una percentuale, non un importo fisso, così si adatta da sola quando le entrate del periodo cambiano. Le
+              spese generate dalle{' '}
+              <Link to="/ricorrenti" className="text-brand-700 hover:underline">
+                transazioni ricorrenti
+              </Link>{' '}
+              (affitto, bollette, abbonamenti) vengono considerate fisse e tolte dal budget disponibile. Gli obiettivi e
+              i movimenti si gestiscono in{' '}
+              <Link to="/risparmio" className="text-brand-700 hover:underline">
+                Risparmio
               </Link>
-              . Le sottocategorie ereditano dal padre salvo diversa indicazione.
+              .
             </span>
           </>
         )}
@@ -396,7 +384,7 @@ export default function ProfilePage() {
 
         <button
           type="submit"
-          disabled={savingsSaving || (savingsEnabled && !percentTotalValid)}
+          disabled={savingsSaving}
           className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {savingsSaving ? 'Salvataggio in corso...' : 'Salva impostazioni'}

@@ -1,6 +1,4 @@
 export type CategoryType = 'INCOME' | 'EXPENSE'
-// Modalità risparmio: come una spesa pesa sul budget del periodo.
-export type SpendingBucket = 'NEED' | 'WANT'
 export type TransactionType = 'INCOME' | 'EXPENSE'
 export type IntervalUnit = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
 
@@ -13,9 +11,6 @@ export interface Category {
   // Null = categoria principale. La gerarchia è a un solo livello: una
   // categoria con parentId valorizzato non può avere sottocategorie proprie.
   parentId: string | null
-  // Null = eredita dal padre (sottocategorie) o non classificata
-  // (principali). Vedi effectiveBucket() in utils/categoryTree.ts.
-  spendingBucket: SpendingBucket | null
   archived: boolean
 }
 
@@ -217,10 +212,32 @@ export interface Profile {
   defaultSalaryAmount: number | null
   salaryDay: number | null
   avatarKey: string | null
-  // Modalità risparmio: le tre percentuali sommano a 100 quando è attiva,
-  // e restano memorizzate anche a modalità spenta.
+  // Sezione risparmio: quota delle entrate da mettere da parte. Resta
+  // memorizzata anche a sezione spenta.
   savingsEnabled: boolean
   savingsPercent: number | null
-  needsPercent: number | null
-  wantsPercent: number | null
+  // Categoria dello stipendio, se configurato: serve a capire se lo stipendio
+  // del periodo è già stato incassato o va ancora stimato.
+  salaryCategoryId: string | null
+}
+
+export interface SavingsGoal {
+  id: string
+  name: string
+  // Null per il risparmio generico, che non ha un traguardo.
+  targetAmount: number | null
+  deadline: string | null
+  icon: string | null
+  color: string | null
+  currentAmount: number
+}
+
+export interface SavingsMovement {
+  id: string
+  goalId: string
+  goalName: string
+  // Positivo = accantonamento, negativo = prelievo.
+  amount: number
+  occurredOn: string
+  note: string | null
 }

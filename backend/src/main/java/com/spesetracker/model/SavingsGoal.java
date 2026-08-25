@@ -1,17 +1,19 @@
 package com.spesetracker.model;
 
-import com.spesetracker.model.enums.CategoryType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
+// Obiettivo di risparmio. Il caso d'uso principale resta un unico salvadanaio
+// ("Risparmio generico", senza traguardo), ma il modello supporta più obiettivi
+// fin da subito (es. "Vacanza Giappone" con un importo target).
 @Entity
 @Table(
-        name = "categories",
+        name = "savings_goals",
         uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "name"})
 )
 @Getter
@@ -19,7 +21,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Category {
+public class SavingsGoal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,25 +34,17 @@ public class Category {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, length = 20)
-    private CategoryType type;
+    // NULL per il risparmio generico, che non ha un traguardo da raggiungere.
+    @Column(name = "target_amount")
+    private BigDecimal targetAmount;
 
-    @Column(length = 7)
-    private String color;
+    private LocalDate deadline;
 
     @Column(length = 50)
     private String icon;
 
-    // Categoria padre per le sottocategorie (un solo livello: se parent != null
-    // questa categoria non può a sua volta averne, vedi CategoryService).
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Category parent;
-
-    @Column(nullable = false)
-    private Boolean archived;
+    @Column(length = 7)
+    private String color;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -58,8 +52,5 @@ public class Category {
     @PrePersist
     protected void onCreate() {
         this.createdAt = Instant.now();
-        if (this.archived == null) {
-            this.archived = false;
-        }
     }
 }

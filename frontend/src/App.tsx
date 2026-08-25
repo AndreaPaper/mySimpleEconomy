@@ -14,6 +14,7 @@ import CategoriesPage from './pages/CategoriesPage'
 import RecurringPage from './pages/RecurringPage'
 import DebtsPage from './pages/DebtsPage'
 import RemindersPage from './pages/RemindersPage'
+import SavingsPage from './pages/SavingsPage'
 import ImportPage from './pages/ImportPage'
 import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
@@ -37,6 +38,7 @@ function App() {
                       <Route path="/ricorrenti" element={<RecurringPage />} />
                       <Route path="/debiti" element={<DebtsPage />} />
                       <Route path="/promemoria" element={<RemindersPage />} />
+                      <Route path="/risparmio" element={<SavingsPage />} />
                       <Route path="/importa" element={<ImportPage />} />
                       <Route path="/impostazioni" element={<SettingsPage />} />
                       <Route path="/profilo" element={<ProfilePage />} />

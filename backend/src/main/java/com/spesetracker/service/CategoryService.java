@@ -6,7 +6,6 @@ import com.spesetracker.dto.category.CategoryUpdateRequest;
 import com.spesetracker.model.Category;
 import com.spesetracker.model.User;
 import com.spesetracker.model.enums.CategoryType;
-import com.spesetracker.model.enums.SpendingBucket;
 import com.spesetracker.repository.CategoryRepository;
 import com.spesetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,27 +27,24 @@ public class CategoryService {
     // colori dalla palette fissa (frontend/src/constants/colors.ts) e icone
     // valide del set fisso (frontend/src/constants/icons.ts), per restare
     // visivamente coerenti col resto dell'app.
-    // bucket: classificazione di partenza per la modalità risparmio, così chi
-    // genera le categorie predefinite la trova già utile senza classificarle a
-    // mano. Null dove la scelta dipende davvero dall'uso che se ne fa.
-    private record DefaultCategory(String name, CategoryType type, String color, String icon, SpendingBucket bucket) {
+    private record DefaultCategory(String name, CategoryType type, String color, String icon) {
     }
 
     private static final List<DefaultCategory> DEFAULT_CATEGORIES = List.of(
-            new DefaultCategory("Alimentari", CategoryType.EXPENSE, "#22C55E", "ShoppingCart", SpendingBucket.NEED),
-            new DefaultCategory("Casa", CategoryType.EXPENSE, "#F59E0B", "Home", SpendingBucket.NEED),
-            new DefaultCategory("Bollette", CategoryType.EXPENSE, "#EAB308", "Zap", SpendingBucket.NEED),
-            new DefaultCategory("Trasporti", CategoryType.EXPENSE, "#3B82F6", "Car", SpendingBucket.NEED),
-            new DefaultCategory("Salute", CategoryType.EXPENSE, "#EF4444", "HeartPulse", SpendingBucket.NEED),
-            new DefaultCategory("Ristoranti", CategoryType.EXPENSE, "#F97316", "UtensilsCrossed", SpendingBucket.WANT),
-            new DefaultCategory("Svago", CategoryType.EXPENSE, "#A855F7", "Gamepad2", SpendingBucket.WANT),
-            new DefaultCategory("Abbigliamento", CategoryType.EXPENSE, "#EC4899", "Shirt", SpendingBucket.WANT),
-            new DefaultCategory("Istruzione", CategoryType.EXPENSE, "#06B6D4", "GraduationCap", SpendingBucket.NEED),
-            new DefaultCategory("Altre spese", CategoryType.EXPENSE, "#64748B", "Package", null),
-            new DefaultCategory("Stipendio", CategoryType.INCOME, "#10B981", "Wallet", null),
-            new DefaultCategory("Regali", CategoryType.INCOME, "#D946EF", "Gift", null),
-            new DefaultCategory("Investimenti", CategoryType.INCOME, "#14B8A6", "TrendingUp", null),
-            new DefaultCategory("Altre entrate", CategoryType.INCOME, "#84CC16", "HandCoins", null)
+            new DefaultCategory("Alimentari", CategoryType.EXPENSE, "#22C55E", "ShoppingCart"),
+            new DefaultCategory("Casa", CategoryType.EXPENSE, "#F59E0B", "Home"),
+            new DefaultCategory("Bollette", CategoryType.EXPENSE, "#EAB308", "Zap"),
+            new DefaultCategory("Trasporti", CategoryType.EXPENSE, "#3B82F6", "Car"),
+            new DefaultCategory("Salute", CategoryType.EXPENSE, "#EF4444", "HeartPulse"),
+            new DefaultCategory("Ristoranti", CategoryType.EXPENSE, "#F97316", "UtensilsCrossed"),
+            new DefaultCategory("Svago", CategoryType.EXPENSE, "#A855F7", "Gamepad2"),
+            new DefaultCategory("Abbigliamento", CategoryType.EXPENSE, "#EC4899", "Shirt"),
+            new DefaultCategory("Istruzione", CategoryType.EXPENSE, "#06B6D4", "GraduationCap"),
+            new DefaultCategory("Altre spese", CategoryType.EXPENSE, "#64748B", "Package"),
+            new DefaultCategory("Stipendio", CategoryType.INCOME, "#10B981", "Wallet"),
+            new DefaultCategory("Regali", CategoryType.INCOME, "#D946EF", "Gift"),
+            new DefaultCategory("Investimenti", CategoryType.INCOME, "#14B8A6", "TrendingUp"),
+            new DefaultCategory("Altre entrate", CategoryType.INCOME, "#84CC16", "HandCoins")
     );
 
     private final CategoryRepository categoryRepository;
@@ -76,7 +72,6 @@ public class CategoryService {
                 .color(request.color())
                 .icon(request.icon())
                 .parent(resolveParent(userId, request.parentId(), request.type()))
-                .spendingBucket(validateBucket(request.spendingBucket(), request.type()))
                 .build();
 
         return CategoryResponse.from(categoryRepository.save(category));
@@ -109,19 +104,8 @@ public class CategoryService {
         category.setColor(request.color());
         category.setIcon(request.icon());
         category.setParent(resolveParent(userId, request.parentId(), category.getType()));
-        category.setSpendingBucket(validateBucket(request.spendingBucket(), category.getType()));
 
         return CategoryResponse.from(category);
-    }
-
-    // La classificazione necessità/piacere ha senso solo sulle uscite: le
-    // entrate non consumano nessuna delle "buste" della modalità risparmio.
-    private SpendingBucket validateBucket(SpendingBucket bucket, CategoryType type) {
-        if (bucket != null && type != CategoryType.EXPENSE) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Solo le categorie di spesa possono essere classificate come necessità o piacere");
-        }
-        return bucket;
     }
 
     // Risolve e valida la categoria padre: deve appartenere all'utente, avere
@@ -165,7 +149,6 @@ public class CategoryService {
                     .type(defaultCategory.type())
                     .color(defaultCategory.color())
                     .icon(defaultCategory.icon())
-                    .spendingBucket(defaultCategory.bucket())
                     .build();
 
             created.add(CategoryResponse.from(categoryRepository.save(category)));

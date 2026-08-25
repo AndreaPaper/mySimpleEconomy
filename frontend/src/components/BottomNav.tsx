@@ -7,6 +7,7 @@ import {
   Tags,
   Bell,
   MoreHorizontal,
+  PiggyBank,
   Repeat,
   Settings,
   LogOut,
@@ -32,6 +33,7 @@ const primaryItems: NavItem[] = [
 const moreItems: NavItem[] = [
   { to: '/ricorrenti', label: 'Ricorrenti', icon: Repeat },
   { to: '/debiti', label: 'Debiti', icon: HandCoins },
+  { to: '/risparmio', label: 'Risparmio', icon: PiggyBank },
   { to: '/impostazioni', label: 'Impostazioni', icon: Settings },
 ]
 

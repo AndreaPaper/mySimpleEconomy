@@ -4,6 +4,7 @@ import {
   HandCoins,
   LayoutDashboard,
   LogOut,
+  PiggyBank,
   Receipt,
   Repeat,
   Settings,
@@ -28,6 +29,7 @@ const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/ricorrenti', label: 'Ricorrenti', icon: Repeat },
   { to: '/debiti', label: 'Debiti', icon: HandCoins },
   { to: '/promemoria', label: 'Promemoria', icon: Bell },
+  { to: '/risparmio', label: 'Risparmio', icon: PiggyBank },
 ]
 
 export default function Layout() {

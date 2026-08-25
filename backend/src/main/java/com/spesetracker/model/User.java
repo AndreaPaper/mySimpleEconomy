@@ -49,20 +49,14 @@ public class User {
     @JoinColumn(name = "salary_recurring_transaction_id")
     private RecurringTransaction salaryRecurringTransaction;
 
-    // Modalità risparmio (opt-in): quando attiva, le tre percentuali devono
-    // sommare a 100 (vincolo in ProfileService). Restano memorizzate anche a
-    // modalità spenta, così riattivandola non si riparte da zero.
+    // Sezione risparmio (opt-in): quota delle entrate da mettere da parte,
+    // espressa in percentuale così si ricalcola da sola al variare delle
+    // entrate. Resta memorizzata anche a sezione spenta.
     @Column(name = "savings_enabled", nullable = false)
     private Boolean savingsEnabled;
 
     @Column(name = "savings_percent")
     private Short savingsPercent;
-
-    @Column(name = "needs_percent")
-    private Short needsPercent;
-
-    @Column(name = "wants_percent")
-    private Short wantsPercent;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

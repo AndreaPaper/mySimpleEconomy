@@ -1,15 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { CATEGORY_COLORS } from '../constants/colors'
 import { CATEGORY_ICONS } from '../constants/icons'
-import type { Category, CategoryType, SpendingBucket } from '../api/types'
-
-const BUCKET_LABELS: Record<SpendingBucket, string> = { NEED: 'Necessità', WANT: 'Piacere' }
+import type { Category, CategoryType } from '../api/types'
 
 interface CategoryFormProps {
   initial?: Category
-  // Serve a popolare il menu "Categoria padre" e a mostrare quale
-  // classificazione verrebbe ereditata: l'elenco completo di quelle non
-  // archiviate.
+  // Serve solo a popolare il menu "Categoria padre": l'elenco completo di
+  // quelle non archiviate, da cui si filtrano i padri ammessi.
   categories: Category[]
   onSubmit: (data: {
     name: string
@@ -17,7 +14,6 @@ interface CategoryFormProps {
     color: string | null
     icon: string | null
     parentId: string | null
-    spendingBucket: SpendingBucket | null
   }) => Promise<void>
   onCancel: () => void
 }
@@ -28,13 +24,8 @@ export default function CategoryForm({ initial, categories, onSubmit, onCancel }
   const [color, setColor] = useState<string | null>(initial?.color ?? CATEGORY_COLORS[0])
   const [icon, setIcon] = useState<string | null>(initial?.icon ?? null)
   const [parentId, setParentId] = useState<string | null>(initial?.parentId ?? null)
-  const [spendingBucket, setSpendingBucket] = useState<SpendingBucket | null>(initial?.spendingBucket ?? null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-
-  // Classificazione che verrebbe ereditata lasciando il campo su "eredita":
-  // si mostra tra parentesi, così la scelta è consapevole.
-  const inheritedBucket = parentId ? categories.find((c) => c.id === parentId)?.spendingBucket ?? null : null
 
   // Padri ammessi, con le stesse regole applicate dal backend: stesso tipo,
   // non già sottocategorie, e diversi dalla categoria in modifica. In più si
@@ -50,8 +41,7 @@ export default function CategoryForm({ initial, categories, onSubmit, onCancel }
     setError(null)
     setSaving(true)
     try {
-      // Le entrate non si classificano: il backend rifiuterebbe un bucket.
-      await onSubmit({ name, type, color, icon, parentId, spendingBucket: type === 'EXPENSE' ? spendingBucket : null })
+      await onSubmit({ name, type, color, icon, parentId })
     } catch {
       setError('Salvataggio non riuscito. Controlla che il nome non sia già in uso.')
     } finally {
@@ -132,30 +122,6 @@ export default function CategoryForm({ initial, categories, onSubmit, onCancel }
           </>
         )}
       </div>
-      {type === 'EXPENSE' && (
-        <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="bucket">
-            Tipo di spesa
-          </label>
-          <select
-            id="bucket"
-            value={spendingBucket ?? ''}
-            onChange={(e) => setSpendingBucket((e.target.value || null) as SpendingBucket | null)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-          >
-            <option value="">
-              {parentId
-                ? `— Eredita dal padre${inheritedBucket ? ` (${BUCKET_LABELS[inheritedBucket]})` : ' (non classificata)'} —`
-                : '— Non classificata —'}
-            </option>
-            <option value="NEED">{BUCKET_LABELS.NEED}</option>
-            <option value="WANT">{BUCKET_LABELS.WANT}</option>
-          </select>
-          <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
-            Usato dalla modalità risparmio per dividere le spese del periodo tra necessità e piacere.
-          </span>
-        </div>
-      )}
       <div>
         <span className="mb-1 block text-sm text-slate-600 dark:text-slate-300">Colore</span>
         <div className="flex flex-wrap gap-2">

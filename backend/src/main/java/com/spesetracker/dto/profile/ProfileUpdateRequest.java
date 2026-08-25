@@ -13,8 +13,6 @@ public record ProfileUpdateRequest(
         @Min(value = 1, message = "Il giorno deve essere tra 1 e 31") @Max(value = 31, message = "Il giorno deve essere tra 1 e 31") Short salaryDay,
         String avatarKey,
         Boolean savingsEnabled,
-        @Min(value = 0, message = "La percentuale deve essere tra 0 e 100") @Max(value = 100, message = "La percentuale deve essere tra 0 e 100") Short savingsPercent,
-        @Min(value = 0, message = "La percentuale deve essere tra 0 e 100") @Max(value = 100, message = "La percentuale deve essere tra 0 e 100") Short needsPercent,
-        @Min(value = 0, message = "La percentuale deve essere tra 0 e 100") @Max(value = 100, message = "La percentuale deve essere tra 0 e 100") Short wantsPercent
+        @Min(value = 0, message = "La percentuale deve essere tra 0 e 100") @Max(value = 100, message = "La percentuale deve essere tra 0 e 100") Short savingsPercent
 ) {
 }

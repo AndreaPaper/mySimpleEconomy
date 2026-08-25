@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react'
 import { categoriesApi } from '../api/endpoints'
-import type { Category, CategoryType, SpendingBucket } from '../api/types'
+import type { Category, CategoryType } from '../api/types'
 import Modal from '../components/Modal'
 import CategoryForm from '../components/CategoryForm'
 import { getCategoryIcon } from '../constants/icons'
 import { ListPageSkeleton } from '../components/Skeleton'
-import { effectiveBucket, flattenCategoryTree } from '../utils/categoryTree'
-
-const BUCKET_LABELS: Record<SpendingBucket, string> = { NEED: 'Necessità', WANT: 'Piacere' }
+import { flattenCategoryTree } from '../utils/categoryTree'
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -41,7 +39,6 @@ export default function CategoriesPage() {
     color: string | null
     icon: string | null
     parentId: string | null
-    spendingBucket: SpendingBucket | null
   }) => {
     if (modalMode === 'edit' && editing) {
       await categoriesApi.update(editing.id, {
@@ -49,7 +46,6 @@ export default function CategoriesPage() {
         color: data.color,
         icon: data.icon,
         parentId: data.parentId,
-        spendingBucket: data.spendingBucket,
       })
     } else {
       await categoriesApi.create(data)
@@ -126,8 +122,6 @@ export default function CategoriesPage() {
         <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
           {flattenCategoryTree(categories).map(({ category: c, depth }) => {
             const Icon = getCategoryIcon(c.icon)
-            const bucket = effectiveBucket(c, categories)
-            const bucketInherited = bucket !== null && c.spendingBucket === null
             return (
             <li key={c.id} className={`flex items-center justify-between py-3 pr-4 ${depth === 1 ? 'pl-12' : 'pl-4'}`}>
               <div className="flex items-center gap-2">
@@ -141,18 +135,6 @@ export default function CategoriesPage() {
                 <span>{c.name}</span>
                 {depth === 0 && (
                   <span className="text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
-                )}
-                {bucket && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      bucketInherited
-                        ? 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-slate-500'
-                        : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-slate-300'
-                    }`}
-                    title={bucketInherited ? 'Ereditato dalla categoria padre' : undefined}
-                  >
-                    {BUCKET_LABELS[bucket]}
-                  </span>
                 )}
               </div>
               <div className="flex gap-3 text-sm">

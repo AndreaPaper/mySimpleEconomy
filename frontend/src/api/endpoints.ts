@@ -11,7 +11,8 @@ import type {
   Profile,
   RecurringOverride,
   RecurringTransaction,
-  SpendingBucket,
+  SavingsGoal,
+  SavingsMovement,
   Transaction,
   TransactionPage,
   UpcomingRemindersResponse,
@@ -39,17 +40,10 @@ export const categoriesApi = {
     color?: string | null
     icon?: string | null
     parentId?: string | null
-    spendingBucket?: SpendingBucket | null
   }) => client.post<Category>('/categories', data).then((r) => r.data),
   update: (
     id: string,
-    data: {
-      name: string
-      color?: string | null
-      icon?: string | null
-      parentId?: string | null
-      spendingBucket?: SpendingBucket | null
-    },
+    data: { name: string; color?: string | null; icon?: string | null; parentId?: string | null },
   ) => client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
   archive: (id: string) => client.post(`/categories/${id}/archive`),
   generateDefaults: () => client.post<Category[]>('/categories/generate-defaults').then((r) => r.data),
@@ -189,9 +183,27 @@ export const profileApi = {
     avatarKey?: string | null
     savingsEnabled?: boolean
     savingsPercent?: number | null
-    needsPercent?: number | null
-    wantsPercent?: number | null
   }) => client.put<Profile>('/profile', data).then((r) => r.data),
+}
+
+export interface SavingsGoalPayload {
+  name: string
+  targetAmount?: number | null
+  deadline?: string | null
+  icon?: string | null
+  color?: string | null
+}
+
+export const savingsApi = {
+  listGoals: () => client.get<SavingsGoal[]>('/savings/goals').then((r) => r.data),
+  createGoal: (data: SavingsGoalPayload) => client.post<SavingsGoal>('/savings/goals', data).then((r) => r.data),
+  updateGoal: (id: string, data: SavingsGoalPayload) =>
+    client.put<SavingsGoal>(`/savings/goals/${id}`, data).then((r) => r.data),
+  deleteGoal: (id: string) => client.delete(`/savings/goals/${id}`),
+  listMovements: () => client.get<SavingsMovement[]>('/savings/movements').then((r) => r.data),
+  createMovement: (data: { goalId: string; amount: number; occurredOn: string; note?: string | null }) =>
+    client.post<SavingsMovement>('/savings/movements', data).then((r) => r.data),
+  deleteMovement: (id: string) => client.delete(`/savings/movements/${id}`),
 }
 
 export const dataCleanupApi = {
