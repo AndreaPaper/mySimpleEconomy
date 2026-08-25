@@ -70,25 +70,56 @@ export default function TransactionsPage() {
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [exporting, setExporting] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const prevPendingCount = useRef(pendingCount)
 
-  const reloadTransactions = () =>
-    transactionsApi
-      .list({ categoryId: categoryFilter || undefined, page: 0, size: PAGE_SIZE })
+  // I filtri viaggiano insieme perché l'elenco arriva paginato dal server: se
+  // si filtrasse solo la pagina già scaricata si vedrebbero i risultati di una
+  // finestra di 30 transazioni, non quelli di tutto l'archivio. Le stringhe
+  // vuote diventano undefined, così il parametro non parte affatto.
+  const activeFilters = {
+    categoryId: categoryFilter || undefined,
+    from: dateFrom || undefined,
+    to: dateTo || undefined,
+  }
+  const hasActiveFilters = Boolean(categoryFilter || dateFrom || dateTo)
+
+  const clearFilters = () => {
+    setCategoryFilter('')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  // Ogni richiesta prende un numero progressivo e solo l'ultima può scrivere
+  // nello stato. Cambiando le date partono più chiamate ravvicinate (il campo
+  // data emette un evento per ogni pezzo che si compila) e senza questo
+  // controllo la risposta di un filtro intermedio, se arriva per ultima,
+  // sovrascrive quella del filtro davvero impostato.
+  const latestRequest = useRef(0)
+
+  const reloadTransactions = () => {
+    const requestId = ++latestRequest.current
+    return transactionsApi
+      .list({ ...activeFilters, page: 0, size: PAGE_SIZE })
       .then((res) => {
+        if (requestId !== latestRequest.current) return
         setTransactions(res.content)
         setPage(0)
         setHasMore(res.hasNext)
       })
       .catch(() => {})
+  }
 
   const loadMore = async () => {
+    const requestId = ++latestRequest.current
     setLoadingMore(true)
     try {
-      const res = await transactionsApi.list({ categoryId: categoryFilter || undefined, page: page + 1, size: PAGE_SIZE })
+      const res = await transactionsApi.list({ ...activeFilters, page: page + 1, size: PAGE_SIZE })
+      if (requestId !== latestRequest.current) return
       setTransactions((prev) => [...prev, ...res.content])
       setPage((p) => p + 1)
       setHasMore(res.hasNext)
@@ -113,7 +144,7 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (loading) return
     reloadTransactions()
-  }, [categoryFilter])
+  }, [categoryFilter, dateFrom, dateTo])
 
   useEffect(() => {
     setPendingItems(getQueue())
@@ -202,7 +233,16 @@ export default function TransactionsPage() {
 
   if (loading) return <TransactionsPageSkeleton />
 
-  const filteredPendingItems = categoryFilter ? pendingItems.filter((q) => q.categoryId === categoryFilter) : pendingItems
+  // Le transazioni ancora in coda offline non passano dal server, quindi i
+  // filtri vanno riapplicati qui a mano, altrimenti resterebbero visibili
+  // anche fuori dall'intervallo scelto. Le date sono stringhe ISO, quindi il
+  // confronto lessicografico e' anche quello cronologico.
+  const filteredPendingItems = pendingItems.filter(
+    (q) =>
+      (!categoryFilter || q.categoryId === categoryFilter) &&
+      (!dateFrom || q.occurredOn >= dateFrom) &&
+      (!dateTo || q.occurredOn <= dateTo),
+  )
 
   const displayTransactions: DisplayTransaction[] = [
     ...filteredPendingItems.map((q) => toDisplayTransaction(q, categories)),
@@ -232,27 +272,74 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="mb-4">
-        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="tx-category-filter">
-          Categoria
-        </label>
-        <select
-          id="tx-category-filter"
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-full max-w-xs rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-        >
-          <option value="">Tutte le categorie</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      {/* I filtri stanno su una riga sola e vanno a capo sugli schermi
+          stretti: sono tre controlli brevi, uno sotto l'altro sprecherebbero
+          tutta l'altezza utile prima di arrivare all'elenco. */}
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="tx-category-filter">
+            Categoria
+          </label>
+          <select
+            id="tx-category-filter"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-full max-w-xs rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          >
+            <option value="">Tutte le categorie</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* max/min incrociati: il browser impedisce di comporre un intervallo
+            rovesciato, che darebbe zero risultati senza spiegare perché. */}
+        <div>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="tx-date-from">
+            Dal
+          </label>
+          <input
+            id="tx-date-from"
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="tx-date-to">
+            Al
+          </label>
+          <input
+            id="tx-date-to"
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          />
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-600 dark:text-slate-300"
+          >
+            Azzera filtri
+          </button>
+        )}
       </div>
 
       {displayTransactions.length === 0 ? (
-        <p className="text-slate-500 dark:text-slate-400">Nessuna transazione ancora.</p>
+        <p className="text-slate-500 dark:text-slate-400">
+          {hasActiveFilters ? 'Nessuna transazione con questi filtri.' : 'Nessuna transazione ancora.'}
+        </p>
       ) : (
         <div className="space-y-6">
           {groupByMonth(displayTransactions, salaryDay).map((group) => (
