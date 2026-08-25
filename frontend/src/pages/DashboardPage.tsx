@@ -444,6 +444,16 @@ export default function DashboardPage() {
   const tone = BUDGET_TONES[budget.status]
   const RING = 276.46
 
+  // Senza un giorno di accredito configurato il periodo è il mese di calendario
+  // e parlare di "prossimo stipendio" sarebbe fuorviante.
+  const periodEndLabel = salaryDay != null ? 'al prossimo stipendio' : 'alla fine del periodo'
+  const daysLeftLabel =
+    budget.daysLeft === 0
+      ? salaryDay != null
+        ? 'Domani arriva lo stipendio'
+        : 'Ultimo giorno del periodo'
+      : `${budget.daysLeft} ${budget.daysLeft === 1 ? 'giorno' : 'giorni'} ${periodEndLabel}`
+
   // Quota di budget ancora disponibile: l'anello si svuota man mano che si
   // spende, al contrario di quello del risparmio che si riempie.
   const budgetRingPct =
@@ -540,15 +550,7 @@ export default function DashboardPage() {
           >
             {currency.format(Math.abs(budget.remaining))}
           </p>
-          <p className="mt-1 text-xs text-slate-600">
-            {budget.status === 'danger'
-              ? `il risparmio scende a ${currency.format(budget.saved)} invece di ${currency.format(budget.savingsTarget)}`
-              : budget.daysLeft === 0
-                ? 'Ultimo giorno del periodo'
-                : `${currency.format(budget.dailyAllowance)} al giorno per ${
-                    budget.daysLeft === 1 ? 'il giorno che resta' : `i ${budget.daysLeft} giorni che restano`
-                  }`}
-          </p>
+          <p className="mt-1 text-xs text-slate-600">{daysLeftLabel}</p>
         </div>
       </div>
     </div>

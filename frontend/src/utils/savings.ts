@@ -3,13 +3,12 @@ import type { Transaction } from '../api/types'
 
 // Stato del budget discrezionale del periodo.
 //  - 'neutral'  → in linea
-//  - 'warning'  → budget non ancora esaurito ma ritmo di spesa troppo alto
+//  - 'warning'  → resta poco budget, ma non si è ancora sforato
 //  - 'danger'   → sforato: il rimanente è negativo
 export type BudgetStatus = 'neutral' | 'warning' | 'danger'
 
-// Sopra questo scarto tra quota di budget consumata e quota di periodo
-// trascorsa si passa in "attenzione" (15 punti percentuali).
-const PACE_WARNING_THRESHOLD = 0.15
+// Sotto questa quota di budget ancora disponibile si passa in "attenzione".
+const WARNING_REMAINING_RATIO = 0.2
 
 export interface BudgetBreakdown {
   income: number
@@ -31,8 +30,6 @@ export interface BudgetBreakdown {
   saved: number
   /** Giorni che mancano alla fine del periodo, estremo incluso. */
   daysLeft: number
-  /** Quanto si può spendere al giorno per arrivare a fine periodo in pari. */
-  dailyAllowance: number
 }
 
 function sum(transactions: Transaction[]): number {
@@ -95,18 +92,16 @@ export function computeBudget(
   const available = income - savingsTarget - fixedExpenses
   const remaining = available - discretionarySpent
 
-  // Quota di periodo trascorsa vs quota di budget consumata: spendere il 70%
-  // del budget a metà mese è un segnale, anche se non si è ancora sforato.
   const totalDays = daysBetween(period.start, period.end) + 1
   const elapsedDays = Math.min(Math.max(daysBetween(period.start, todayIso) + 1, 0), totalDays)
   const daysLeft = Math.max(totalDays - elapsedDays, 0)
-  const elapsedRatio = totalDays > 0 ? elapsedDays / totalDays : 0
-  const spentRatio = available > 0 ? discretionarySpent / available : 0
 
   let status: BudgetStatus = 'neutral'
   if (remaining < 0) {
     status = 'danger'
-  } else if (available > 0 && spentRatio - elapsedRatio > PACE_WARNING_THRESHOLD) {
+  } else if (remaining <= available * WARNING_REMAINING_RATIO) {
+    // Con `available` a zero il confronto vale comunque: non c'è budget da
+    // spendere, ed è giusto segnalarlo invece di mostrare "in linea".
     status = 'warning'
   }
 
@@ -120,7 +115,6 @@ export function computeBudget(
     status,
     saved: income - fixedExpenses - discretionarySpent,
     daysLeft,
-    dailyAllowance: daysLeft > 0 ? Math.max(remaining, 0) / daysLeft : Math.max(remaining, 0),
   }
 }
 
