@@ -252,6 +252,21 @@ html[data-palette="lavanda"] aside .profile-menu .border-slate-200 {
   font-display: swap;
 }
 
+/* Recharts mette tabindex=0 sull'SVG del grafico per renderlo raggiungibile da
+   tastiera, e cliccandolo il browser ci disegna sopra il proprio contorno di
+   focus: un rettangolo nero attorno all'area tracciata. Qui viene sostituito
+   da un anello coerente col tema, mostrato però solo quando il focus arriva
+   davvero da tastiera — togliendolo del tutto si perderebbe l'unico segnale
+   di dove ci si trova navigando con Tab. */
+.recharts-surface:focus {
+  outline: none;
+}
+.recharts-surface:focus-visible {
+  outline: 2px solid var(--color-brand-700);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 body {
   margin: 0;
   font-family: "Lemon Milk", ui-sans-serif, system-ui, sans-serif;
