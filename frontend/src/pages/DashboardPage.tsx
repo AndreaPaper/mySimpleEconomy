@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, PiggyBank, Plus, Wallet } from 'lucide-react'
 import {
   Area,
   CartesianGrid,
@@ -448,104 +448,75 @@ export default function DashboardPage() {
     </div>
   )
 
-  // Card Risparmio: sfondo che segue lo stato del budget (in linea / attenzione
-  // / sforato) con risparmio e budget mostrati insieme, senza toggle — l'anello
-  // resta sempre e solo il risparmio (accumulo, verde), il numero grande sempre
-  // e solo il budget, così i due significati non si confondono mai.
+  // Le due card della sezione risparmio, affiancate invece che alternate da un
+  // toggle: l'anello verde con il salvadanaio è sempre e solo l'accumulo,
+  // quello colorato con il portafoglio sempre e solo il consumo, così i due
+  // significati opposti non possono essere scambiati.
   const BUDGET_TONES = {
-    neutral: { bg: '#eff6ff', color: '#1C8ADB', label: 'In linea' },
-    warning: { bg: '#fffbeb', color: '#d97706', label: 'Attenzione' },
-    danger: { bg: '#fef2f2', color: '#dc2626', label: 'Sforato' },
+    neutral: { bg: '#eff6ff', ring: '#1C8ADB', head: '#1e40af', label: 'In linea' },
+    warning: { bg: '#fffbeb', ring: '#d97706', head: '#92400e', label: 'Attenzione' },
+    danger: { bg: '#fef2f2', ring: '#dc2626', head: '#991b1b', label: 'Sforato' },
   } as const
   const tone = BUDGET_TONES[budget.status]
-  const RING_CIRCUMFERENCE = 276.46
+  const RING = 276.46
 
-  const savingsCard = (
-    <div
-      className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 dark:bg-black"
-      style={{ backgroundColor: tone.bg }}
-    >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <Link to="/risparmio" className="text-sm font-medium text-slate-600 hover:underline dark:text-slate-300">
+  // Quota di budget ancora disponibile: l'anello si svuota man mano che si
+  // spende, al contrario di quello del risparmio che si riempie.
+  const budgetRingPct =
+    budget.available > 0 ? Math.min(Math.max(budget.remaining / budget.available, 0), 1) : 0
+
+  const savingsRing = (pct: number, color: string, trackColor: string) => (
+    <div className="relative h-[104px] w-[104px] shrink-0">
+      <svg viewBox="0 0 104 104" className="h-[104px] w-[104px] -rotate-90">
+        <circle cx="52" cy="52" r="44" fill="none" stroke={trackColor} strokeWidth="11" />
+        <circle
+          cx="52"
+          cy="52"
+          r="44"
+          fill="none"
+          stroke={color}
+          strokeWidth="11"
+          strokeLinecap="round"
+          strokeDasharray={RING}
+          strokeDashoffset={RING * (1 - pct)}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[22px] font-bold leading-none text-slate-900">{Math.round(pct * 100)}%</span>
+      </div>
+    </div>
+  )
+
+  const savingsProgressCard = (
+    <div className="rounded-lg border border-slate-200 p-[18px]" style={{ backgroundColor: '#ecfdf5' }}>
+      <div className="mb-3.5 flex items-center justify-between gap-2">
+        <Link
+          to="/risparmio"
+          className="flex items-center gap-1.5 text-[13px] font-bold hover:underline"
+          style={{ color: '#166534' }}
+        >
+          <PiggyBank className="h-[15px] w-[15px]" />
           Risparmio
         </Link>
-        <span
-          className="rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide"
-          style={{ backgroundColor: '#ffffff', color: tone.color }}
-        >
-          {tone.label.toUpperCase()}
-        </span>
+        {savingsGoals.length > 0 && (
+          <span className="text-[11px] text-slate-500">
+            {savingsGoals.length} {savingsGoals.length === 1 ? 'obiettivo attivo' : 'obiettivi attivi'}
+          </span>
+        )}
       </div>
-
       <div className="flex items-center gap-4">
-        <div className="relative h-[104px] w-[104px] shrink-0">
-          <svg viewBox="0 0 104 104" className="h-[104px] w-[104px] -rotate-90">
-            <circle cx="52" cy="52" r="44" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="11" />
-            <circle
-              cx="52"
-              cy="52"
-              r="44"
-              fill="none"
-              stroke="#2FA36B"
-              strokeWidth="11"
-              strokeLinecap="round"
-              strokeDasharray={RING_CIRCUMFERENCE}
-              strokeDashoffset={RING_CIRCUMFERENCE * (1 - savingsRingPct)}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xl font-bold leading-none text-slate-900">{Math.round(savingsRingPct * 100)}%</span>
-            <span className="mt-0.5 text-[10px] text-slate-500">messo da parte</span>
-          </div>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-slate-600">Puoi ancora spendere questo periodo</p>
-          {budget.status === 'danger' ? (
-            <p className="text-xl font-bold leading-tight text-red-600">
-              {currency.format(budget.projectedSavings)}{' '}
-              <span className="text-sm font-normal text-slate-500">
-                invece di {currency.format(budget.savingsTarget)}
-              </span>
-            </p>
-          ) : (
-            <p className="text-2xl font-bold leading-tight text-slate-900">{currency.format(budget.remaining)}</p>
-          )}
-          <p className="mt-0.5 text-xs text-slate-600">
-            {budget.status === 'danger'
-              ? 'Lo sforamento erode il risparmio del periodo'
-              : budget.daysLeft > 0
-                ? `${currency.format(budget.dailyAllowance)} al giorno per i ${budget.daysLeft} giorni che restano`
-                : 'Ultimo giorno del periodo'}
+        {savingsRing(savingsRingPct, '#2FA36B', 'rgba(255,255,255,.6)')}
+        <div className="min-w-0">
+          <p className="text-xs text-slate-600">Messo da parte in questo periodo</p>
+          <p className="text-2xl font-bold leading-tight text-slate-900">{currency.format(savedThisPeriod)}</p>
+          <p className="mt-1 text-xs text-slate-600">
+            {budget.savingsTarget > 0
+              ? `su ${currency.format(budget.savingsTarget)} obiettivo del periodo`
+              : 'Nessuna entrata ancora in questo periodo'}
           </p>
-
-          {/* Barra segmentata: mostra *perché* quel numero è quello. */}
-          {budget.income > 0 && (
-            <>
-              <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-white/70">
-                <div
-                  style={{ width: `${(budget.fixedExpenses / budget.income) * 100}%`, backgroundColor: '#94a3b8' }}
-                  title="Spese fisse"
-                />
-                <div
-                  style={{ width: `${(budget.savingsTarget / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
-                  title="Risparmio"
-                />
-                <div
-                  style={{
-                    width: `${(Math.max(budget.remaining, 0) / budget.income) * 100}%`,
-                    backgroundColor: tone.color,
-                  }}
-                  title="Disponibile"
-                />
-              </div>
-              <p className="mt-1.5 text-[11px] text-slate-500">Fisse · Risparmio · Disponibile</p>
-            </>
-          )}
         </div>
       </div>
-
-      <div className="mt-3 border-t border-slate-900/10 pt-2.5 text-[11px] text-slate-600">
+      <p className="mt-3 border-t border-slate-900/10 pt-2.5 text-[11px] text-slate-600">
         {savingsGoals.length === 0 ? (
           <>
             Nessun obiettivo ancora:{' '}
@@ -555,13 +526,81 @@ export default function DashboardPage() {
             per iniziare ad accantonare.
           </>
         ) : (
-          <>
-            {currency.format(totalSaved)} risparmiati · {savingsGoals.length}{' '}
-            {savingsGoals.length === 1 ? 'obiettivo attivo' : 'obiettivi attivi'}
-            {savedThisPeriod !== 0 && ` · ${savedThisPeriod > 0 ? '+' : ''}${currency.format(savedThisPeriod)} in questo periodo`}
-          </>
+          `${currency.format(totalSaved)} risparmiati in totale`
         )}
+      </p>
+    </div>
+  )
+
+  const budgetCard = (
+    <div className="rounded-lg border border-slate-200 p-[18px]" style={{ backgroundColor: tone.bg }}>
+      <div className="mb-3.5 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: tone.head }}>
+          <Wallet className="h-[15px] w-[15px]" />
+          Budget disponibile
+        </span>
+        <span
+          className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold tracking-wide"
+          style={{ color: tone.ring }}
+        >
+          {tone.label.toUpperCase()}
+        </span>
       </div>
+      <div className="flex items-center gap-4">
+        {savingsRing(budgetRingPct, tone.ring, 'rgba(255,255,255,.6)')}
+        <div className="min-w-0">
+          <p className="text-xs text-slate-600">Puoi ancora spendere</p>
+          {budget.status === 'danger' ? (
+            <p className="text-xl font-bold leading-tight" style={{ color: tone.ring }}>
+              {currency.format(budget.projectedSavings)}
+              <span className="block text-xs font-normal text-slate-600">
+                di risparmio invece di {currency.format(budget.savingsTarget)}
+              </span>
+            </p>
+          ) : (
+            <p className="text-2xl font-bold leading-tight text-slate-900">{currency.format(budget.remaining)}</p>
+          )}
+          <p className="mt-1 text-xs text-slate-600">
+            {budget.daysLeft === 0
+              ? 'Ultimo giorno del periodo'
+              : budget.status === 'danger'
+                ? `${budget.daysLeft} ${budget.daysLeft === 1 ? 'giorno' : 'giorni'} al prossimo stipendio`
+                : `${currency.format(budget.dailyAllowance)} al giorno per ${
+                    budget.daysLeft === 1 ? 'il giorno che resta' : `i ${budget.daysLeft} giorni che restano`
+                  }`}
+          </p>
+        </div>
+      </div>
+      {/* Barra segmentata: mostra da dove esce quel numero. */}
+      {budget.income > 0 && (
+        <div className="mt-3 border-t border-slate-900/10 pt-2.5">
+          <div className="flex h-2 overflow-hidden rounded-full bg-white/60">
+            <div
+              style={{ width: `${(budget.fixedExpenses / budget.income) * 100}%`, backgroundColor: '#94a3b8' }}
+              title="Spese fisse"
+            />
+            <div
+              style={{ width: `${(budget.savingsTarget / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
+              title="Risparmio"
+            />
+            <div
+              style={{
+                width: `${(Math.max(budget.remaining, 0) / budget.income) * 100}%`,
+                backgroundColor: tone.ring,
+              }}
+              title="Disponibile"
+            />
+          </div>
+          <p className="mt-1.5 text-[11px] text-slate-500">Fisse · Risparmio · Disponibile</p>
+        </div>
+      )}
+    </div>
+  )
+
+  const savingsCards = (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {savingsProgressCard}
+      {budgetCard}
     </div>
   )
 
@@ -910,7 +949,7 @@ export default function DashboardPage() {
       {isMobile ? (
         <>
           {summaryCards}
-          {savings.enabled && savingsCard}
+          {savings.enabled && savingsCards}
           {categoryCard}
           {periodCards}
           {balanceChartCard}
@@ -920,7 +959,7 @@ export default function DashboardPage() {
       ) : (
         <>
           {summaryCards}
-          {savings.enabled && savingsCard}
+          {savings.enabled && savingsCards}
           {balanceChartCard}
           {periodCards}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
