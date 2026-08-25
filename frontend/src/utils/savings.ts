@@ -13,7 +13,15 @@ const PACE_WARNING_THRESHOLD = 0.15
 
 export interface BudgetBreakdown {
   income: number
+  /** Obiettivo del periodo: entrate × percentuale configurata. */
   savingsTarget: number
+  /**
+   * Quanto è effettivamente sottratto alle spese: il maggiore tra ciò che si è
+   * già accantonato davvero e l'obiettivo ancora da raggiungere. Accantonare
+   * più del previsto toglie budget (quei soldi non ci sono più), accantonare
+   * meno non lo restituisce (l'obiettivo resta da coprire).
+   */
+  reservedForSavings: number
   fixedExpenses: number
   /** Quanto resta per le spese discrezionali una volta tolti risparmio e spese fisse. */
   available: number
@@ -54,12 +62,19 @@ function daysBetween(fromIso: string, toIso: string): number {
  * Spese fisse: quelle generate da una regola ricorrente (affitto, bollette,
  * abbonamenti). Il collegamento esiste già su ogni transazione, quindi non
  * serve classificare nulla a mano.
+ *
+ * Risparmio: `savedThisPeriod` è quanto è stato realmente accantonato (al netto
+ * dei prelievi) nel periodo. Quei soldi sono usciti dalla disponibilità, quindi
+ * accantonare più dell'obiettivo riduce il budget invece di lasciarlo intatto —
+ * senza questo, si potrebbe dichiarare un risparmio che il flusso di cassa non
+ * copre e le due card della Dashboard direbbero cose incompatibili.
  */
 export function computeBudget(
   periodTransactions: Transaction[],
   settings: SavingsSettings,
   period: { start: string; end: string },
   todayIso: string,
+  savedThisPeriod: number,
 ): BudgetBreakdown {
   const incomeTransactions = periodTransactions.filter((t) => t.type === 'INCOME')
   const totalIncome = sum(incomeTransactions)
@@ -85,7 +100,11 @@ export function computeBudget(
   const discretionarySpent = sum(expenses.filter((t) => t.recurringTransactionId === null))
 
   const savingsTarget = (income * (settings.savingsPercent ?? 0)) / 100
-  const available = income - savingsTarget - fixedExpenses
+  // Un prelievo netto (savedThisPeriod negativo) non aumenta il budget: quei
+  // soldi vengono da periodi precedenti, e usarli per spendere di più adesso
+  // vanificherebbe l'obiettivo del periodo corrente.
+  const reservedForSavings = Math.max(savedThisPeriod, savingsTarget)
+  const available = income - reservedForSavings - fixedExpenses
   const remaining = available - discretionarySpent
 
   // Quota di periodo trascorsa vs quota di budget consumata: spendere il 70%
@@ -106,12 +125,15 @@ export function computeBudget(
   return {
     income,
     savingsTarget,
+    reservedForSavings,
     fixedExpenses,
     available,
     discretionarySpent,
     remaining,
     status,
-    projectedSavings: remaining < 0 ? Math.max(savingsTarget + remaining, 0) : savingsTarget,
+    // Lo sforamento intacca quanto si riuscirà davvero a tenere da parte: se si
+    // è già spostato il denaro, vorrà dire doverne riprendere una parte.
+    projectedSavings: remaining < 0 ? Math.max(reservedForSavings + remaining, 0) : reservedForSavings,
     daysLeft,
     dailyAllowance: daysLeft > 0 ? Math.max(remaining, 0) / daysLeft : Math.max(remaining, 0),
   }

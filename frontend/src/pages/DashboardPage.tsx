@@ -417,17 +417,20 @@ export default function DashboardPage() {
     .reduce((sum, t) => sum + t.amount, 0)
   const currentPeriodNet = currentPeriodIncome - currentPeriodExpense
 
-  // Sezione risparmio: budget disponibile del periodo e saldo degli obiettivi.
+  // Sezione risparmio: saldo degli obiettivi e budget disponibile del periodo.
+  const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0)
+  const savedThisPeriod = savingsMovements
+    .filter((m) => periodKeyOf(m.occurredOn, salaryDay) === currentPeriodKey)
+    .reduce((sum, m) => sum + m.amount, 0)
+  // Quanto è già stato accantonato entra nel calcolo: quei soldi non sono più
+  // disponibili per le spese.
   const budget = computeBudget(
     currentPeriodTransactions,
     savings,
     periodRangeOf(currentPeriodKey, salaryDay),
     todayStr,
+    savedThisPeriod,
   )
-  const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0)
-  const savedThisPeriod = savingsMovements
-    .filter((m) => periodKeyOf(m.occurredOn, salaryDay) === currentPeriodKey)
-    .reduce((sum, m) => sum + m.amount, 0)
   // Progresso dell'anello: quanto si è già accantonato rispetto all'obiettivo
   // del periodo. Sempre verde, perché "accumulo" ha sempre semantica positiva.
   const savingsRingPct =
@@ -554,7 +557,7 @@ export default function DashboardPage() {
             <p className="text-xl font-bold leading-tight" style={{ color: tone.ring }}>
               {currency.format(budget.projectedSavings)}
               <span className="block text-xs font-normal text-slate-600">
-                di risparmio invece di {currency.format(budget.savingsTarget)}
+                di risparmio invece di {currency.format(budget.reservedForSavings)}
               </span>
             </p>
           ) : (
@@ -580,7 +583,7 @@ export default function DashboardPage() {
               title="Spese fisse"
             />
             <div
-              style={{ width: `${(budget.savingsTarget / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
+              style={{ width: `${(budget.reservedForSavings / budget.income) * 100}%`, backgroundColor: '#2FA36B' }}
               title="Risparmio"
             />
             <div
