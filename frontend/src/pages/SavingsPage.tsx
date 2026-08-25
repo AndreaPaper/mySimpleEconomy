@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { transactionsApi } from '../api/endpoints'
 import type { Transaction } from '../api/types'
 import { ListPageSkeleton } from '../components/Skeleton'
@@ -71,9 +82,12 @@ export default function SavingsPage() {
   const currentTarget = (current.income * targetPercent) / 100
   const currentRatio = currentTarget > 0 ? current.saved / currentTarget : null
 
+  const round = (n: number) => Math.round(n * 100) / 100
   const chartData = periods.map((p) => ({
     label: labelOf(p.periodKey, monthLabelFormatter),
-    saved: Math.round(p.saved * 100) / 100,
+    saved: round(p.saved),
+    income: round(p.income),
+    expenses: round(p.expenses),
   }))
 
   return (
@@ -124,10 +138,10 @@ export default function SavingsPage() {
 
       <div className="rounded-lg border border-slate-200 bg-brand-300 p-4 dark:border-slate-800 dark:bg-black">
         <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-          Andamento · risparmio per periodo
+          Andamento · risparmio, entrate e uscite per periodo
         </p>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={chartData}>
+        <ResponsiveContainer width="100%" height={260}>
+          <ComposedChart data={chartData}>
             <defs>
               <linearGradient id="savingsArea" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#2FA36B" stopOpacity={0.25} />
@@ -138,8 +152,13 @@ export default function SavingsPage() {
             <XAxis dataKey="label" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} width={70} />
             <Tooltip formatter={(value) => currency.format(Number(value))} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
             {/* Lo zero va reso esplicito: sotto questa linea si è intaccato il risparmio. */}
             <ReferenceLine y={0} stroke="#94a3b8" />
+            {/* Entrate e uscite spiegano *perché* il risparmio si muove, ma
+                restano linee sottili: il protagonista è l'area del risparmio. */}
+            <Line type="monotone" dataKey="income" name="Entrate" stroke="#1C8ADB" strokeWidth={1.5} dot={false} />
+            <Line type="monotone" dataKey="expenses" name="Uscite" stroke="#D6455B" strokeWidth={1.5} dot={false} />
             <Area
               type="monotone"
               dataKey="saved"
@@ -148,7 +167,7 @@ export default function SavingsPage() {
               strokeWidth={2.5}
               fill="url(#savingsArea)"
             />
-          </AreaChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
