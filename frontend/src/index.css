@@ -252,12 +252,16 @@ html[data-palette="lavanda"] aside .profile-menu .border-slate-200 {
   font-display: swap;
 }
 
-/* Recharts mette tabindex=0 sull'SVG del grafico per renderlo raggiungibile da
-   tastiera, e al focus il browser ci disegna sopra il proprio contorno: un
-   rettangolo attorno a tutta l'area tracciata. Nascosto per scelta esplicita
-   in ogni caso, mouse o tastiera. */
-.recharts-surface:focus,
-.recharts-surface:focus-visible {
+/* Recharts rende focalizzabili sia l'SVG del grafico (tabindex=0, per
+   raggiungerlo da tastiera) sia i gruppi interni delle singole serie
+   (tabindex=-1, che il click mette comunque a fuoco): in entrambi i casi il
+   browser disegna il proprio contorno, attorno a tutto il grafico o attorno
+   alla sola area cliccata. Nascosto per scelta esplicita ovunque dentro un
+   grafico, mouse o tastiera. */
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible {
   outline: none;
 }
 
