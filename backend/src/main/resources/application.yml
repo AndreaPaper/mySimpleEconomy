@@ -32,6 +32,14 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
+# Senza questo Spring scarta il testo delle ResponseStatusException e il client
+# riceve un 400 nudo. Le eccezioni dell'app portano messaggi già scritti per chi
+# legge ("Non ho trovato la tabella dei movimenti...", "Esiste già una categoria
+# con questo nome"): buttarli via costringe il frontend a indovinare.
+server:
+  error:
+    include-message: always
+
 app:
   jwt:
     secret: ${JWT_SECRET}

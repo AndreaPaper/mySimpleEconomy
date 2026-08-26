@@ -10,6 +10,7 @@ import type {
 import Modal from '../components/Modal'
 import CategoryForm from '../components/CategoryForm'
 import CategoryPicker from '../components/CategoryPicker'
+import BankImportFlow from '../components/BankImportFlow'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -28,7 +29,19 @@ function categoryLabel(
   return '—'
 }
 
+// I due formati non hanno niente in comune se non l'essere .xlsx: il diario
+// spese è un foglio per mese scritto a mano, l'estratto conto una tabella di
+// movimenti. Sceglierlo qui evita di doverli riconoscere a naso, che con un
+// file sbagliato porterebbe a un import muto e vuoto.
+type ImportFormat = 'diary' | 'intesa'
+
+const FORMATS: { key: ImportFormat; label: string; hint: string }[] = [
+  { key: 'diary', label: 'Diario spese', hint: 'Il tuo foglio con una scheda per mese' },
+  { key: 'intesa', label: 'Intesa Sanpaolo', hint: 'La lista movimenti esportata dalla banca' },
+]
+
 export default function ImportPage() {
+  const [format, setFormat] = useState<ImportFormat>('diary')
   const [existingCategories, setExistingCategories] = useState<Category[]>([])
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<ExcelImportPreviewResponse | null>(null)
@@ -39,9 +52,11 @@ export default function ImportPage() {
   const [newCategoryTarget, setNewCategoryTarget] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
+  const reloadCategories = () => {
     categoriesApi.list().then(setExistingCategories)
-  }, [])
+  }
+
+  useEffect(reloadCategories, [])
 
   const handleAnalyze = async () => {
     if (!file) return
@@ -144,7 +159,36 @@ export default function ImportPage() {
         <h1 className="text-lg font-semibold">Importa da Excel</h1>
       </div>
 
+      {/* Nel ramo diario il selettore sparisce dopo l'analisi, perché lì
+          cambiare formato butterebbe via il lavoro fatto senza dirlo. */}
       {!preview && (
+        <div className="max-w-lg">
+          <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">Che file stai importando?</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {FORMATS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFormat(f.key)}
+                className={`rounded-lg border-2 p-3 text-left ${
+                  format === f.key
+                    ? 'border-brand-700 bg-brand-100 dark:bg-brand-900'
+                    : 'border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black'
+                }`}
+              >
+                <span className="block text-sm font-medium dark:text-white">{f.label}</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">{f.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {format === 'intesa' && (
+        <BankImportFlow categories={existingCategories} onCategoriesChanged={reloadCategories} />
+      )}
+
+      {format === 'diary' && !preview && (
         <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Carica il tuo diario spese in formato .xlsx. Verrà analizzato senza salvare nulla: potrai controllare e
@@ -169,7 +213,7 @@ export default function ImportPage() {
         </div>
       )}
 
-      {preview && (
+      {format === 'diary' && preview && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4 sm:grid-cols-3 lg:grid-cols-6">
             <Stat label="Fogli analizzati" value={preview.summary.sheetsProcessed} />

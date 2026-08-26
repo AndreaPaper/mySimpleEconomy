@@ -5,6 +5,8 @@ import com.spesetracker.model.enums.TransactionType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -12,6 +14,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
+
+    // Impronte già presenti per l'utente: servono a riconoscere in un colpo
+    // solo quali righe dell'estratto conto erano già state importate.
+    @Query("select t.importFingerprint from Transaction t where t.user.id = :userId and t.importFingerprint is not null")
+    List<String> findImportFingerprints(@Param("userId") UUID userId);
+
+    // Movimenti importati quando erano ancora provvisori: sono i candidati da
+    // riabbinare alla loro versione definitiva.
+    List<Transaction> findByUserIdAndImportProvisionalTrue(UUID userId);
 
     // Elenco paginato "vedi tutto" (nessun intervallo di date): l'ordinamento
     // arriva dal Pageable passato dal service, non dal nome del metodo.

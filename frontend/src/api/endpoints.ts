@@ -1,5 +1,11 @@
 import client from './client'
 import type {
+  BankCategoryMappingDto,
+  BankImportCommitRow,
+  BankImportExclusionDto,
+  BankImportPreviewResponse,
+  BankImportResult,
+  BankSource,
   BalanceCheckpoint,
   Category,
   DataCleanupResult,
@@ -201,4 +207,26 @@ export const excelImportApi = {
   },
   commit: (data: ExcelImportPreviewResponse) =>
     client.post<ExcelImportResult>('/import/excel/commit', data).then((r) => r.data),
+}
+
+export const bankImportApi = {
+  analyze: (source: BankSource, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return client
+      .post<BankImportPreviewResponse>(`/import/bank/analyze?source=${source}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data)
+  },
+  commit: (data: {
+    source: BankSource
+    rows: BankImportCommitRow[]
+    mappings: BankCategoryMappingDto[]
+    exclusions: BankImportExclusionDto[]
+  }) => client.post<BankImportResult>('/import/bank/commit', data).then((r) => r.data),
+  // Crea in blocco le categorie con i nomi della banca e restituisce le
+  // mappature già risolte.
+  createCategoriesFromBank: (mappings: BankCategoryMappingDto[]) =>
+    client.post<BankCategoryMappingDto[]>('/import/bank/categories/from-bank', mappings).then((r) => r.data),
 }

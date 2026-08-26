@@ -158,7 +158,8 @@ export default function SettingsPage() {
         <div>
           <h2 className="font-medium dark:text-white">Importa da Excel</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            Carica un diario spese in formato .xlsx per importare transazioni, regole ricorrenti e saldi.
+            Il tuo diario spese, oppure la lista movimenti scaricata da Intesa Sanpaolo. L'estratto conto puoi
+            ripassarlo ogni volta che vuoi: le transazioni già registrate vengono riconosciute e non raddoppiate.
           </p>
         </div>
         <Link

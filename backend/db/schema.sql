@@ -158,3 +158,62 @@ ALTER TABLE transactions ADD COLUMN expense_reminder_id UUID REFERENCES expense_
 -- (entrate - uscite del periodo), calcolata dalle transazioni già presenti:
 -- non c'è nulla da accantonare a mano, quindi non c'è nulla da memorizzare.
 -- L'unica impostazione persistita è la percentuale obiettivo, su users.
+
+-- ---------------------------------------------------------------------------
+-- Import dell'estratto conto della banca
+-- ---------------------------------------------------------------------------
+
+-- Tracciabilità delle transazioni arrivate da un import bancario. Serve a
+-- riconoscere cosa è già stato importato quando lo stesso estratto conto viene
+-- ripassato all'app aggiornato: l'export della banca non ha un identificativo
+-- di transazione, quindi l'impronta è calcolata sul contenuto della riga.
+ALTER TABLE transactions
+    ADD COLUMN import_source VARCHAR(30),
+    ADD COLUMN import_fingerprint VARCHAR(64),
+    -- Movimento non ancora contabilizzato: la banca lo riscrive quando diventa
+    -- definitivo (cambiano descrizione e a volte data), quindi la sua impronta
+    -- è destinata a cambiare e va riabbinata al passaggio successivo.
+    ADD COLUMN import_provisional BOOLEAN NOT NULL DEFAULT false;
+
+-- Indice parziale: le transazioni scritte a mano hanno impronta NULL e non
+-- devono essere vincolate fra loro.
+CREATE UNIQUE INDEX ux_transactions_import
+    ON transactions (user_id, import_fingerprint)
+    WHERE import_fingerprint IS NOT NULL;
+
+CREATE INDEX idx_transactions_provisional
+    ON transactions (user_id, import_provisional)
+    WHERE import_provisional;
+
+-- Corrispondenza fra le categorie della banca e quelle dell'utente, così la
+-- mappatura si fa una volta sola e gli import successivi sono automatici.
+CREATE TABLE bank_category_mappings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source VARCHAR(30) NOT NULL,
+    bank_category VARCHAR(120) NOT NULL,
+    -- Il tipo fa parte della chiave: un rimborso su una categoria di spesa
+    -- arriva con segno positivo e va su una categoria di entrata.
+    transaction_type transaction_type NOT NULL,
+    -- NULL = "non importare" (es. i prelievi di contante, che non sono una
+    -- spesa: i soldi si spendono dopo).
+    category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, source, bank_category, transaction_type)
+);
+CREATE INDEX idx_bank_category_mappings_user ON bank_category_mappings (user_id, source);
+
+-- Righe da non importare mai, riconosciute dal testo: giroconti verso sé
+-- stessi e simili, che gonfierebbero le spese senza essere spese.
+CREATE TABLE bank_import_exclusions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source VARCHAR(30) NOT NULL,
+    -- Sottostringa cercata in "Operazione + Dettagli", senza distinzione di
+    -- maiuscole. Niente espressioni regolari: deve poterla scrivere l'utente.
+    pattern VARCHAR(200) NOT NULL,
+    note VARCHAR(200),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, source, pattern)
+);
+CREATE INDEX idx_bank_import_exclusions_user ON bank_import_exclusions (user_id, source);
