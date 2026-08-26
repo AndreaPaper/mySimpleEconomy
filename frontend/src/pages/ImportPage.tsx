@@ -6,7 +6,10 @@ import ImportPanel from '../components/ImportPanel'
 // collegamento salvato non deve smettere di funzionare.
 export default function ImportPage() {
   return (
-    <div className="space-y-6">
+    // Stessa larghezza delle impostazioni: il pannello non si vincola da sé,
+    // così riempie la scheda "Importa" invece di restarci stretto dentro, e il
+    // limite lo mette chi lo ospita.
+    <div className="max-w-3xl space-y-6">
       <div>
         <Link to="/impostazioni" className="text-sm text-brand-700 hover:underline">
           ← Impostazioni

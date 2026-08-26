@@ -129,7 +129,7 @@ export default function ImportPanel() {
 
   if (result) {
     return (
-      <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
+      <div className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <h2 className="text-lg font-semibold">Importazione completata</h2>
         <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
           <li>Categorie create: {result.categoriesCreated}</li>
@@ -154,7 +154,7 @@ export default function ImportPanel() {
       {/* Nel ramo diario il selettore sparisce dopo l'analisi, perché lì
           cambiare formato butterebbe via il lavoro fatto senza dirlo. */}
       {!preview && (
-        <div className="max-w-lg">
+        <div>
           <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">Che file stai importando?</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {FORMATS.map((f) => (
@@ -181,7 +181,7 @@ export default function ImportPanel() {
       )}
 
       {format === 'diary' && !preview && (
-        <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
+        <div className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Carica il tuo diario spese in formato .xlsx. Verrà analizzato senza salvare nulla: potrai controllare e
             correggere le categorie prima di confermare.

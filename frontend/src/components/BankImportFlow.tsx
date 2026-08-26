@@ -250,7 +250,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
 
   if (result) {
     return (
-      <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
+      <div className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <h2 className="text-lg font-semibold">Importazione completata</h2>
         <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
           <li>Transazioni importate: {result.importate}</li>
@@ -277,7 +277,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
 
   if (!preview) {
     return (
-      <div className="max-w-lg space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
+      <div className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Carica la lista movimenti esportata dall'app della banca. Verrà analizzata senza salvare nulla: vedrai cosa
           è già in archivio e cosa manca prima di confermare.
