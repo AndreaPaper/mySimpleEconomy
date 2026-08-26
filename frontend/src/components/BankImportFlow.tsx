@@ -16,40 +16,57 @@ const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: '
 // Come si presenta ogni esito nell'anteprima. L'ordine di questa lista è
 // l'ordine delle sezioni: prima cosa entra, poi cosa va deciso, in fondo cosa
 // resta fuori.
+//
+// `checked` e `unchecked` dicono cosa succede davvero alla spunta. Senza, la
+// casella non spiega la conseguenza: nei due gruppi "Da controllare" spuntare
+// aggiunge una transazione *accanto* a quella che c'è già, e non spuntare non è
+// una decisione definitiva ma un rinvio al prossimo import.
 const SECTIONS: {
   outcome: BankImportOutcome
   title: string
   hint: string
+  checked: string
+  unchecked: string
   tone: string
 }[] = [
   {
     outcome: 'NUOVA',
     title: 'Da importare',
     hint: 'Movimenti che non trovano riscontro in quello che hai già.',
+    checked: 'entra come nuova transazione',
+    unchecked: 'non entra, e te la riproporrò al prossimo import',
     tone: 'text-emerald-700 dark:text-emerald-400',
   },
   {
     outcome: 'AGGIORNA_PROVVISORIA',
     title: 'Da aggiornare',
-    hint: 'Erano stati importati quando la banca non li aveva ancora contabilizzati: si aggiornano invece di crearne altri.',
+    hint: 'Erano stati importati quando la banca non li aveva ancora contabilizzati.',
+    checked: 'riscrive la transazione già presente con data, descrizione e importo definitivi — non ne crea una seconda',
+    unchecked: 'la transazione resta com’è, ancora segnata come provvisoria',
     tone: 'text-sky-700 dark:text-sky-400',
   },
   {
     outcome: 'SOSPETTO_MANUALE',
     title: 'Da controllare — forse già inserite a mano',
     hint: 'Coincidono per data e importo con qualcosa che hai già. Potrebbero essere due spese diverse davvero uguali: decidi tu.',
+    checked: 'viene aggiunta come transazione nuova, accanto a quella che hai già (avrai due righe)',
+    unchecked: 'non entra, e te la riproporrò al prossimo import',
     tone: 'text-amber-700 dark:text-amber-400',
   },
   {
     outcome: 'SOSPETTO_RICORRENTE',
     title: 'Da controllare — forse già generate da una regola',
     hint: 'Importarle vorrebbe dire contarle due volte insieme alla transazione della regola ricorrente.',
+    checked: 'viene aggiunta come transazione nuova, accanto a quella generata dalla regola (avrai due righe)',
+    unchecked: 'non entra, e te la riproporrò al prossimo import',
     tone: 'text-amber-700 dark:text-amber-400',
   },
   {
     outcome: 'ESCLUSA',
     title: 'Escluse dalle tue regole',
-    hint: 'Non sono spese: spostano soldi o li ritirano. Puoi comunque includerne una spuntandola.',
+    hint: 'Non sono spese: spostano soldi o li ritirano.',
+    checked: 'entra lo stesso come nuova transazione, nonostante la regola',
+    unchecked: 'resta fuori, ora e ai prossimi import',
     tone: 'text-slate-500 dark:text-slate-400',
   },
 ]
@@ -434,7 +451,13 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                 {allOn ? 'Deseleziona tutte' : 'Seleziona tutte'}
               </button>
             </div>
-            <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">{section.hint}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{section.hint}</p>
+            {/* La conseguenza della spunta, scritta accanto alle caselle: senza,
+                l'unico modo di saperlo è confermare e guardare cosa è successo. */}
+            <p className="mb-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-medium text-slate-600 dark:text-slate-300">Se la spunti</span> {section.checked}.{' '}
+              <span className="font-medium text-slate-600 dark:text-slate-300">Se no</span> {section.unchecked}.
+            </p>
             <ul className="max-h-96 space-y-2 overflow-y-auto text-sm">
               {sectionRows.map((row) => (
                 <li key={row.rowNumber} className="flex items-start gap-2">
