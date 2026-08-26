@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { bankImportApi } from '../api/endpoints'
+import FilePicker from './FilePicker'
 import type {
   BankCategoryMappingDto,
   BankImportExclusionDto,
@@ -93,7 +94,6 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
   const [creatingCategories, setCreatingCategories] = useState(false)
   const [result, setResult] = useState<BankImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleAnalyze = async () => {
     if (!file) return
@@ -242,7 +242,6 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
     setMappingDone(false)
     setResult(null)
     setError(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const categoryName = (id: string | null) =>
@@ -283,13 +282,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
           è già in archivio e cosa manca prima di confermare.
         </p>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm"
-        />
+        <FilePicker file={file} onChange={setFile} />
         <button
           type="button"
           disabled={!file || analyzing}

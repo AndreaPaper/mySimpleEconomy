@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Landmark, NotebookText, type LucideIcon } from 'lucide-react'
 import { categoriesApi, excelImportApi } from '../api/endpoints'
 import type {
   Category,
@@ -10,6 +11,7 @@ import Modal from './Modal'
 import CategoryForm from './CategoryForm'
 import CategoryPicker from './CategoryPicker'
 import BankImportFlow from './BankImportFlow'
+import FilePicker from './FilePicker'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -34,9 +36,11 @@ function categoryLabel(
 // file sbagliato porterebbe a un import muto e vuoto.
 type ImportFormat = 'diary' | 'intesa'
 
-const FORMATS: { key: ImportFormat; label: string; hint: string }[] = [
-  { key: 'diary', label: 'Diario spese', hint: 'Il tuo foglio con una scheda per mese' },
-  { key: 'intesa', label: 'Intesa Sanpaolo', hint: 'La lista movimenti esportata dalla banca' },
+// Icone di lucide invece delle emoji del disegno: il badge le vuole bianche su
+// fondo colorato, e un'emoji porta i suoi colori e non si lascia tingere.
+const FORMATS: { key: ImportFormat; label: string; hint: string; Icon: LucideIcon }[] = [
+  { key: 'diary', label: 'Diario spese', hint: 'Una scheda per mese', Icon: NotebookText },
+  { key: 'intesa', label: 'Intesa Sanpaolo', hint: 'Estratto conto', Icon: Landmark },
 ]
 
 export default function ImportPanel() {
@@ -49,7 +53,6 @@ export default function ImportPanel() {
   const [result, setResult] = useState<ExcelImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [newCategoryTarget, setNewCategoryTarget] = useState<number | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const reloadCategories = () => {
     categoriesApi.list().then(setExistingCategories)
@@ -124,7 +127,6 @@ export default function ImportPanel() {
     setPreview(null)
     setResult(null)
     setError(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   if (result) {
@@ -154,28 +156,49 @@ export default function ImportPanel() {
       {/* Nel ramo diario il selettore sparisce dopo l'analisi, perché lì
           cambiare formato butterebbe via il lavoro fatto senza dirlo. */}
       {!preview && (
-        <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="import-format">
-            Che file stai importando?
-          </label>
-          <select
-            id="import-format"
-            value={format}
-            onChange={(e) => setFormat(e.target.value as ImportFormat)}
-            className="w-full max-w-xs rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-          >
-            {FORMATS.map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-          {/* La descrizione del formato scelto: nella tendina non ci sta, ma è
-              quella che dice se hai preso il file giusto. */}
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {FORMATS.find((f) => f.key === format)?.hint}
-          </p>
-        </div>
+        <fieldset>
+          <legend className="mb-2 text-sm text-slate-600 dark:text-slate-300">Che file stai importando?</legend>
+          {/* radio e non bottoni: è una scelta fra alternative che si escludono,
+              e così le frecce ci si muovono dentro e un lettore di schermo
+              annuncia "1 di 2" invece di due comandi slegati. */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {FORMATS.map(({ key, label, hint, Icon }) => {
+              const active = format === key
+              return (
+                <label
+                  key={key}
+                  // In chiaro il riquadro scelto si tinge appena; al buio resta
+                  // nero come l'altro e la scelta la portano bordo e pastiglia.
+                  // Non dark:bg-brand-900: in questa palette vale lo stesso blu
+                  // pieno della pastiglia, che ci sparirebbe dentro.
+                  className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-[1.5px] p-4 text-center ${
+                    active
+                      ? 'border-brand-700 bg-brand-100 dark:bg-black'
+                      : 'border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="import-format"
+                    value={key}
+                    checked={active}
+                    onChange={() => setFormat(key)}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                      active ? 'bg-brand-700 text-white' : 'bg-brand-100 dark:bg-zinc-900 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="text-sm font-bold dark:text-white">{label}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{hint}</span>
+                </label>
+              )
+            })}
+          </div>
+        </fieldset>
       )}
 
       {format === 'intesa' && (
@@ -189,13 +212,7 @@ export default function ImportPanel() {
             correggere le categorie prima di confermare.
           </p>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm"
-          />
+          <FilePicker file={file} onChange={setFile} />
           <button
             type="button"
             disabled={!file || analyzing}
