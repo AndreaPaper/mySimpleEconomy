@@ -1,8 +1,8 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
-import { Link } from 'react-router-dom'
 import { dataCleanupApi } from '../api/endpoints'
 import type { DataCleanupResult } from '../api/types'
 import Modal from '../components/Modal'
+import ImportPanel from '../components/ImportPanel'
 import { useTheme } from '../context/ThemeContext'
 import { useCaseStyle } from '../context/CaseStyleContext'
 import { usePalette } from '../context/PaletteContext'
@@ -231,21 +231,14 @@ export default function SettingsPage() {
         hidden={tab !== 'importa'}
         className="space-y-6"
       >
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-6">
-          <div>
-            <h2 className="font-medium dark:text-white">Importa da Excel</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Il tuo diario spese, oppure la lista movimenti scaricata da Intesa Sanpaolo. L'estratto conto puoi
-              ripassarlo ogni volta che vuoi: le transazioni già registrate vengono riconosciute e non raddoppiate.
-            </p>
-          </div>
-          <Link
-            to="/importa"
-            className="shrink-0 rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
-          >
-            Importa
-          </Link>
-        </div>
+        {/* L'importazione sta qui dentro, non dietro un pulsante: la scheda
+            esiste per fare quella cosa, e una card che descrive un'altra
+            pagina era solo un passaggio in più. */}
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Il tuo diario spese, oppure la lista movimenti scaricata da Intesa Sanpaolo. L'estratto conto puoi
+          ripassarlo ogni volta che vuoi: le transazioni già registrate vengono riconosciute e non raddoppiate.
+        </p>
+        <ImportPanel />
       </div>
 
       <div
