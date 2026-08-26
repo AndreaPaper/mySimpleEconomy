@@ -155,24 +155,26 @@ export default function ImportPanel() {
           cambiare formato butterebbe via il lavoro fatto senza dirlo. */}
       {!preview && (
         <div>
-          <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">Che file stai importando?</p>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="import-format">
+            Che file stai importando?
+          </label>
+          <select
+            id="import-format"
+            value={format}
+            onChange={(e) => setFormat(e.target.value as ImportFormat)}
+            className="w-full max-w-xs rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          >
             {FORMATS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFormat(f.key)}
-                className={`rounded-lg border-2 p-3 text-left ${
-                  format === f.key
-                    ? 'border-brand-700 bg-brand-100 dark:bg-brand-900'
-                    : 'border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black'
-                }`}
-              >
-                <span className="block text-sm font-medium dark:text-white">{f.label}</span>
-                <span className="block text-xs text-slate-500 dark:text-slate-400">{f.hint}</span>
-              </button>
+              <option key={f.key} value={f.key}>
+                {f.label}
+              </option>
             ))}
-          </div>
+          </select>
+          {/* La descrizione del formato scelto: nella tendina non ci sta, ma è
+              quella che dice se hai preso il file giusto. */}
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {FORMATS.find((f) => f.key === format)?.hint}
+          </p>
         </div>
       )}
 
