@@ -203,6 +203,9 @@ export default function DashboardPage() {
   // e gli hook non possono stargli dopo.
   const badgeRef = useRef<HTMLSpanElement>(null)
   const [badgeWidth, setBadgeWidth] = useState<number | null>(null)
+  // Quale mascotte non si è caricata. Si tiene l'indirizzo e non un sì/no:
+  // se lo stato del budget cambia e la nuova immagine c'è, torna a vedersi.
+  const [brokenHusky, setBrokenHusky] = useState<string | null>(null)
 
   const today = new Date()
   // Quanti mesi di forecast servono per coprire rangeEnd, partendo dal mese
@@ -630,12 +633,24 @@ export default function DashboardPage() {
             ("IN LINEA" 74px, "ATTENZIONE" 98px) li faceva sembrare storti.
             La fetta può restringersi, perché l'importo può arrivare a cinque
             cifre e non deve mai essere lui a cedere lo spazio. */}
-        <div
-          className="ml-auto flex shrink justify-center self-center"
-          style={{ width: badgeWidth ?? undefined }}
-        >
-          <img src={tone.husky} alt={tone.huskyAlt} className="w-14 min-w-8 shrink sm:w-[72px]" />
-        </div>
+        {/* Se l'immagine non arriva, sparisce invece di lasciare il segnaposto
+            di immagine rotta col testo alternativo, che sta nella card peggio
+            di niente. Capita col server di sviluppo offline, dove non c'è
+            precache; in produzione le tre immagini sono nel service worker e
+            offline si vedono. */}
+        {tone.husky !== brokenHusky && (
+          <div
+            className="ml-auto flex shrink justify-center self-center"
+            style={{ width: badgeWidth ?? undefined }}
+          >
+            <img
+              src={tone.husky}
+              alt={tone.huskyAlt}
+              onError={() => setBrokenHusky(tone.husky)}
+              className="w-14 min-w-8 shrink sm:w-[72px]"
+            />
+          </div>
+        )}
       </div>
     </div>
   )
