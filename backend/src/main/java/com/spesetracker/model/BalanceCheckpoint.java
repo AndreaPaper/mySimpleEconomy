@@ -34,6 +34,12 @@ public class BalanceCheckpoint {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal balance;
 
+    // Istante da cui contare le transazioni datate nel giorno del saldo.
+    // Null = saldo a inizio giornata, quindi contano tutte (i saldi importati
+    // da Excel sono "SALDO INIZIO MESE" e restano cosi').
+    @Column(name = "counts_from")
+    private Instant countsFrom;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

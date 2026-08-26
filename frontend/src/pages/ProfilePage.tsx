@@ -292,7 +292,7 @@ export default function ProfilePage() {
             />
           </label>
           <label className="text-sm sm:w-44">
-            <span className="mb-1 block text-slate-600 dark:text-slate-300">Saldo a inizio giornata</span>
+            <span className="mb-1 block text-slate-600 dark:text-slate-300">Saldo in questo momento</span>
             <input
               type="number"
               step="0.01"
@@ -313,9 +313,9 @@ export default function ProfilePage() {
         </div>
 
         <span className="block text-xs text-slate-400 dark:text-slate-500">
-          Le transazioni registrate a partire da quella data (compresa) vengono sommate o sottratte a questo saldo:
-          inserisci quindi il saldo <em>prima</em> delle spese di quel giorno. Se inserisci un saldo per una data già
-          registrata, la sovrascrive.
+          Scrivi il saldo come lo leggi <em>adesso</em> sul conto: quello che hai già registrato oggi è compreso e non
+          viene sottratto una seconda volta. Da qui in avanti ogni transazione che aggiungi lo aggiorna. Se inserisci un
+          saldo per una data già registrata, la sovrascrive.
         </span>
 
         {checkpointError && <p className="text-sm text-red-600">{checkpointError}</p>}

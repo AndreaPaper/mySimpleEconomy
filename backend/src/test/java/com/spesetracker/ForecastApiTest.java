@@ -47,8 +47,8 @@ class ForecastApiTest extends AbstractIntegrationTest {
     }
 
     // Regressione del bug segnalato: saldo di partenza registrato oggi (il default del
-    // form in Profilo) e spesa datata oggi. Il checkpoint è il saldo a INIZIO giornata,
-    // quindi la spesa deve comunque essere sottratta.
+    // form in Profilo) e spesa registrata DOPO averlo salvato: il saldo scritto a
+    // mano fotografa il conto in quel momento, quindi ciò che arriva dopo lo muove.
     @Test
     void transactionOnTheSameDayAsTheCheckpointIsCounted() throws Exception {
         String token = api.registerAndLogin();
@@ -58,6 +58,25 @@ class ForecastApiTest extends AbstractIntegrationTest {
         api.createTransaction(token, expense, LocalDate.now(), "100.00", "EXPENSE");
 
         assertThat(api.currentBalance(token)).isEqualByComparingTo("2600.00");
+    }
+
+    // L'altra metà della stessa regola: la spesa era già registrata quando il
+    // saldo è stato scritto, quindi è dentro quel numero. Sottrarla di nuovo la
+    // conterebbe due volte — è il caso che si vedeva scrivendo il saldo letto
+    // sul conto a fine giornata.
+    @Test
+    void transactionRecordedBeforeTheCheckpointOnTheSameDayIsNotSubtractedAgain() throws Exception {
+        String token = api.registerAndLogin();
+        String expense = api.createExpenseCategory(token);
+
+        api.createTransaction(token, expense, LocalDate.now(), "400.00", "EXPENSE");
+        api.createCheckpoint(token, LocalDate.now(), "2089.00");
+
+        assertThat(api.currentBalance(token)).isEqualByComparingTo("2089.00");
+
+        // E da lì in avanti il saldo si muove di nuovo.
+        api.createTransaction(token, expense, LocalDate.now(), "50.00", "EXPENSE");
+        assertThat(api.currentBalance(token)).isEqualByComparingTo("2039.00");
     }
 
     @Test

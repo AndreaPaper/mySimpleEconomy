@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,6 +37,11 @@ public class BalanceCheckpointService {
                         .build());
 
         checkpoint.setBalance(request.balance());
+        // Chi scrive un saldo a mano sta leggendo il conto adesso: quello che ha
+        // gia' registrato oggi e' dentro quel numero e non va sottratto di
+        // nuovo, quello che registrera' dopo si'. Si riscrive anche quando si
+        // aggiorna un saldo esistente, perche' il momento buono e' l'ultimo.
+        checkpoint.setCountsFrom(Instant.now());
 
         return BalanceCheckpointResponse.from(balanceCheckpointRepository.save(checkpoint));
     }

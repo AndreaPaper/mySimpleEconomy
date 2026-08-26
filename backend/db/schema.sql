@@ -217,3 +217,16 @@ CREATE TABLE bank_import_exclusions (
     UNIQUE (user_id, source, pattern)
 );
 CREATE INDEX idx_bank_import_exclusions_user ON bank_import_exclusions (user_id, source);
+
+-- Da quale istante le transazioni del giorno del saldo vanno conteggiate.
+--
+-- Serve perché "saldo del 26/08" da solo è ambiguo. Chi lo scrive a mano
+-- guarda il conto in quel momento, quindi le spese già registrate quel giorno
+-- sono dentro il numero e non vanno sottratte di nuovo; quelle registrate dopo
+-- sì. L'import Excel invece legge un "SALDO INIZIO MESE", che precede tutto il
+-- giorno. Dedurlo dall'ordine di inserimento funzionerebbe oggi e si romperebbe
+-- al primo riordino, quindi lo si scrive.
+--
+-- NULL = saldo a inizio giornata (il significato che avevano tutti i saldi
+-- registrati prima di questa colonna: non vanno reinterpretati).
+ALTER TABLE balance_checkpoints ADD COLUMN counts_from TIMESTAMPTZ;

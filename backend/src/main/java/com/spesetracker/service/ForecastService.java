@@ -55,6 +55,24 @@ public class ForecastService {
     private record Occurrence(Category category, BigDecimal amount) {
     }
 
+    // Le transazioni datate dopo il giorno del saldo contano sempre. Quelle
+    // datate proprio in quel giorno dipendono da cosa vuol dire il saldo:
+    //
+    //   countsFrom valorizzato -> saldo letto in quel momento (inserito a mano).
+    //       Quello che era gia' registrato allora e' dentro il numero: contarlo
+    //       di nuovo lo sottrarrebbe due volte. Conta solo cio' che e' arrivato
+    //       dopo, cosi' una spesa aggiunta nel pomeriggio muove comunque il saldo.
+    //
+    //   countsFrom nullo -> saldo a inizio giornata: contano tutte. E' il caso
+    //       dei saldi importati da Excel ("SALDO INIZIO MESE") e di quelli
+    //       registrati prima che questa distinzione esistesse.
+    private boolean countsAfterCheckpoint(
+            Transaction transaction, LocalDate checkpointDate, BalanceCheckpoint checkpoint) {
+        if (!transaction.getOccurredOn().isEqual(checkpointDate)) return true;
+        if (checkpoint == null || checkpoint.getCountsFrom() == null) return true;
+        return !transaction.getCreatedAt().isBefore(checkpoint.getCountsFrom());
+    }
+
     @Transactional(readOnly = true)
     public ForecastResponse forecast(UUID userId, int months) {
         LocalDate today = LocalDate.now();
@@ -78,7 +96,9 @@ public class ForecastService {
         // attuale resterebbe congelato per tutto il giorno. Stessa semantica dell'import
         // Excel, che legge saldi di inizio periodo ("SALDO INIZIO MESE").
         List<Transaction> actualSinceCheckpoint = transactionRepository
-                .findByUserIdAndOccurredOnBetween(userId, checkpointDate, horizonEndDate);
+                .findByUserIdAndOccurredOnBetween(userId, checkpointDate, horizonEndDate).stream()
+                .filter(t -> countsAfterCheckpoint(t, checkpointDate, checkpoint.orElse(null)))
+                .toList();
         actualSinceCheckpoint.forEach(t -> categoryLookup.putIfAbsent(t.getCategory().getId(), t.getCategory()));
 
         // Saldo vero, adesso: solo ciò che è già accaduto. A differenza della previsione,

@@ -98,10 +98,12 @@ class SmokeApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.months.length()").value(3))
                 .andExpect(jsonPath("$.months[1].projectedIncome").value(2500.00))
-                // Il checkpoint è datato oggi come la spesa da 42.50: il saldo a inizio
-                // giornata va comunque decurtato (1000.00 - 42.50), altrimenti una
-                // transazione registrata lo stesso giorno del saldo non conterebbe mai.
-                .andExpect(jsonPath("$.currentBalance").value(957.50));
+                // La spesa da 42.50 è datata oggi come il checkpoint, ma è stata
+                // registrata prima: un saldo scritto a mano fotografa il conto in
+                // quel momento, quindi quei 42.50 sono già dentro i 1000 e non si
+                // sottraggono una seconda volta. Quello che arriva dopo il saldo lo
+                // muove invece regolarmente (vedi ForecastApiTest).
+                .andExpect(jsonPath("$.currentBalance").value(1000.00));
 
         mockMvc.perform(get("/api/categories"))
                 .andExpect(status().isUnauthorized());
