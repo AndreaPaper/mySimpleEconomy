@@ -215,6 +215,12 @@ export default function DashboardPage() {
   )
   const [rangeEnd, setRangeEnd] = useState(defaultRangeEnd())
 
+  // Quale delle due card del carosello risparmio è in vista, per accendere il
+  // pallino giusto. Si ricava dallo scorrimento invece di comandarlo, così il
+  // dito e i pallini non possono raccontare due cose diverse.
+  const savingsTrackRef = useRef<HTMLDivElement>(null)
+  const [savingsIndex, setSavingsIndex] = useState(0)
+
   // La larghezza del badge di stato si misura invece di fissarla: dipende
   // dall'etichetta e dal font, e serve alla mascotte della card "Budget
   // disponibile" per condividerne il centro. L'osservatore la tiene aggiornata
@@ -567,9 +573,13 @@ export default function DashboardPage() {
   const budgetRingPct =
     budget.available > 0 ? Math.min(Math.max(budget.remaining / budget.available, 0), 1) : 0
 
+  // Su mobile l'anello si stringe: a 104px su una card larga 291 restava
+  // troppo poco all'importo, che è il numero per cui si guarda la card.
+  const ringSize = isMobile ? 88 : 104
+
   const savingsRing = (pct: number, color: string, trackColor: string) => (
-    <div className="relative h-[104px] w-[104px] shrink-0">
-      <svg viewBox="0 0 104 104" className="h-[104px] w-[104px] -rotate-90">
+    <div className="relative shrink-0" style={{ height: ringSize, width: ringSize }}>
+      <svg viewBox="0 0 104 104" width={ringSize} height={ringSize} className="-rotate-90">
         <circle cx="52" cy="52" r="44" fill="none" stroke={trackColor} strokeWidth="11" />
         <circle
           cx="52"
@@ -584,14 +594,27 @@ export default function DashboardPage() {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[22px] font-bold leading-none text-slate-900">{Math.round(pct * 100)}%</span>
+        <span
+          className="font-bold leading-none text-slate-900"
+          style={{ fontSize: isMobile ? 18 : 22 }}
+        >
+          {Math.round(pct * 100)}%
+        </span>
       </div>
     </div>
   )
 
+  // Su mobile le due card perdono il bordo e si stringono: la tinta piena le
+  // separa già dallo sfondo, e nel carosello un bordo per card faceva sembrare
+  // il tutto una lista dentro una lista.
+  const cardChrome = isMobile ? 'rounded-xl p-4' : 'rounded-lg border border-slate-200 p-[18px]'
+  const cardHeader = isMobile ? 'mb-3 flex items-center justify-between gap-2' : 'mb-3.5 flex items-center justify-between gap-2'
+  const cardBody = isMobile ? 'flex items-center gap-3.5' : 'flex items-center gap-4'
+  const cardAmount = isMobile ? 'text-xl' : 'text-2xl'
+
   const savingsProgressCard = (
-    <div className="rounded-lg border border-slate-200 p-[18px]" style={{ backgroundColor: '#ecfdf5' }}>
-      <div className="mb-3.5 flex items-center justify-between gap-2">
+    <div className={cardChrome} style={{ backgroundColor: '#ecfdf5' }}>
+      <div className={cardHeader}>
         <Link
           to="/risparmio"
           className="flex items-center gap-1.5 text-[13px] font-bold hover:underline"
@@ -604,12 +627,12 @@ export default function DashboardPage() {
           {budget.daysLeft > 0 ? 'periodo in corso' : 'periodo concluso'}
         </span>
       </div>
-      <div className="flex items-center gap-4">
+      <div className={cardBody}>
         {savingsRing(savingsRingPct, '#2FA36B', 'rgba(255,255,255,.6)')}
         <div className="min-w-0">
           <p className="text-xs text-slate-600">Risparmiato in questo periodo</p>
           <p
-            className={`text-2xl font-bold leading-tight ${budget.saved < 0 ? 'text-red-600' : 'text-slate-900'}`}
+            className={`${cardAmount} font-bold leading-tight ${budget.saved < 0 ? 'text-red-600' : 'text-slate-900'}`}
           >
             {currency.format(budget.saved)}
           </p>
@@ -629,8 +652,8 @@ export default function DashboardPage() {
   )
 
   const budgetCard = (
-    <div className="rounded-lg border border-slate-200 p-[18px]" style={{ backgroundColor: tone.bg }}>
-      <div className="mb-3.5 flex items-center justify-between gap-2">
+    <div className={cardChrome} style={{ backgroundColor: tone.bg }}>
+      <div className={cardHeader}>
         <span className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: tone.head }}>
           <Wallet className="h-[15px] w-[15px]" />
           Budget disponibile
@@ -643,7 +666,7 @@ export default function DashboardPage() {
           {tone.label.toUpperCase()}
         </span>
       </div>
-      <div className="flex items-center gap-4">
+      <div className={cardBody}>
         {savingsRing(budgetRingPct, tone.ring, 'rgba(255,255,255,.6)')}
         {/* Niente min-w-0 qui: la colonna non deve poter scendere sotto la
             larghezza dell'importo, altrimenti in due colonne la cifra si
@@ -657,7 +680,7 @@ export default function DashboardPage() {
             {budget.status === 'danger' ? 'Hai superato il budget di' : 'Puoi ancora spendere'}
           </p>
           <p
-            className="text-2xl font-bold leading-tight"
+            className={`${cardAmount} font-bold leading-tight`}
             style={budget.status === 'danger' ? { color: tone.ring } : undefined}
           >
             {currency.format(Math.abs(budget.remaining))}
@@ -675,7 +698,10 @@ export default function DashboardPage() {
             di niente. Capita col server di sviluppo offline, dove non c'è
             precache; in produzione le tre immagini sono nel service worker e
             offline si vedono. */}
-        {tone.husky !== brokenHusky && (
+        {/* Su mobile la mascotte non c'è: la card è larga 291px e fra anello,
+            importo e giorni non le resta una fetta in cui si veda ancora
+            qualcosa. A schermo intero torna, grande com'è sempre stata. */}
+        {!isMobile && tone.husky !== brokenHusky && (
           <div
             className="ml-auto flex shrink justify-center self-center"
             style={{ width: badgeWidth ?? undefined }}
@@ -692,13 +718,69 @@ export default function DashboardPage() {
     </div>
   )
 
+  // Le card sono due e basta, quindi le posizioni utili sono due: tutto a
+  // sinistra e tutto a destra. Contarle a passi di una larghezza darebbe per la
+  // seconda un punto oltre la fine dello scorrimento, che è irraggiungibile.
+  const savingsMaxScroll = () => {
+    const track = savingsTrackRef.current
+    return track ? track.scrollWidth - track.clientWidth : 0
+  }
+
+  const handleSavingsScroll = () => {
+    const max = savingsMaxScroll()
+    if (max <= 0) return
+    setSavingsIndex(savingsTrackRef.current!.scrollLeft > max / 2 ? 1 : 0)
+  }
+
+  const goToSavingsCard = (index: number) => {
+    savingsTrackRef.current?.scrollTo({
+      left: index === 0 ? 0 : savingsMaxScroll(),
+      behavior: 'smooth',
+    })
+  }
+
   // Su mobile le due card scorrono in orizzontale invece di impilarsi: la
   // seconda sporge di poco sul bordo, che è quello che fa capire che c'è e si
   // può trascinare. Lo scatto le allinea una alla volta.
   const savingsCards = isMobile ? (
-    <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-      <div className="w-[86%] shrink-0 snap-start">{budgetCard}</div>
-      <div className="w-[86%] shrink-0 snap-start">{savingsProgressCard}</div>
+    <div>
+      {/* La barra di scorrimento sparisce: dice dove sei con un dettaglio che
+          qui non serve, e su una fila di due card è più rumore che aiuto.
+          A dirlo restano i pallini, che sono anche il modo di spostarsi
+          senza trascinare. */}
+      <div
+        ref={savingsTrackRef}
+        onScroll={handleSavingsScroll}
+        style={{ scrollbarWidth: 'none' }}
+        // scroll-px-4 e non solo px-4: senza, l'aggancio ignora il margine e
+        // porta la card a filo dello schermo. L'ultima si aggancia a destra,
+        // perché a sinistra il suo punto cadrebbe oltre la fine della corsa e
+        // lo scatto la rimanderebbe indietro ogni volta.
+        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="w-[86%] shrink-0 snap-start">{budgetCard}</div>
+        <div className="w-[86%] shrink-0 snap-end">{savingsProgressCard}</div>
+      </div>
+      <div className="mt-2 flex justify-center gap-1.5">
+        {['Budget disponibile', 'Risparmio'].map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            aria-label={label}
+            aria-current={savingsIndex === i}
+            onClick={() => goToSavingsCard(i)}
+            // Il bersaglio del dito è 20px, il pallino visibile 6: un pallino
+            // grande abbastanza da premere sarebbe un pallino troppo grande.
+            className="flex h-5 w-5 items-center justify-center"
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                savingsIndex === i ? 'bg-brand-700' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+            />
+          </button>
+        ))}
+      </div>
     </div>
   ) : (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
