@@ -88,6 +88,22 @@ function defaultRangeStart(): string {
   return `${new Date().getFullYear()}-01-01`
 }
 
+// Le durate offerte dai chip del grafico su mobile, al posto dei due campi data.
+const DEFAULT_MOBILE_RANGE_MONTHS = 6
+
+const CHART_RANGES = [
+  { label: '1M', months: 1 },
+  { label: '3M', months: 3 },
+  { label: '6M', months: 6 },
+  { label: '1A', months: 12 },
+]
+
+function chartRangeStart(months: number): string {
+  const d = new Date()
+  d.setMonth(d.getMonth() - months)
+  return d.toISOString().slice(0, 10)
+}
+
 function defaultRangeEnd(): string {
   const d = new Date()
   d.setMonth(d.getMonth() + 6)
@@ -189,7 +205,14 @@ export default function DashboardPage() {
   // Categorie padre attualmente espanse nella card "Spese per categoria".
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [quickAddOpen, setQuickAddOpen] = useState(false)
-  const [rangeStart, setRangeStart] = useState(defaultRangeStart())
+  // Su mobile il grafico si comanda a chip di durata: partire dal primo
+  // gennaio lascerebbe tutti e quattro spenti, come se non fosse selezionato
+  // niente. Sei mesi è la durata che il grafico mostra meglio nello spazio che
+  // ha. Sul desktop resta l'anno in corso, che è quello che i campi data
+  // mostravano da sempre.
+  const [rangeStart, setRangeStart] = useState(() =>
+    isMobile ? chartRangeStart(DEFAULT_MOBILE_RANGE_MONTHS) : defaultRangeStart(),
+  )
   const [rangeEnd, setRangeEnd] = useState(defaultRangeEnd())
 
   // La larghezza del badge di stato si misura invece di fissarla: dipende
@@ -483,7 +506,23 @@ export default function DashboardPage() {
   const savingsRingPct =
     budget.savingsTarget > 0 ? Math.min(Math.max(budget.saved / budget.savingsTarget, 0), 1) : 0
 
-  const summaryCards = (
+  // Su mobile i due KPI stanno affiancati in una card sola invece che impilati:
+  // erano due schermate di altezza per due numeri, e il primo scroll partiva
+  // già senza aver visto niente. Le due tinte restano e fanno da divisorio.
+  const summaryCards = isMobile ? (
+    <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+      <div className="flex-1 bg-kpi-a p-3">
+        <p className="text-xs text-slate-500">Saldo attuale</p>
+        <p className="text-lg font-semibold text-slate-900">{currency.format(currentBalance)}</p>
+      </div>
+      <div className="flex-1 bg-kpi-b p-3">
+        <p className="text-xs text-slate-500">Previsto a fine mese</p>
+        <p className="text-lg font-semibold text-slate-900">
+          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
+        </p>
+      </div>
+    </div>
+  ) : (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-kpi-a p-4">
         <p className="text-sm text-slate-500">Saldo attuale</p>
@@ -653,7 +692,15 @@ export default function DashboardPage() {
     </div>
   )
 
-  const savingsCards = (
+  // Su mobile le due card scorrono in orizzontale invece di impilarsi: la
+  // seconda sporge di poco sul bordo, che è quello che fa capire che c'è e si
+  // può trascinare. Lo scatto le allinea una alla volta.
+  const savingsCards = isMobile ? (
+    <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+      <div className="w-[86%] shrink-0 snap-start">{budgetCard}</div>
+      <div className="w-[86%] shrink-0 snap-start">{savingsProgressCard}</div>
+    </div>
+  ) : (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {savingsProgressCard}
       {budgetCard}
@@ -669,23 +716,53 @@ export default function DashboardPage() {
             Clicca un mese per vederne le spese per categoria
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <input
-            type="date"
-            value={rangeStart}
-            onChange={(e) => setRangeStart(e.target.value)}
-            className="rounded border border-slate-200 dark:border-slate-700 bg-chart-card dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
-            aria-label="Data inizio"
-          />
-          <span className="text-slate-400">→</span>
-          <input
-            type="date"
-            value={rangeEnd}
-            onChange={(e) => setRangeEnd(e.target.value)}
-            className="rounded border border-slate-200 dark:border-slate-700 bg-chart-card dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
-            aria-label="Data fine"
-          />
-        </div>
+        {/* Su mobile due campi data uno accanto all'altro non ci stanno, e
+            comunque per guardare un andamento si sceglie una durata, non due
+            date: qui bastano quattro scorciatoie. Il desktop tiene i campi,
+            dove servono per ritagliare un periodo preciso. */}
+        {isMobile ? (
+          <div className="flex gap-1.5 text-xs">
+            {CHART_RANGES.map((range) => {
+              const active = rangeStart === chartRangeStart(range.months)
+              return (
+                <button
+                  key={range.label}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setRangeStart(chartRangeStart(range.months))
+                    setRangeEnd(defaultRangeEnd())
+                  }}
+                  className={`rounded-full px-2.5 py-1 font-medium ${
+                    active
+                      ? 'bg-brand-700 text-white'
+                      : 'bg-bar-track dark:bg-zinc-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {range.label}
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs">
+            <input
+              type="date"
+              value={rangeStart}
+              onChange={(e) => setRangeStart(e.target.value)}
+              className="rounded border border-slate-200 dark:border-slate-700 bg-chart-card dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+              aria-label="Data inizio"
+            />
+            <span className="text-slate-400">→</span>
+            <input
+              type="date"
+              value={rangeEnd}
+              onChange={(e) => setRangeEnd(e.target.value)}
+              className="rounded border border-slate-200 dark:border-slate-700 bg-chart-card dark:bg-black px-2 py-1 text-slate-600 dark:text-slate-300"
+              aria-label="Data fine"
+            />
+          </div>
+        )}
       </div>
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
@@ -728,7 +805,24 @@ export default function DashboardPage() {
     </div>
   )
 
-  const periodCards = (
+  // Le tre cifre del periodo su mobile diventano una striscia sola: come card
+  // separate erano tre righe intere per tre numeri che si leggono insieme.
+  const periodCards = isMobile ? (
+    <div className="flex divide-x divide-slate-200 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
+      <div className="flex-1 px-2 py-3 text-center">
+        <p className="text-xs text-slate-500 dark:text-slate-400">Entrate</p>
+        <p className="text-sm font-semibold text-emerald-600">{currency.format(currentPeriodIncome)}</p>
+      </div>
+      <div className="flex-1 px-2 py-3 text-center">
+        <p className="text-xs text-slate-500 dark:text-slate-400">Uscite</p>
+        <p className="text-sm font-semibold text-red-600">{currency.format(currentPeriodExpense)}</p>
+      </div>
+      <div className="flex-1 px-2 py-3 text-center">
+        <p className="text-xs text-slate-500 dark:text-slate-400">Netto</p>
+        <p className="text-sm font-semibold dark:text-white">{currency.format(currentPeriodNet)}</p>
+      </div>
+    </div>
+  ) : (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
         <p className="text-sm text-slate-500 dark:text-slate-400">Entrate (mese corrente)</p>
@@ -882,7 +976,55 @@ export default function DashboardPage() {
     </div>
   )
 
-  const remindersCard = (
+  // Su mobile le prossime tre scadenze in fila, senza il raggruppamento per
+  // mese: quello serve a capire quali mesi saranno pesanti, che è una domanda
+  // da scrivania. Qui interessa cosa scade adesso, e il resto sta dietro a un
+  // link invece che dietro a uno scroll che non si vede di avere.
+  const nextReminders = (upcomingReminders?.months ?? [])
+    .flatMap((m) => m.occurrences)
+    .slice(0, 3)
+
+  const remindersCard = isMobile ? (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Prossime scadenze</p>
+        <Link to="/promemoria" className="shrink-0 text-xs text-brand-700 hover:underline">
+          Vedi tutte
+        </Link>
+      </div>
+      {nextReminders.length === 0 ? (
+        <p className="text-sm text-slate-400 dark:text-slate-500">Nessun promemoria configurato.</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {nextReminders.map((o, i) => {
+            const badge = dayBadge(o.date)
+            return (
+              <li key={i} className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-800 dark:bg-zinc-800 text-white">
+                    <span className="text-xs font-bold leading-none">{badge.day}</span>
+                    <span className="text-[9px] leading-none">{badge.month}</span>
+                  </div>
+                  {/* truncate e non scroll: un nome lungo si taglia, invece di
+                      allargare la riga oltre il bordo della card. */}
+                  <span className="truncate text-sm font-medium">{o.name}</span>
+                </div>
+                {o.amount != null && (
+                  <span
+                    className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400"
+                    title={o.estimated ? "Stima dall'ultima spesa della categoria" : undefined}
+                  >
+                    {o.estimated && '~'}
+                    {currency.format(o.amount)}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  ) : (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
       <p className="mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Spese fisse nei prossimi mesi</p>
       <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">
