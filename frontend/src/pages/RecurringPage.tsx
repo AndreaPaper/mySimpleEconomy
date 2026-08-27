@@ -108,17 +108,21 @@ export default function RecurringPage() {
         <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
           {items.map((r) => (
             <li key={r.id} className="px-4 py-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">
+              {/* Le quattro azioni più l'importo misurano da sole quasi 400px:
+                  su telefono non ci stanno accanto al nome, e vanno a capo.
+                  Senza, allargavano la pagina e con lei il viewport a cui si
+                  aggancia la barra in basso, che finiva così fuori vista. */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
                     {r.name} {!r.active && <span className="text-xs text-slate-400 dark:text-slate-500">(disattivata)</span>}
                   </p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">
                     {r.categoryName} · ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima:{' '}
                     {r.nextDueDate}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className={r.categoryType === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
                     {currency.format(r.defaultAmount)}
                   </span>

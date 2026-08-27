@@ -274,7 +274,7 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold">Transazioni</h1>
         <div className="flex gap-2">
           <button
@@ -375,24 +375,29 @@ export default function TransactionsPage() {
                   const Icon = getCategoryIcon(t.categoryIcon)
                   const actionsDisabled = offlineLike || t.pending
                   return (
-                    <li key={t.id} className="flex items-center justify-between px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                      {/* min-w-0 e non solo flex: senza, una descrizione lunga
+                          non si accorcia e allarga la riga oltre lo schermo.
+                          Su telefono quello non si limita a tagliare la riga —
+                          allarga la pagina, e con lei il viewport a cui la
+                          barra in basso si aggancia, che finisce fuori vista. */}
+                      <div className="flex min-w-0 items-center gap-3">
                         <span
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
                         >
                           <Icon className="h-4 w-4 text-white" />
                         </span>
-                        <div>
-                          <p className="font-medium">{t.description || t.categoryName}</p>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{t.description || t.categoryName}</p>
+                          <p className="truncate text-sm text-slate-500 dark:text-slate-400">
                             {t.occurredOn} · {t.categoryName}
                             {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">(ricorrente)</span>}
                             {t.pending && <span className="ml-1 text-xs text-amber-600">(in attesa di sincronizzazione)</span>}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex shrink-0 items-center gap-3">
                         <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
                           {t.type === 'INCOME' ? '+' : '-'}
                           {currency.format(t.amount)}

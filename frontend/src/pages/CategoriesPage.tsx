@@ -136,8 +136,11 @@ export default function CategoriesPage() {
           {flattenCategoryTree(categories).map(({ category: c, depth }) => {
             const Icon = getCategoryIcon(c.icon)
             return (
-            <li key={c.id} className={`flex items-center justify-between py-3 pr-4 ${depth === 1 ? 'pl-12' : 'pl-4'}`}>
-              <div className="flex items-center gap-2">
+            <li key={c.id} className={`flex items-center justify-between gap-3 py-3 pr-4 ${depth === 1 ? 'pl-12' : 'pl-4'}`}>
+              {/* min-w-0 e nome troncato: un nome lungo allargava la riga oltre
+                  lo schermo, e con lei la pagina e il viewport a cui si aggancia
+                  la barra in basso, che finiva così fuori vista. */}
+              <div className="flex min-w-0 items-center gap-2">
                 {depth === 1 && <span className="text-slate-300 dark:text-slate-600">└</span>}
                 <span
                   className="flex h-7 w-7 items-center justify-center rounded-full"
@@ -145,12 +148,12 @@ export default function CategoriesPage() {
                 >
                   <Icon className="h-4 w-4 text-white" />
                 </span>
-                <span>{c.name}</span>
+                <span className="truncate">{c.name}</span>
                 {depth === 0 && (
-                  <span className="text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
+                  <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
                 )}
               </div>
-              <div className="flex gap-3 text-sm">
+              <div className="flex shrink-0 gap-3 text-sm">
                 <button type="button" onClick={() => openEdit(c)} className="text-brand-700 hover:underline">
                   Modifica
                 </button>

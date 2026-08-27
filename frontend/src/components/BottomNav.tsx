@@ -20,12 +20,13 @@ interface NavItem {
 // a scomparsa, e quale finisse in barra e quale nel menu era una scelta presa
 // una volta per tutte da noi; ora la barra tiene solo quello che si usa ogni
 // giorno e il resto sta in una pagina che si può guardare per intero.
-// "Sezioni" sta in mezzo perché è lì che il pollice arriva senza spostarsi.
+// "Sezioni" chiude la fila: è la voce che non porta a una pagina sola ma a
+// tutte le altre, e in fondo non si confonde con le tre che sono destinazioni.
 const navItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transazioni', label: 'Transazioni', icon: Receipt },
-  { to: '/sezioni', label: 'Sezioni', icon: LayoutGrid },
   { to: '/risparmio', label: 'Risparmio', icon: PiggyBank },
+  { to: '/sezioni', label: 'Sezioni', icon: LayoutGrid },
 ]
 
 // Le pagine che si raggiungono dalla griglia: mentre ci sei, la barra tiene
