@@ -154,7 +154,7 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
-      <BottomNav nickname={nickname} email={email} avatarKey={avatarKey} onLogout={logout} />
+      <BottomNav />
     </div>
   )
 }

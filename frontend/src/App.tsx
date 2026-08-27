@@ -18,6 +18,7 @@ import SavingsPage from './pages/SavingsPage'
 import ImportPage from './pages/ImportPage'
 import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
+import SectionsPage from './pages/SectionsPage'
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
                       <Route path="/risparmio" element={<SavingsPage />} />
                       <Route path="/importa" element={<ImportPage />} />
                       <Route path="/impostazioni" element={<SettingsPage />} />
+                      <Route path="/sezioni" element={<SectionsPage />} />
                       <Route path="/profilo" element={<ProfilePage />} />
                     </Route>
                   </Route>
