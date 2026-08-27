@@ -7,11 +7,8 @@ import warningHusky from '../assets/husky/warning-husky.png'
 import {
   Area,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
-  Pie,
-  PieChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -30,6 +27,7 @@ import { getCategoryIcon } from '../constants/icons'
 import { DashboardPageSkeleton } from '../components/Skeleton'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
+import MobileCategoryChart from '../components/MobileCategoryChart'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -749,27 +747,6 @@ export default function DashboardPage() {
 
   const categoryCard = (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
-      {isMobile && categoryBreakdown.length > 0 && (
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie
-              data={categoryBreakdown}
-              dataKey="amount"
-              nameKey="categoryName"
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={80}
-              paddingAngle={2}
-            >
-              {categoryBreakdown.map((c) => (
-                <Cell key={c.categoryId} fill={c.categoryColor ?? '#94a3b8'} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value) => currency.format(Number(value))} />
-          </PieChart>
-        </ResponsiveContainer>
-      )}
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Spese per categoria</p>
         <div className="flex items-center gap-1">
@@ -799,6 +776,10 @@ export default function DashboardPage() {
       </div>
       {categoryBreakdown.length === 0 ? (
         <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa registrata in questo mese.</p>
+      ) : isMobile ? (
+        // Su mobile la lista del desktop chiedeva troppa altezza per dire poco:
+        // il grafico porta le proporzioni e i chip fanno da legenda toccabile.
+        <MobileCategoryChart breakdown={categoryBreakdown} currency={currency} />
       ) : (
         <ul className="space-y-3">
           {categoryBreakdown.map((c) => {
