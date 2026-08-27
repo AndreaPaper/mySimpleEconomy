@@ -141,7 +141,10 @@ export default function SavingsPage() {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[25px] font-bold leading-tight" style={{ color: savedColor }}>
+            {/* 21px e non i 25 del mockup: lì l'importo di esempio è "312,40 €",
+                mentre a quattro cifre il numero misura 117px contro i 112
+                liberi dentro l'anello, e va a toccarlo. */}
+            <span className="text-[21px] font-bold leading-tight" style={{ color: savedColor }}>
               {currency.format(current.saved)}
             </span>
             <span className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">risparmiati</span>
