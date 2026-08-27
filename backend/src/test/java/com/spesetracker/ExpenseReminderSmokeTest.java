@@ -11,6 +11,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -79,7 +81,17 @@ class ExpenseReminderSmokeTest extends AbstractIntegrationTest {
         // almeno 2 volte in un orizzonte di 3 mesi (questo mese + il successivo, a
         // seconda di dove cade esattamente rispetto alla fine del mese corrente).
         assertThat(totalOccurrences).isGreaterThanOrEqualTo(2);
-        assertThat(response.get("months").get(0).get("occurrences").get(0).get("name").asText())
-                .isEqualTo("Assicurazione scooter");
+
+        // In quale mese cada la prima occorrenza dipende dal giorno in cui gira il
+        // test: negli ultimi cinque giorni del mese la scadenza slitta a quello
+        // dopo e il primo mese resta vuoto. Si cerca quindi fra tutti i mesi,
+        // altrimenti la suite si rompe da sola una volta al mese.
+        List<String> names = new ArrayList<>();
+        for (JsonNode month : response.get("months")) {
+            for (JsonNode occurrence : month.get("occurrences")) {
+                names.add(occurrence.get("name").asText());
+            }
+        }
+        assertThat(names).contains("Assicurazione scooter");
     }
 }

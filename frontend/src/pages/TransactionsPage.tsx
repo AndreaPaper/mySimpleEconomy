@@ -238,11 +238,13 @@ export default function TransactionsPage() {
   const handleExport = async () => {
     setExporting(true)
     try {
-      const blob = await excelExportApi.download()
+      // Esporta quello che stai guardando: senza filtri impostati activeFilters
+      // è vuoto e scarica tutto, come prima.
+      const blob = await excelExportApi.download(activeFilters)
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = 'transazioni.xlsx'
+      link.download = hasActiveFilters ? 'transazioni-filtrate.xlsx' : 'transazioni.xlsx'
       document.body.appendChild(link)
       link.click()
       link.remove()
