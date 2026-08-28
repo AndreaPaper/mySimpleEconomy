@@ -44,6 +44,39 @@ export function flattenCategoryTree(categories: Category[]): FlatCategoryEntry[]
   return entries
 }
 
+export interface CategoryTreeNode {
+  category: Category
+  children: Category[]
+}
+
+// Come flattenCategoryTree, ma senza appiattire: serve alla vista desktop
+// delle Categorie, dove le sottocategorie si aprono e chiudono sotto la
+// propria principale invece di stare sempre in elenco.
+export function buildCategoryTree(categories: Category[]): CategoryTreeNode[] {
+  const byName = (a: Category, b: Category) => a.name.localeCompare(b.name, 'it')
+  const ids = new Set(categories.map((c) => c.id))
+
+  const childrenByParent = new Map<string, Category[]>()
+  const roots: Category[] = []
+
+  for (const category of categories) {
+    if (category.parentId && ids.has(category.parentId)) {
+      const siblings = childrenByParent.get(category.parentId)
+      if (siblings) {
+        siblings.push(category)
+      } else {
+        childrenByParent.set(category.parentId, [category])
+      }
+    } else {
+      roots.push(category)
+    }
+  }
+
+  return roots
+    .sort(byName)
+    .map((root) => ({ category: root, children: (childrenByParent.get(root.id) ?? []).sort(byName) }))
+}
+
 // Etichetta per i menu a tendina: le sottocategorie sono rientrate con un
 // connettore, dato che <optgroup> non è utilizzabile (le sue intestazioni non
 // sono selezionabili, mentre qui anche le categorie padre restano scegliibili).

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pencil, Plus, Archive, Trash2, Sparkles } from 'lucide-react'
+import { ChevronRight, Pencil, Plus, Archive, Trash2, Sparkles } from 'lucide-react'
 import { categoriesApi } from '../api/endpoints'
 import type { Category, CategoryType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
@@ -9,7 +9,42 @@ import CategoryForm from '../components/CategoryForm'
 import { getCategoryIcon } from '../constants/icons'
 import { ListPageSkeleton } from '../components/Skeleton'
 import { useIsMobile } from '../hooks/useIsMobile'
-import { flattenCategoryTree } from '../utils/categoryTree'
+import { buildCategoryTree, flattenCategoryTree } from '../utils/categoryTree'
+
+// Le tre pillole Modifica/Archivia/Elimina, condivise fra la riga principale
+// e quella della sottocategoria: cambia solo la taglia, non lo schema colori.
+function ActionPill({
+  icon: Icon,
+  label,
+  tone,
+  small,
+  onClick,
+}: {
+  icon: typeof Pencil
+  label: string
+  tone: 'brand' | 'neutral' | 'danger'
+  small?: boolean
+  onClick: () => void
+}) {
+  const toneClass =
+    tone === 'brand'
+      ? 'bg-brand-200/30 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
+      : tone === 'danger'
+        ? 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
+        : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-slate-300'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex shrink-0 items-center gap-1.5 rounded-full font-bold ${toneClass} ${
+        small ? 'px-2.5 py-1 text-[11.5px]' : 'px-3 py-1.5 text-[12.5px]'
+      }`}
+    >
+      <Icon className={small ? 'h-[11px] w-[11px]' : 'h-3 w-3'} />
+      {label}
+    </button>
+  )
+}
 
 export default function CategoriesPage() {
   const isMobile = useIsMobile()
@@ -21,6 +56,16 @@ export default function CategoriesPage() {
   const [generateFeedback, setGenerateFeedback] = useState<string | null>(null)
   // Su mobile Modifica/Archivia/Elimina stanno dietro il tocco sulla riga.
   const [actionSheetCat, setActionSheetCat] = useState<Category | null>(null)
+  // Su desktop le sottocategorie sono chiuse finché non si apre il genitore:
+  // l'insieme tiene gli id aperti in questo momento.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const reload = () => categoriesApi.list().then(setCategories)
 
@@ -119,10 +164,34 @@ export default function CategoriesPage() {
     { key: 'EXPENSE' as CategoryType, label: 'Uscite', entries: flattenCategoryTree(categories.filter((c) => c.type === 'EXPENSE')) },
   ].filter((g) => g.entries.length > 0)
 
+  // Su desktop le sottocategorie si aprono e chiudono: la struttura resta ad
+  // albero invece di venire appiattita subito.
+  const desktopGroups = [
+    {
+      key: 'INCOME' as CategoryType,
+      label: 'Entrate',
+      headerClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
+      nodes: buildCategoryTree(categories.filter((c) => c.type === 'INCOME')),
+    },
+    {
+      key: 'EXPENSE' as CategoryType,
+      label: 'Uscite',
+      headerClass: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400',
+      nodes: buildCategoryTree(categories.filter((c) => c.type === 'EXPENSE')),
+    },
+  ].filter((g) => g.nodes.length > 0)
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className={isMobile ? 'text-2xl font-bold' : 'text-lg font-semibold'}>Categorie</h1>
+        <div>
+          <h1 className={isMobile ? 'text-2xl font-bold' : 'text-lg font-semibold'}>Categorie</h1>
+          {!isMobile && (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {categories.length} {categories.length === 1 ? 'categoria' : 'categorie'}
+            </p>
+          )}
+        </div>
         {isMobile ? (
           // Su mobile "Genera categorie predefinite" si riduce a un'icona:
           // il testo per esteso non ci starebbe accanto al titolo grande.
@@ -198,42 +267,89 @@ export default function CategoriesPage() {
           ))}
         </div>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
-          {flattenCategoryTree(categories).map(({ category: c, depth }) => {
-            const Icon = getCategoryIcon(c.icon)
-            return (
-            <li key={c.id} className={`flex items-center justify-between gap-3 py-3 pr-4 ${depth === 1 ? 'pl-12' : 'pl-4'}`}>
-              {/* min-w-0 e nome troncato: un nome lungo allargava la riga oltre
-                  lo schermo, e con lei la pagina e il viewport a cui si aggancia
-                  la barra in basso, che finiva così fuori vista. */}
-              <div className="flex min-w-0 items-center gap-2">
-                {depth === 1 && <span className="text-slate-300 dark:text-slate-600">└</span>}
-                <span
-                  className="flex h-7 w-7 items-center justify-center rounded-full"
-                  style={{ backgroundColor: c.color ?? '#94a3b8' }}
-                >
-                  <Icon className="h-4 w-4 text-white" />
-                </span>
-                <span className="truncate">{c.name}</span>
-                {depth === 0 && (
-                  <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">{c.type === 'INCOME' ? 'Entrata' : 'Uscita'}</span>
-                )}
+        <div className="space-y-5">
+          {desktopGroups.map((group) => (
+            <div
+              key={group.key}
+              className="overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black"
+            >
+              <div className={`px-5 py-2.5 text-[12.5px] font-bold uppercase tracking-wide ${group.headerClass}`}>
+                {group.label}
               </div>
-              <div className="flex shrink-0 gap-3 text-sm">
-                <button type="button" onClick={() => openEdit(c)} className="text-brand-700 hover:underline">
-                  Modifica
-                </button>
-                <button type="button" onClick={() => ask(c, 'archive')} className="text-slate-500 dark:text-slate-400 hover:underline">
-                  Archivia
-                </button>
-                <button type="button" onClick={() => ask(c, 'delete')} className="text-slate-500 dark:text-slate-400 hover:underline">
-                  Elimina
-                </button>
-              </div>
-            </li>
-            )
-          })}
-        </ul>
+              {group.nodes.map(({ category: c, children }) => {
+                const Icon = getCategoryIcon(c.icon)
+                const hasChildren = children.length > 0
+                const expanded = expandedIds.has(c.id)
+                return (
+                  <div key={c.id}>
+                    <div className="flex items-center gap-3.5 border-b border-slate-100 px-5 py-3.5 last:border-b-0 dark:border-slate-800">
+                      {/* Un segnaposto della stessa larghezza quando non ci sono
+                          sottocategorie: senza, le righe senza freccetta
+                          sarebbero storte rispetto a quelle che ce l'hanno. */}
+                      {hasChildren ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(c.id)}
+                          aria-label={expanded ? 'Comprimi sottocategorie' : 'Espandi sottocategorie'}
+                          aria-expanded={expanded}
+                          className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500"
+                        >
+                          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                        </button>
+                      ) : (
+                        <span className="w-4 shrink-0" />
+                      )}
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                        style={{ backgroundColor: c.color ?? '#94a3b8' }}
+                      >
+                        <Icon className="h-4 w-4 text-white" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{c.name}</p>
+                        {hasChildren && (
+                          <p className="text-xs text-slate-400 dark:text-slate-500">
+                            {children.length} {children.length === 1 ? 'sottocategoria' : 'sottocategorie'}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 gap-1.5">
+                        <ActionPill icon={Pencil} label="Modifica" tone="brand" onClick={() => openEdit(c)} />
+                        <ActionPill icon={Archive} label="Archivia" tone="neutral" onClick={() => ask(c, 'archive')} />
+                        <ActionPill icon={Trash2} label="Elimina" tone="danger" onClick={() => ask(c, 'delete')} />
+                      </div>
+                    </div>
+                    {expanded &&
+                      children.map((child) => {
+                        const ChildIcon = getCategoryIcon(child.icon)
+                        return (
+                          <div
+                            key={child.id}
+                            className="flex items-center gap-3 border-b border-slate-50 py-2.5 pl-[52px] pr-5 last:border-b-0 dark:border-slate-900"
+                          >
+                            <span
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                              style={{ backgroundColor: child.color ?? '#94a3b8' }}
+                            >
+                              <ChildIcon className="h-3.5 w-3.5 text-white" />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-slate-600 dark:text-slate-300">
+                              {child.name}
+                            </span>
+                            <div className="flex shrink-0 gap-1.5">
+                              <ActionPill icon={Pencil} label="Modifica" tone="brand" small onClick={() => openEdit(child)} />
+                              <ActionPill icon={Archive} label="Archivia" tone="neutral" small onClick={() => ask(child, 'archive')} />
+                              <ActionPill icon={Trash2} label="Elimina" tone="danger" small onClick={() => ask(child, 'delete')} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
       )}
 
       {isMobile && (
