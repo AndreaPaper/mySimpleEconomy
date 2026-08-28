@@ -333,7 +333,7 @@ export default function CategoriesPage() {
                         return (
                           <div
                             key={child.id}
-                            className="flex items-center gap-3 border-b border-slate-50 py-2.5 pl-[52px] pr-5 last:border-b-0 dark:border-slate-900"
+                            className="flex items-center gap-3 border-b border-slate-50 py-2.5 pl-16 pr-5 last:border-b-0 dark:border-slate-900"
                           >
                             <span
                               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
