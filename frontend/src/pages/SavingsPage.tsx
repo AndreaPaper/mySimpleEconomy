@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { TrendingDown, TrendingUp } from 'lucide-react'
 import {
   Area,
   CartesianGrid,
@@ -176,27 +177,30 @@ export default function SavingsPage() {
       </div>
     </div>
   ) : (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div className="rounded-lg border border-slate-200 bg-brand-300 p-4 dark:border-slate-800 dark:bg-black">
-        <p className="text-sm text-slate-500">Questo periodo</p>
-        <p className={`text-2xl font-semibold ${current.saved < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+    // Tre card colorate invece di tre riquadri uguali: il colore dice a
+    // colpo d'occhio che "Questo periodo" è il numero protagonista, "Media"
+    // un confronto, "Totale" una somma — non serve leggere l'etichetta prima.
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-950/30">
+        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Questo periodo</p>
+        <p className={`mt-1.5 text-2xl font-bold ${current.saved < 0 ? 'text-red-600' : 'text-emerald-700 dark:text-emerald-400'}`}>
           {currency.format(current.saved)}
         </p>
         {currentRatio !== null && (
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-emerald-700/70 dark:text-emerald-400/70">
             {Math.round(currentRatio * 100)}% di {currency.format(currentTarget)} obiettivo
           </p>
         )}
       </div>
-      <div className="rounded-lg border border-slate-200 bg-brand-300 p-4 dark:border-slate-800 dark:bg-black">
-        <p className="text-sm text-slate-500">Media dei periodi conclusi</p>
-        <p className="text-2xl font-semibold text-slate-900 dark:text-white">{currency.format(averageSaved)}</p>
+      <div className="rounded-2xl bg-sky-50 p-4 dark:bg-sky-950/30">
+        <p className="text-xs font-medium text-sky-700 dark:text-sky-400">Media periodi conclusi</p>
+        <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white">{currency.format(averageSaved)}</p>
       </div>
-      <div className="rounded-lg border border-slate-200 bg-brand-300 p-4 dark:border-slate-800 dark:bg-black">
-        <p className="text-sm text-slate-500">
+      <div className="rounded-2xl bg-amber-50 p-4 dark:bg-amber-950/30">
+        <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
           Totale {periods.length === 1 ? 'del periodo' : `degli ultimi ${periods.length} periodi`}
         </p>
-        <p className={`text-2xl font-semibold ${totalSaved < 0 ? 'text-red-600' : 'text-slate-900 dark:text-white'}`}>
+        <p className={`mt-1.5 text-2xl font-bold ${totalSaved < 0 ? 'text-red-600' : 'text-slate-900 dark:text-white'}`}>
           {currency.format(totalSaved)}
         </p>
       </div>
@@ -238,8 +242,8 @@ export default function SavingsPage() {
       </ResponsiveContainer>
     </div>
   ) : (
-    <div className="rounded-lg border border-slate-200 bg-brand-300 p-4 dark:border-slate-800 dark:bg-black">
-      <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+    <div className="rounded-2xl bg-brand-300 p-5 dark:bg-black">
+      <p className="mb-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
         Andamento · risparmio, entrate e uscite per periodo
       </p>
       <ResponsiveContainer width="100%" height={260}>
@@ -323,28 +327,46 @@ export default function SavingsPage() {
       )}
     </div>
   ) : (
-    <div className="rounded-lg border border-slate-200 bg-brand-300 p-4 dark:border-slate-800 dark:bg-black">
-      <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Dettaglio per periodo</p>
-      <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-        {newestFirst.map((p) => (
-          <li key={p.periodKey} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-            <div className="min-w-0">
-              <p className="truncate">
-                {labelOf(p.periodKey, monthLabelFullFormatter)}
-                {p.periodKey === currentPeriodKey && (
-                  <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">in corso</span>
-                )}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                {currency.format(p.income)} entrate · {currency.format(p.expenses)} uscite
-              </p>
-            </div>
-            <span className={`shrink-0 font-semibold ${p.saved < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {p.saved > 0 ? '+' : ''}
-              {currency.format(p.saved)}
-            </span>
-          </li>
-        ))}
+    <div className="rounded-2xl bg-brand-300 p-4 dark:bg-black">
+      <p className="mb-1 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Dettaglio per periodo</p>
+      <ul>
+        {newestFirst.map((p) => {
+          const positive = p.saved >= 0
+          return (
+            <li
+              key={p.periodKey}
+              className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-sm hover:bg-brand-100 dark:hover:bg-zinc-900"
+            >
+              {/* La stessa icona su/giù che il grafico non può dare a colpo
+                  d'occhio riga per riga: qui basta guardare il cerchio,
+                  prima ancora di leggere la cifra. */}
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                  positive
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                    : 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
+                }`}
+              >
+                {positive ? <TrendingUp className="h-[18px] w-[18px]" /> : <TrendingDown className="h-[18px] w-[18px]" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">
+                  <span className="capitalize">{labelOf(p.periodKey, monthLabelFullFormatter)}</span>
+                  {p.periodKey === currentPeriodKey && (
+                    <span className="ml-2 text-xs font-normal text-slate-400 dark:text-slate-500">· in corso</span>
+                  )}
+                </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  {currency.format(p.income)} entrate · {currency.format(p.expenses)} uscite
+                </p>
+              </div>
+              <span className={`shrink-0 font-bold ${positive ? 'text-emerald-600' : 'text-red-600'}`}>
+                {positive ? '+' : ''}
+                {currency.format(p.saved)}
+              </span>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
