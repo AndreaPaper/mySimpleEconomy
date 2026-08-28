@@ -211,15 +211,17 @@ export default function CategoriesPage() {
               type="button"
               onClick={handleGenerateDefaults}
               disabled={generating}
-              className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm hover:bg-slate-50 hover:dark:bg-zinc-900 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-full border border-slate-300 bg-brand-300 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50 dark:border-slate-700 dark:bg-black dark:text-slate-300"
             >
-              {generating ? 'Generazione...' : 'Genera categorie predefinite'}
+              <Sparkles className="h-3.5 w-3.5" />
+              {generating ? 'Generazione...' : 'Genera predefinite'}
             </button>
             <button
               type="button"
               onClick={openCreate}
-              className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
+              className="flex items-center gap-1.5 rounded-full bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-900"
             >
+              <Plus className="h-4 w-4" />
               Nuova categoria
             </button>
           </div>
@@ -276,13 +278,19 @@ export default function CategoriesPage() {
               <div className={`px-5 py-2.5 text-[12.5px] font-bold uppercase tracking-wide ${group.headerClass}`}>
                 {group.label}
               </div>
+              {/* divide-y invece di un bordo per riga con last:border-b-0:
+                  ogni categoria sta nel suo div (per poter contenere anche le
+                  sottocategorie a comparsa), quindi "ultimo figlio" valeva
+                  sempre vero e il bordo non si vedeva mai. Qui la linea è fra
+                  i div di categoria, non dentro ciascuno. */}
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {group.nodes.map(({ category: c, children }) => {
                 const Icon = getCategoryIcon(c.icon)
                 const hasChildren = children.length > 0
                 const expanded = expandedIds.has(c.id)
                 return (
                   <div key={c.id}>
-                    <div className="flex items-center gap-3.5 border-b border-slate-100 px-5 py-3.5 last:border-b-0 dark:border-slate-800">
+                    <div className="flex items-center gap-3.5 px-5 py-3.5">
                       {/* Un segnaposto della stessa larghezza quando non ci sono
                           sottocategorie: senza, le righe senza freccetta
                           sarebbero storte rispetto a quelle che ce l'hanno. */}
@@ -347,6 +355,7 @@ export default function CategoriesPage() {
                   </div>
                 )
               })}
+              </div>
             </div>
           ))}
         </div>
