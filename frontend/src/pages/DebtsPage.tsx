@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Pencil, Plus, Trash2, type LucideIcon } from 'lucide-react'
 import { categoriesApi, debtsApi } from '../api/endpoints'
 import type { Category, Debt } from '../api/types'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -6,9 +7,60 @@ import Modal from '../components/Modal'
 import DebtForm from '../components/DebtForm'
 import { getCategoryIcon } from '../constants/icons'
 import { ListPageSkeleton } from '../components/Skeleton'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const payoffDateFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
+
+// L'anello da 72px di 5A: percentuale pagata, colorato di blu finché il
+// debito è aperto e di verde una volta saldato.
+const RING_SIZE = 72
+const RING_RADIUS = 30
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
+function DebtRing({ pct, color, trackColor }: { pct: number; color: string; trackColor: string }) {
+  return (
+    <div className="relative shrink-0" style={{ width: RING_SIZE, height: RING_SIZE }}>
+      <svg viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} width={RING_SIZE} height={RING_SIZE} className="-rotate-90">
+        <circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS} fill="none" stroke={trackColor} strokeWidth="7" />
+        <circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_RADIUS}
+          fill="none"
+          stroke={color}
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={RING_CIRCUMFERENCE}
+          strokeDashoffset={RING_CIRCUMFERENCE * (1 - pct)}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-[15px] font-bold text-slate-900 dark:text-white">
+        {Math.round(pct * 100)}%
+      </div>
+    </div>
+  )
+}
+
+// Le due icone Modifica/Elimina della card desktop, impilate a destra come
+// in 5A invece che in riga.
+function DebtIconButton({ icon: Icon, label, tone, onClick }: { icon: LucideIcon; label: string; tone: 'brand' | 'danger'; onClick: () => void }) {
+  const toneClass =
+    tone === 'brand'
+      ? 'text-brand-700 hover:bg-black/5 dark:hover:bg-white/10'
+      : 'text-red-600 hover:bg-red-500/10'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`flex h-8 w-8 items-center justify-center rounded-full ${toneClass}`}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  )
+}
 
 // Proiezione client-side, non serve al backend: mesi stimati per saldare il
 // residuo alla rata mensile impostata, e la data (mese/anno) prevista.
@@ -21,6 +73,7 @@ function projectPayoff(remainingAmount: number, monthlyPaymentAmount: number): s
 }
 
 export default function DebtsPage() {
+  const isMobile = useIsMobile()
   const [debts, setDebts] = useState<Debt[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,15 +147,20 @@ export default function DebtsPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
+          className={
+            isMobile
+              ? 'rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900'
+              : 'flex items-center gap-1.5 rounded-full bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-900'
+          }
         >
+          {!isMobile && <Plus className="h-4 w-4" />}
           Nuovo debito
         </button>
       </div>
 
       {debts.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400">Nessun debito registrato ancora.</p>
-      ) : (
+      ) : isMobile ? (
         <ul className="space-y-4">
           {debts.map((d) => {
             const Icon = getCategoryIcon(d.categoryIcon)
@@ -162,6 +220,53 @@ export default function DebtsPage() {
             )
           })}
         </ul>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black">
+          <div className="flex flex-col gap-3 p-4">
+            {debts.map((d) => {
+              const pct = d.totalAmount > 0 ? Math.min(1, d.paidAmount / d.totalAmount) : 0
+              const saldato = d.remainingAmount <= 0
+              return (
+                <div
+                  key={d.id}
+                  className={`flex items-center gap-4 rounded-2xl p-4 ${
+                    saldato ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-sky-50 dark:bg-sky-950/30'
+                  }`}
+                >
+                  <DebtRing
+                    pct={pct}
+                    color={saldato ? '#1F8A46' : '#30AFFF'}
+                    trackColor={saldato ? '#D3EEDC' : '#E3EDF5'}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-semibold">{d.name}</p>
+                    {saldato ? (
+                      <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-400">Saldato ✓</p>
+                    ) : (
+                      <p className="mt-1 text-xl font-bold text-red-600">{currency.format(d.remainingAmount)}</p>
+                    )}
+                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                      {saldato
+                        ? `${currency.format(d.paidAmount)} pagati su ${currency.format(d.totalAmount)}`
+                        : `residuo su ${currency.format(d.totalAmount)} · ${currency.format(d.paidAmount)} già pagati`}
+                    </p>
+                    {!saldato && (
+                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                        {d.monthlyPaymentAmount
+                          ? `Con una rata di ${currency.format(d.monthlyPaymentAmount)}/mese, saldo previsto per ${projectPayoff(d.remainingAmount, d.monthlyPaymentAmount)}.`
+                          : 'Imposta una rata mensile per stimare quando finirai di pagare.'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-0.5">
+                    <DebtIconButton icon={Pencil} label="Modifica" tone="brand" onClick={() => openEdit(d)} />
+                    <DebtIconButton icon={Trash2} label="Elimina" tone="danger" onClick={() => askDelete(d)} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
 
       {modalMode && (
