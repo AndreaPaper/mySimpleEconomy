@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Download, Pencil, Plus, Search, SlidersHorizontal, Tag, Trash2 } from 'lucide-react'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
 import type { Category, Transaction, TransactionType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import ConfirmDialog from '../components/ConfirmDialog'
+import DateRangePicker from '../components/DateRangePicker'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
 import { getCategoryIcon } from '../constants/icons'
@@ -89,6 +90,13 @@ export default function TransactionsPage() {
   // pulsanti "Modifica"/"Elimina" affiancati all'importo.
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [actionSheetTx, setActionSheetTx] = useState<DisplayTransaction | null>(null)
+  // Ricerca e tipo restano lato client, sul desktop soltanto: filtrano quello
+  // che è già stato scaricato (rispettando categoria e date, che restano
+  // filtri di server), non tutto l'archivio. Un "Carica altro" con la ricerca
+  // attiva scarica altre 30 righe dal server e la ricerca si applica anche a
+  // quelle, ma non raggiunge le transazioni più vecchie non ancora caricate.
+  const [searchQuery, setSearchQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'' | TransactionType>('')
 
   // I filtri viaggiano insieme perché l'elenco arriva paginato dal server: se
   // si filtrasse solo la pagina già scaricata si vedrebbero i risultati di una
@@ -99,12 +107,14 @@ export default function TransactionsPage() {
     from: dateFrom || undefined,
     to: dateTo || undefined,
   }
-  const hasActiveFilters = Boolean(categoryFilter || dateFrom || dateTo)
+  const hasActiveFilters = Boolean(categoryFilter || dateFrom || dateTo || searchQuery || typeFilter)
 
   const clearFilters = () => {
     setCategoryFilter('')
     setDateFrom('')
     setDateTo('')
+    setSearchQuery('')
+    setTypeFilter('')
   }
 
   // Ogni richiesta prende un numero progressivo e solo l'ultima può scrivere
@@ -281,6 +291,19 @@ export default function TransactionsPage() {
     ...transactions,
   ].sort((a, b) => b.occurredOn.localeCompare(a.occurredOn))
 
+  // Solo sul desktop: ricerca testuale e tipo restringono quello già
+  // caricato, sopra i filtri categoria/date che restano lato server.
+  const searchNeedle = searchQuery.trim().toLowerCase()
+  const visibleTransactions = isMobile
+    ? displayTransactions
+    : displayTransactions.filter(
+        (t) =>
+          (!typeFilter || t.type === typeFilter) &&
+          (!searchNeedle ||
+            (t.description ?? '').toLowerCase().includes(searchNeedle) ||
+            t.categoryName.toLowerCase().includes(searchNeedle)),
+      )
+
   // Su mobile i filtri e "Esporta in Excel" stanno dentro il foglio che
   // l'icona apre, non in un'intestazione affollata di pulsanti; "Nuova
   // transazione" diventa il tondo flottante sopra la lista.
@@ -303,24 +326,20 @@ export default function TransactionsPage() {
     </div>
   ) : (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h1 className="text-lg font-semibold">Transazioni</h1>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={exporting}
-          className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm hover:bg-slate-50 hover:dark:bg-zinc-900 disabled:opacity-50"
-        >
-          {exporting ? 'Esportazione...' : 'Esporta in Excel'}
-        </button>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
-        >
-          Nuova transazione
-        </button>
+      <div>
+        <h1 className="text-lg font-semibold">Transazioni</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {visibleTransactions.length} {visibleTransactions.length === 1 ? 'movimento' : 'movimenti'}
+        </p>
       </div>
+      <button
+        type="button"
+        onClick={openCreate}
+        className="flex items-center gap-1.5 rounded-full bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-900"
+      >
+        <Plus className="h-4 w-4" />
+        Nuova transazione
+      </button>
     </div>
   )
 
@@ -390,143 +409,228 @@ export default function TransactionsPage() {
       {header}
 
       {!isMobile && (
-        // I filtri stanno su una riga sola e vanno a capo sugli schermi
-        // stretti: sono tre controlli brevi, uno sotto l'altro sprecherebbero
-        // tutta l'altezza utile prima di arrivare all'elenco.
-        <div className="mb-4 flex flex-wrap items-end gap-3">
-          {filterFields}
+        <div className="mb-4 flex flex-wrap items-center gap-2.5">
+          <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-full border border-slate-300 bg-brand-300 px-3.5 py-2 dark:border-slate-700 dark:bg-black">
+            <Search className="h-[15px] w-[15px] shrink-0 text-slate-500 dark:text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cerca transazioni…"
+              aria-label="Cerca transazioni"
+              className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+            />
+          </div>
+
+          {/* Il tipo resta client-side come la ricerca: filtra il caricato,
+              non richiede un giro al server. */}
+          <div className="flex shrink-0 rounded-full border border-slate-300 bg-brand-300 p-0.5 text-sm dark:border-slate-700 dark:bg-black">
+            {([
+              { value: '', label: 'Tutte' },
+              { value: 'INCOME', label: 'Entrate' },
+              { value: 'EXPENSE', label: 'Uscite' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTypeFilter(opt.value)}
+                className={`rounded-full px-3.5 py-1.5 font-medium ${
+                  typeFilter === opt.value
+                    ? 'bg-brand-200/50 text-slate-900 dark:bg-zinc-800 dark:text-white'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Stesso <select> di sempre, solo rivestito da pillola e icona:
+              il menu nativo resta quello che tastiera e lettore di schermo
+              già sanno usare. */}
+          <div className="relative shrink-0">
+            <Tag className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+            <select
+              id="tx-category-filter"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              aria-label="Categoria"
+              className="appearance-none rounded-full border border-slate-300 bg-brand-300 py-2 pl-9 pr-8 text-sm text-slate-600 dark:border-slate-700 dark:bg-black dark:text-slate-300"
+            >
+              <option value="">Categoria</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <DateRangePicker from={dateFrom} to={dateTo} onApply={(f, t) => { setDateFrom(f); setDateTo(t) }} />
+
           {hasActiveFilters && (
             <button
               type="button"
               onClick={clearFilters}
-              className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-600 dark:text-slate-300"
+              className="shrink-0 text-sm text-slate-500 hover:underline dark:text-slate-400"
             >
               Azzera filtri
             </button>
           )}
+
+          <div className="flex-1" />
+
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-300 bg-brand-300 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50 dark:border-slate-700 dark:bg-black dark:text-slate-300"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exporting ? 'Esportazione...' : 'Esporta'}
+          </button>
         </div>
       )}
 
-      {displayTransactions.length === 0 ? (
+      {visibleTransactions.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400">
-          {hasActiveFilters ? 'Nessuna transazione con questi filtri.' : 'Nessuna transazione ancora.'}
+          {hasActiveFilters
+            ? displayTransactions.length > 0
+              ? 'Nessuna transazione corrisponde alla ricerca.'
+              : 'Nessuna transazione con questi filtri.'
+            : 'Nessuna transazione ancora.'}
         </p>
       ) : (
         <div className="space-y-6">
-          {groupByMonth(displayTransactions, salaryDay).map((group) => (
+          {groupByMonth(visibleTransactions, salaryDay).map((group) => {
+            // Le due cifre nell'intestazione della card: quanto la ricerca e
+            // il tipo lasciano vedere di questo periodo, non il totale reale
+            // del periodo se un filtro ne nasconde una parte.
+            const groupIncome = group.items.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
+            const groupExpense = group.items.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
+            return (
             <div key={group.key}>
-              <p
-                className={
-                  isMobile
-                    ? 'mb-2 ml-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500'
-                    : 'mb-2 text-sm font-medium capitalize text-slate-600 dark:text-slate-300'
-                }
-              >
-                {monthLabel(group.key)}
-              </p>
-              <ul
-                className={
-                  isMobile
-                    ? 'divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:divide-slate-800 dark:border-slate-800 dark:bg-black'
-                    : 'divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black'
-                }
-              >
+              {isMobile && (
+                <p className="mb-2 ml-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  {monthLabel(group.key)}
+                </p>
+              )}
+              {isMobile ? (
+              <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:divide-slate-800 dark:border-slate-800 dark:bg-black">
                 {group.items.map((t) => {
                   const Icon = getCategoryIcon(t.categoryIcon)
-                  const actionsDisabled = offlineLike || t.pending
-
                   // Su mobile non ci sono due pulsanti accanto all'importo: si
                   // tocca la riga intera e si sceglie fra Modifica ed Elimina
                   // nel foglio, così com'era nel mockup — che non ne mostrava
                   // nessuno, lasciando la riga libera per il solo importo.
-                  if (isMobile) {
-                    return (
-                      <li key={t.id}>
-                        <button
-                          type="button"
-                          onClick={() => setActionSheetTx(t)}
-                          className="flex w-full items-center gap-3 px-3.5 py-3 text-left"
-                        >
-                          <span
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-                            style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
-                          >
-                            <Icon className="h-5 w-5 text-white" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[15px] font-semibold">{t.description || t.categoryName}</p>
-                            <p className="truncate text-[12.5px] text-slate-500 dark:text-slate-400">
-                              {t.occurredOn} · {t.categoryName}
-                              {t.recurringTransactionId && (
-                                <span className="ml-1 text-slate-400 dark:text-slate-500">(ricorrente)</span>
-                              )}
-                              {t.pending && <span className="ml-1 text-amber-600">(in attesa)</span>}
-                            </p>
-                          </div>
-                          <span
-                            className={`shrink-0 text-[15px] font-bold ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}`}
-                          >
-                            {t.type === 'INCOME' ? '+' : '-'}
-                            {currency.format(t.amount)}
-                          </span>
-                        </button>
-                      </li>
-                    )
-                  }
-
                   return (
-                    <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                      {/* min-w-0 e non solo flex: senza, una descrizione lunga
-                          non si accorcia e allarga la riga oltre lo schermo.
-                          Su telefono quello non si limita a tagliare la riga —
-                          allarga la pagina, e con lei il viewport a cui la
-                          barra in basso si aggancia, che finisce fuori vista. */}
-                      <div className="flex min-w-0 items-center gap-3">
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        onClick={() => setActionSheetTx(t)}
+                        className="flex w-full items-center gap-3 px-3.5 py-3 text-left"
+                      >
                         <span
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
                         >
-                          <Icon className="h-4 w-4 text-white" />
+                          <Icon className="h-5 w-5 text-white" />
                         </span>
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{t.description || t.categoryName}</p>
-                          <p className="truncate text-sm text-slate-500 dark:text-slate-400">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[15px] font-semibold">{t.description || t.categoryName}</p>
+                          <p className="truncate text-[12.5px] text-slate-500 dark:text-slate-400">
                             {t.occurredOn} · {t.categoryName}
-                            {t.recurringTransactionId && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">(ricorrente)</span>}
-                            {t.pending && <span className="ml-1 text-xs text-amber-600">(in attesa di sincronizzazione)</span>}
+                            {t.recurringTransactionId && (
+                              <span className="ml-1 text-slate-400 dark:text-slate-500">(ricorrente)</span>
+                            )}
+                            {t.pending && <span className="ml-1 text-amber-600">(in attesa)</span>}
                           </p>
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
+                        <span
+                          className={`shrink-0 text-[15px] font-bold ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}`}
+                        >
                           {t.type === 'INCOME' ? '+' : '-'}
                           {currency.format(t.amount)}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(t)}
-                          disabled={actionsDisabled}
-                          title={offlineLike ? 'Non disponibile offline' : undefined}
-                          className="-m-1 p-1 text-sm text-brand-700 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
-                        >
-                          Modifica
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => askDelete(t)}
-                          disabled={actionsDisabled}
-                          title={offlineLike ? 'Non disponibile offline' : undefined}
-                          className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
-                        >
-                          Elimina
-                        </button>
-                      </div>
+                      </button>
                     </li>
                   )
                 })}
               </ul>
+              ) : (
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black">
+                <div className="flex items-center justify-between gap-3 bg-brand-200/25 px-5 py-3 dark:bg-zinc-900">
+                  <p className="text-[13.5px] font-bold capitalize text-slate-900 dark:text-white">
+                    {monthLabel(group.key)}
+                  </p>
+                  <div className="flex shrink-0 gap-3 text-[12.5px] font-bold">
+                    <span className="text-emerald-600">+{currency.format(groupIncome)}</span>
+                    <span className="text-red-600">-{currency.format(groupExpense)}</span>
+                  </div>
+                </div>
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {group.items.map((t) => {
+                    const Icon = getCategoryIcon(t.categoryIcon)
+                    const actionsDisabled = offlineLike || t.pending
+                    return (
+                      <li key={t.id} className="flex items-center gap-3.5 px-5 py-3.5">
+                        {/* min-w-0: senza, una descrizione lunga allarga la
+                            riga oltre la card invece di troncarsi. */}
+                        <span
+                          className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full"
+                          style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
+                        >
+                          <Icon className="h-4 w-4 text-white" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[14.5px] font-bold">{t.description || t.categoryName}</p>
+                          <p className="truncate text-[12.5px] text-slate-500 dark:text-slate-400">
+                            {t.occurredOn} · {t.categoryName}
+                            {t.recurringTransactionId && <span className="ml-1 text-slate-400 dark:text-slate-500">· ricorrente</span>}
+                            {t.pending && <span className="ml-1 text-amber-600">(in attesa di sincronizzazione)</span>}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-[13.5px] font-bold ${
+                            t.type === 'INCOME'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                              : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400'
+                          }`}
+                        >
+                          {t.type === 'INCOME' ? '+' : '-'}
+                          {currency.format(t.amount)}
+                        </span>
+                        <div className="flex shrink-0 gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(t)}
+                            disabled={actionsDisabled}
+                            title={offlineLike ? 'Non disponibile offline' : 'Modifica'}
+                            aria-label="Modifica"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-zinc-800"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => askDelete(t)}
+                            disabled={actionsDisabled}
+                            title={offlineLike ? 'Non disponibile offline' : 'Elimina'}
+                            aria-label="Elimina"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-500 dark:hover:bg-zinc-800"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+              )}
             </div>
-          ))}
+            )
+          })}
           {hasMore && (
             <div className="flex justify-center">
               <button
