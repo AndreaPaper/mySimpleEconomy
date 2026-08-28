@@ -192,7 +192,9 @@ export default function SavingsPage() {
           </p>
         )}
       </div>
-      <div className="rounded-2xl bg-sky-50 p-4 dark:bg-sky-950/30">
+      {/* sky-100 e non sky-50: lo sfondo pagina di default è #F5FAFF, quasi
+          indistinguibile da sky-50 (#F0F9FF) — la card spariva. */}
+      <div className="rounded-2xl bg-sky-100 p-4 dark:bg-sky-950/40">
         <p className="text-xs font-medium text-sky-700 dark:text-sky-400">Media periodi conclusi</p>
         <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white">{currency.format(averageSaved)}</p>
       </div>
