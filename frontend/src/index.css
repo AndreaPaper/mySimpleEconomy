@@ -276,3 +276,17 @@ body {
 html.mixed-case body {
   font-family: "Josefin Sans", ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Sotto i 768px (lo stesso limite di useIsMobile) la pagina scrolla senza la
+   barra: su un telefono vero è già così — la barra dei touch device è overlay
+   e sparisce da sola — ma un Android in Chrome, o il pannello di sviluppo
+   emulato con un mouse, ne disegna una sottile e sempre visibile. */
+@media (max-width: 767px) {
+  html {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html::-webkit-scrollbar {
+    display: none;
+  }
+}
