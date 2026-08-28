@@ -192,9 +192,11 @@ export default function SavingsPage() {
           </p>
         )}
       </div>
-      {/* sky-100 e non sky-50: lo sfondo pagina di default è #F5FAFF, quasi
-          indistinguibile da sky-50 (#F0F9FF) — la card spariva. */}
-      <div className="rounded-2xl bg-sky-100 p-4 dark:bg-sky-950/40">
+      {/* Tailwind non ha una tinta "sky-70": la scala salta da 50 a 100.
+          Questo è un colore a metà strada scritto a mano, un filo più chiaro
+          di sky-100 — lo sfondo pagina di default è #F5FAFF, troppo vicino a
+          sky-50 (#F0F9FF) perché la card si vedesse. */}
+      <div className="rounded-2xl bg-[#e8f5ff] p-4 dark:bg-sky-950/35">
         <p className="text-xs font-medium text-sky-700 dark:text-sky-400">Media periodi conclusi</p>
         <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white">{currency.format(averageSaved)}</p>
       </div>
