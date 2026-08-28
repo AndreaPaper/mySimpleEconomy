@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2, CalendarCog } from 'lucide-react'
+import { Pencil, Plus, Trash2, CalendarCog, type LucideIcon } from 'lucide-react'
 import { categoriesApi, recurringApi } from '../api/endpoints'
 import type { Category, IntervalUnit, RecurringTransaction } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
@@ -12,6 +12,39 @@ import { getCategoryIcon } from '../constants/icons'
 import { useIsMobile } from '../hooks/useIsMobile'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+
+// Le tre icone Eccezioni/Modifica/Elimina della riga desktop: prima erano
+// parole affiancate all'importo, adesso tondi che compaiono al passaggio del
+// mouse, come nel mockup.
+function RowIconButton({
+  icon: Icon,
+  label,
+  tone,
+  onClick,
+}: {
+  icon: LucideIcon
+  label: string
+  tone: 'brand' | 'neutral' | 'danger'
+  onClick: () => void
+}) {
+  const toneClass =
+    tone === 'brand'
+      ? 'text-brand-700 hover:bg-brand-200/30 dark:hover:bg-brand-900/40'
+      : tone === 'danger'
+        ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950'
+        : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-zinc-800'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${toneClass}`}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  )
+}
 
 export default function RecurringPage() {
   const isMobile = useIsMobile()
@@ -115,8 +148,9 @@ export default function RecurringPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
+            className="flex items-center gap-1.5 rounded-full bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-900"
           >
+            <Plus className="h-4 w-4" />
             Nuova regola
           </button>
         )}
@@ -193,61 +227,71 @@ export default function RecurringPage() {
           })}
         </div>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
-          {items.map((r) => (
-            <li key={r.id} className="px-4 py-3">
-              {/* Le quattro azioni più l'importo misurano da sole quasi 400px:
-                  su telefono non ci stanno accanto al nome, e vanno a capo.
-                  Senza, allargavano la pagina e con lei il viewport a cui si
-                  aggancia la barra in basso, che finiva così fuori vista. */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">
-                    {r.name} {!r.active && <span className="text-xs text-slate-400 dark:text-slate-500">(disattivata)</span>}
-                  </p>
-                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-                    {r.categoryName} · ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima:{' '}
-                    {r.nextDueDate}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={r.categoryType === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>
-                    {currency.format(r.defaultAmount)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    className="-m-1 p-1 text-sm text-brand-700 hover:underline"
-                  >
-                    Eccezioni
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(r)}
-                    className="-m-1 p-1 text-sm text-brand-700 hover:underline"
-                  >
-                    Modifica
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleActive(r)}
-                    className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
-                  >
-                    {r.active ? 'Disattiva' : 'Riattiva'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => askDelete(r)}
-                    className="-m-1 p-1 text-sm text-slate-500 dark:text-slate-400 hover:underline"
-                  >
-                    Elimina
-                  </button>
-                </div>
-              </div>
-              {expandedId === r.id && <OverridesPanel recurringTransactionId={r.id} />}
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {items.map((r) => {
+              const Icon = getCategoryIcon(r.categoryIcon)
+              return (
+                <li key={r.id} style={{ opacity: r.active ? 1 : 0.5 }}>
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    {/* L'interruttore resta sempre in vista invece che dietro
+                        la parola "Disattiva"/"Riattiva": è l'unica delle
+                        quattro azioni abbastanza frequente da meritare un
+                        gesto diretto sulla riga. */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={r.active}
+                      aria-label={r.active ? 'Disattiva' : 'Riattiva'}
+                      onClick={() => handleToggleActive(r)}
+                      className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
+                        r.active ? 'bg-brand-700' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${
+                          r.active ? 'left-[14px]' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                      style={{ backgroundColor: r.categoryColor }}
+                    >
+                      <Icon className="h-4 w-4 text-white" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{r.name}</p>
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        {r.categoryName} · {cadenceLabel(r)} · prossima: {r.nextDueDate}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 text-sm font-bold ${r.categoryType === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}`}
+                    >
+                      {currency.format(r.defaultAmount)}
+                    </span>
+                    <div className="flex shrink-0 gap-0.5">
+                      <RowIconButton
+                        icon={CalendarCog}
+                        label="Eccezioni"
+                        tone="neutral"
+                        onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                      />
+                      <RowIconButton icon={Pencil} label="Modifica" tone="brand" onClick={() => openEdit(r)} />
+                      <RowIconButton icon={Trash2} label="Elimina" tone="danger" onClick={() => askDelete(r)} />
+                    </div>
+                  </div>
+                  {expandedId === r.id && (
+                    <div className="px-5 pb-4">
+                      <OverridesPanel recurringTransactionId={r.id} />
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
 
       {isMobile && (
