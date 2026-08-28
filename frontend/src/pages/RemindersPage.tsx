@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { categoriesApi, remindersApi } from '../api/endpoints'
 import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
 import Modal from '../components/Modal'
@@ -88,8 +88,9 @@ export default function RemindersPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-700 px-4 py-2 text-sm font-bold text-white hover:bg-brand-900"
           >
+            <Plus className="h-4 w-4" />
             Nuovo promemoria
           </button>
         )}
@@ -144,34 +145,61 @@ export default function RemindersPage() {
           })}
         </div>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black">
-          {items.map((r) => (
-            <li key={r.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <p className="font-medium">
-                  {r.name} {!r.active && <span className="text-xs text-slate-400 dark:text-slate-500">(disattivato)</span>}
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima: {r.nextDueDate}
-                  {r.categoryName && ` · ${r.categoryName}`}
-                  {r.amount != null && ` · ${currency.format(r.amount)}`}
-                </p>
-              </div>
-              <div className="flex gap-3 text-sm">
-                <button type="button" onClick={() => openEdit(r)} className="-m-1 p-1 text-brand-700 hover:underline">
-                  Modifica
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleActive(r)}
-                  className="-m-1 p-1 text-slate-500 dark:text-slate-400 hover:underline"
-                >
-                  {r.active ? 'Disattiva' : 'Riattiva'}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {items.map((r) => {
+              const Icon = getCategoryIcon(r.categoryIcon)
+              return (
+                <li key={r.id} style={{ opacity: r.active ? 1 : 0.5 }}>
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    {/* Interruttore sempre in vista invece del link
+                        "Disattiva"/"Riattiva": stessa scelta già fatta per le
+                        Regole ricorrenti, qui resta solo Modifica accanto. */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={r.active}
+                      aria-label={r.active ? 'Disattiva' : 'Riattiva'}
+                      onClick={() => handleToggleActive(r)}
+                      className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
+                        r.active ? 'bg-brand-700' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${
+                          r.active ? 'left-[14px]' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                      style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
+                    >
+                      <Icon className="h-4 w-4 text-white" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{r.name}</p>
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima: {r.nextDueDate}
+                        {r.categoryName && ` · ${r.categoryName}`}
+                        {r.amount != null && ` · ${currency.format(r.amount)}`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(r)}
+                      title="Modifica"
+                      aria-label="Modifica"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-700 hover:bg-brand-200/30 dark:hover:bg-brand-900/40"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
 
       {isMobile && (
