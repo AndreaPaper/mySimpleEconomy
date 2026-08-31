@@ -221,51 +221,51 @@ export default function DebtsPage() {
           })}
         </ul>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black">
-          <div className="flex flex-col gap-3 p-4">
-            {debts.map((d) => {
-              const pct = d.totalAmount > 0 ? Math.min(1, d.paidAmount / d.totalAmount) : 0
-              const saldato = d.remainingAmount <= 0
-              return (
-                <div
-                  key={d.id}
-                  className={`flex items-center gap-4 rounded-2xl p-4 ${
-                    saldato ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-sky-50 dark:bg-sky-950/30'
-                  }`}
-                >
-                  <DebtRing
-                    pct={pct}
-                    color={saldato ? '#1F8A46' : '#30AFFF'}
-                    trackColor={saldato ? '#D3EEDC' : '#E3EDF5'}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-semibold">{d.name}</p>
-                    {saldato ? (
-                      <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-400">Saldato ✓</p>
-                    ) : (
-                      <p className="mt-1 text-xl font-bold text-red-600">{currency.format(d.remainingAmount)}</p>
-                    )}
-                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                      {saldato
-                        ? `${currency.format(d.paidAmount)} pagati su ${currency.format(d.totalAmount)}`
-                        : `residuo su ${currency.format(d.totalAmount)} · ${currency.format(d.paidAmount)} già pagati`}
+        // Niente più card contenitore: titolo e righe stanno direttamente sullo
+        // sfondo pagina, come nelle altre sezioni. Ogni riga resta una card a
+        // sé — ma bianca/neutra come le altre liste dell'app, non colorata per
+        // stato: il colore dell'anello basta a dirlo, senza tingere anche lo sfondo.
+        <div className="flex flex-col gap-3">
+          {debts.map((d) => {
+            const pct = d.totalAmount > 0 ? Math.min(1, d.paidAmount / d.totalAmount) : 0
+            const saldato = d.remainingAmount <= 0
+            return (
+              <div
+                key={d.id}
+                className="flex items-center gap-4 rounded-2xl bg-brand-300 p-4 shadow-sm dark:bg-black"
+              >
+                <DebtRing
+                  pct={pct}
+                  color={saldato ? '#1F8A46' : '#30AFFF'}
+                  trackColor={saldato ? '#D3EEDC' : '#E3EDF5'}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold">{d.name}</p>
+                  {saldato ? (
+                    <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-400">Saldato ✓</p>
+                  ) : (
+                    <p className="mt-1 text-xl font-bold text-red-600">{currency.format(d.remainingAmount)}</p>
+                  )}
+                  <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                    {saldato
+                      ? `${currency.format(d.paidAmount)} pagati su ${currency.format(d.totalAmount)}`
+                      : `residuo su ${currency.format(d.totalAmount)} · ${currency.format(d.paidAmount)} già pagati`}
+                  </p>
+                  {!saldato && (
+                    <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                      {d.monthlyPaymentAmount
+                        ? `Con una rata di ${currency.format(d.monthlyPaymentAmount)}/mese, saldo previsto per ${projectPayoff(d.remainingAmount, d.monthlyPaymentAmount)}.`
+                        : 'Imposta una rata mensile per stimare quando finirai di pagare.'}
                     </p>
-                    {!saldato && (
-                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
-                        {d.monthlyPaymentAmount
-                          ? `Con una rata di ${currency.format(d.monthlyPaymentAmount)}/mese, saldo previsto per ${projectPayoff(d.remainingAmount, d.monthlyPaymentAmount)}.`
-                          : 'Imposta una rata mensile per stimare quando finirai di pagare.'}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-col gap-0.5">
-                    <DebtIconButton icon={Pencil} label="Modifica" tone="brand" onClick={() => openEdit(d)} />
-                    <DebtIconButton icon={Trash2} label="Elimina" tone="danger" onClick={() => askDelete(d)} />
-                  </div>
+                  )}
                 </div>
-              )
-            })}
-          </div>
+                <div className="flex shrink-0 flex-col gap-0.5">
+                  <DebtIconButton icon={Pencil} label="Modifica" tone="brand" onClick={() => openEdit(d)} />
+                  <DebtIconButton icon={Trash2} label="Elimina" tone="danger" onClick={() => askDelete(d)} />
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
+  ChevronDown,
   HandCoins,
   LayoutDashboard,
   LogOut,
@@ -83,10 +84,14 @@ export default function Layout() {
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded px-3 py-2 ${
+                // rounded-full e non rounded: la voce attiva è una pillola
+                // piena, non un rettangolo con gli angoli smussati. L'hover
+                // sulle inattive si è alleggerito da "pieno blu" (uguale
+                // all'attiva, le confondeva) a una tinta chiara di sfondo.
+                `flex items-center gap-2.5 rounded-full px-3.5 py-2.5 ${
                   isActive
-                    ? 'bg-brand-200 font-medium text-nav-active dark:bg-brand-900 dark:text-white'
-                    : 'text-slate-600 hover:bg-brand-200 hover:text-nav-active dark:text-slate-200'
+                    ? 'bg-brand-200 font-semibold text-nav-active dark:bg-brand-900 dark:text-white'
+                    : 'text-slate-600 hover:bg-brand-100 dark:text-slate-200 dark:hover:bg-zinc-900'
                 }`
               }
             >
@@ -96,7 +101,7 @@ export default function Layout() {
           ))}
         </nav>
         {showOfflineBadge && (
-          <div className="mx-2 mb-1 flex items-center gap-1.5 rounded bg-amber-100 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+          <div className="mx-2 mb-1 flex items-center gap-1.5 rounded-xl bg-amber-100 px-2.5 py-2 text-xs text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
             <WifiOff className="h-3.5 w-3.5 shrink-0" />
             {offlineBadgeLabel}
             {pendingCount > 0 && ` · ${pendingCount} in attesa`}
@@ -142,10 +147,24 @@ export default function Layout() {
             onClick={() => setProfileMenuOpen((open) => !open)}
             aria-haspopup="true"
             aria-expanded={profileMenuOpen}
-            className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left font-bold hover:border-brand-700 hover:text-slate-900 hover:shadow-sm dark:hover:text-white"
+            className="flex w-full min-w-0 items-center gap-2.5 rounded-lg border border-transparent px-3 py-2 text-left hover:border-brand-700 hover:shadow-sm"
           >
-            <AvatarIcon className="h-6 w-6 shrink-0 text-slate-500 dark:text-slate-400" />
-            <span className="min-w-0 break-words">{nickname || email}</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-200/15">
+              <AvatarIcon className="h-4 w-4 text-brand-700" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{nickname || email}</p>
+              {/* L'email sotto il nome solo quando il nome non È già l'email:
+                  altrimenti la stessa stringa comparirebbe due volte. */}
+              {nickname && (
+                <p className="truncate text-xs text-slate-400 dark:text-slate-500">{email}</p>
+              )}
+            </div>
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-150 ${
+                profileMenuOpen ? 'rotate-180' : ''
+              }`}
+            />
           </button>
         </div>
       </aside>
