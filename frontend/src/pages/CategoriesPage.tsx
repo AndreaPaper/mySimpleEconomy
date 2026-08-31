@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, Pencil, Plus, Archive, Trash2, Sparkles } from 'lucide-react'
+import { ChevronRight, Pencil, Plus, Archive, RotateCcw, Trash2, Sparkles } from 'lucide-react'
 import { categoriesApi } from '../api/endpoints'
 import type { Category, CategoryType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
@@ -22,7 +22,7 @@ function ActionPill({
 }: {
   icon: typeof Pencil
   label: string
-  tone: 'brand' | 'neutral' | 'danger'
+  tone: 'brand' | 'neutral' | 'danger' | 'success'
   small?: boolean
   onClick: () => void
 }) {
@@ -31,7 +31,9 @@ function ActionPill({
       ? 'bg-brand-200/30 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
       : tone === 'danger'
         ? 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
-        : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-slate-300'
+        : tone === 'success'
+          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+          : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-slate-300'
   return (
     <button
       type="button"
@@ -56,6 +58,10 @@ export default function CategoriesPage() {
   const [generateFeedback, setGenerateFeedback] = useState<string | null>(null)
   // Su mobile Modifica/Archivia/Elimina stanno dietro il tocco sulla riga.
   const [actionSheetCat, setActionSheetCat] = useState<Category | null>(null)
+  // Le archiviate arrivano da un endpoint separato: la lista normale le esclude
+  // a monte, quindi non è filtrabile lato client.
+  const [archivedCategories, setArchivedCategories] = useState<Category[]>([])
+  const [archivedOpen, setArchivedOpen] = useState(false)
   // Su desktop le sottocategorie sono chiuse finché non si apre il genitore:
   // l'insieme tiene gli id aperti in questo momento.
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
@@ -67,7 +73,14 @@ export default function CategoriesPage() {
       return next
     })
 
-  const reload = () => categoriesApi.list().then(setCategories)
+  // Le due liste si ricaricano insieme: archiviare o riattivare sposta una
+  // categoria dall'una all'altra, e aggiornarne una sola la farebbe sparire da
+  // entrambe o comparire in tutte e due.
+  const reload = () =>
+    Promise.all([categoriesApi.list(), categoriesApi.listArchived()]).then(([active, archived]) => {
+      setCategories(active)
+      setArchivedCategories(archived)
+    })
 
   useEffect(() => {
     reload().finally(() => setLoading(false))
@@ -108,11 +121,13 @@ export default function CategoriesPage() {
 
   // Archiviazione ed eliminazione condividono lo stesso dialogo: cambiano solo
   // l'avvertenza e il colore del pulsante, non la sostanza della domanda.
-  const [pending, setPending] = useState<{ category: Category; action: 'archive' | 'delete' } | null>(null)
+  const [pending, setPending] = useState<{ category: Category; action: 'archive' | 'delete' | 'unarchive' } | null>(
+    null,
+  )
   const [busy, setBusy] = useState(false)
   const [pendingError, setPendingError] = useState<string | null>(null)
 
-  const ask = (category: Category, action: 'archive' | 'delete') => {
+  const ask = (category: Category, action: 'archive' | 'delete' | 'unarchive') => {
     setPendingError(null)
     setPending({ category, action })
   }
@@ -123,6 +138,7 @@ export default function CategoriesPage() {
     setPendingError(null)
     try {
       if (pending.action === 'archive') await categoriesApi.archive(pending.category.id)
+      else if (pending.action === 'unarchive') await categoriesApi.unarchive(pending.category.id)
       else await categoriesApi.delete(pending.category.id)
       setPending(null)
       await reload()
@@ -133,7 +149,9 @@ export default function CategoriesPage() {
       setPendingError(
         pending.action === 'delete'
           ? 'Impossibile eliminare: la categoria è collegata a transazioni, spese ricorrenti, debiti o promemoria. Prova ad archiviarla invece.'
-          : 'Archiviazione non riuscita. Riprova.',
+          : pending.action === 'unarchive'
+            ? 'Riattivazione non riuscita. Riprova.'
+            : 'Archiviazione non riuscita. Riprova.',
       )
     } finally {
       setBusy(false)
@@ -361,6 +379,87 @@ export default function CategoriesPage() {
         </div>
       )}
 
+      {/* Il pannello delle archiviate esiste solo su desktop e solo se ce n'è
+          almeno una: chi non archivia mai non vede nulla di nuovo. Su mobile
+          resta fuori — la lista lì è un'altra, con il foglio azioni. */}
+      {!isMobile && archivedCategories.length > 0 && (
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black">
+          <button
+            type="button"
+            onClick={() => setArchivedOpen((open) => !open)}
+            aria-expanded={archivedOpen}
+            className="flex w-full items-center gap-3 px-5 py-3.5 text-left"
+          >
+            <ChevronRight
+              className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform dark:text-slate-500 ${
+                archivedOpen ? 'rotate-90' : ''
+              }`}
+            />
+            <Archive className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+            <span className="flex-1 text-[13.5px] font-semibold text-slate-700 dark:text-slate-300">
+              Categorie archiviate
+            </span>
+            <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-500 dark:bg-zinc-800 dark:text-slate-400">
+              {archivedCategories.length}
+            </span>
+          </button>
+
+          {archivedOpen && (
+            <div className="border-t border-slate-100 dark:border-slate-800">
+              <p className="px-5 pb-1 pt-3 text-xs text-slate-400 dark:text-slate-500">
+                Non compaiono nei menu e nei nuovi movimenti, ma restano nello storico.
+              </p>
+              <ul>
+                {archivedCategories.map((c) => {
+                  const Icon = getCategoryIcon(c.icon)
+                  const parent = c.parentId
+                    ? [...categories, ...archivedCategories].find((x) => x.id === c.parentId)
+                    : null
+                  const childCount = archivedCategories.filter((x) => x.parentId === c.id).length
+                  return (
+                    <li
+                      key={c.id}
+                      className="flex items-center gap-3.5 border-t border-slate-100 px-5 py-2.5 dark:border-slate-800"
+                    >
+                      {/* Il badge perde il colore della categoria e diventa
+                          grigio: è il segnale che la riga è inattiva, e senza
+                          non si distinguerebbe da una attiva. */}
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-300 dark:bg-slate-700">
+                        <Icon className="h-4 w-4 text-white" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13.5px] font-semibold text-slate-700 dark:text-slate-300">
+                          {c.name}
+                        </p>
+                        <p className="truncate text-[11.5px] text-slate-400 dark:text-slate-500">
+                          {c.type === 'INCOME' ? 'Entrata' : 'Uscita'}
+                          {parent
+                            ? ` · sottocategoria di ${parent.name}`
+                            : childCount > 0
+                              ? ` · ${childCount} ${childCount === 1 ? 'sottocategoria' : 'sottocategorie'}`
+                              : ''}
+                        </p>
+                      </div>
+                      {/* Niente "Archivia": è già archiviata. */}
+                      <div className="flex shrink-0 gap-1.5">
+                        <ActionPill
+                          icon={RotateCcw}
+                          label="Riattiva"
+                          tone="success"
+                          small
+                          onClick={() => ask(c, 'unarchive')}
+                        />
+                        <ActionPill icon={Trash2} label="Elimina" tone="danger" small onClick={() => ask(c, 'delete')} />
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {isMobile && (
         <button
           type="button"
@@ -428,8 +527,16 @@ export default function CategoriesPage() {
 
       {pending && (
         <ConfirmDialog
-          title={pending.action === 'archive' ? 'Archivia categoria' : 'Elimina categoria'}
-          confirmLabel={pending.action === 'archive' ? 'Archivia' : 'Elimina'}
+          title={
+            pending.action === 'archive'
+              ? 'Archivia categoria'
+              : pending.action === 'unarchive'
+                ? 'Riattiva categoria'
+                : 'Elimina categoria'
+          }
+          confirmLabel={
+            pending.action === 'archive' ? 'Archivia' : pending.action === 'unarchive' ? 'Riattiva' : 'Elimina'
+          }
           destructive={pending.action === 'delete'}
           busy={busy}
           error={pendingError}
@@ -437,10 +544,25 @@ export default function CategoriesPage() {
           onCancel={() => setPending(null)}
         >
           <p>
-            {pending.action === 'archive'
+            {pending.action === 'unarchive'
+              ? 'Tornerà disponibile nei menu e nei nuovi movimenti.'
+              : pending.action === 'archive'
               ? 'Non comparirà più nei menu, ma resterà nello storico e potrai riattivarla.'
               : 'A differenza dell\u2019archiviazione, questa operazione non si può annullare.'}
           </p>
+          {/* Riattivando una sottocategoria torna attiva anche la principale, e
+              va detto prima: altrimenti ci si ritroverebbe in elenco una
+              categoria che non si è chiesto di riattivare. */}
+          {pending.action === 'unarchive' &&
+            (() => {
+              const parent = archivedCategories.find((c) => c.id === pending.category.parentId)
+              return parent ? (
+                <p className="mt-2 text-amber-700 dark:text-amber-500">
+                  Verrà riattivata anche la principale «{parent.name}»: una sottocategoria non può restare sotto una
+                  principale archiviata.
+                </p>
+              ) : null
+            })()}
           {/* Quante sottocategorie ha se ne ha: eliminando una principale si
               porta dietro un ramo intero, e il confirm del browser non poteva
               dirlo. */}
@@ -449,9 +571,12 @@ export default function CategoriesPage() {
             <br />
             {pending.category.type === 'INCOME' ? 'Entrata' : 'Uscita'}
             {(() => {
-              const parent = categories.find((c) => c.id === pending.category.parentId)
+              // In entrambe le liste: per una riga archiviata il padre e i figli
+              // stanno fra le archiviate, non fra le attive.
+              const all = [...categories, ...archivedCategories]
+              const parent = all.find((c) => c.id === pending.category.parentId)
               if (parent) return ` · sottocategoria di ${parent.name}`
-              const children = categories.filter((c) => c.parentId === pending.category.id)
+              const children = all.filter((c) => c.parentId === pending.category.id)
               return children.length > 0
                 ? ` · ${children.length} ${children.length === 1 ? 'sottocategoria' : 'sottocategorie'}`
                 : ''
