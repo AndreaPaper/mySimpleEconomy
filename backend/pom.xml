@@ -28,6 +28,11 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Configurazione Docker per Testcontainers (vedi maven-surefire-plugin sotto).
+		     Entrambe sovrascrivibili da riga di comando, es.
+		     ./mvnw test -Ddocker.host=unix:///var/run/docker.sock -->
+		<docker.host>tcp://localhost:2375</docker.host>
+		<docker.api.version>1.44</docker.api.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -89,9 +94,39 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Postgres usa e getta per i test: niente più DATABASE_URL da impostare a mano,
+		     basta un Docker in esecuzione. La versione arriva dal BOM di Spring Boot. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
+		<!-- db/schema.sql finisce nel classpath di test così il container Postgres lo può
+		     usare come init script: lo schema resta definito in un posto solo. -->
+		<testResources>
+			<testResource>
+				<directory>src/test/resources</directory>
+			</testResource>
+			<testResource>
+				<directory>db</directory>
+				<includes>
+					<include>schema.sql</include>
+				</includes>
+			</testResource>
+		</testResources>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
@@ -103,6 +138,26 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<!-- Testcontainers non riesce a raggiungere Docker Desktop con le impostazioni
+			     di default su questa configurazione:
+			     - le named pipe di Windows rispondono 400 al client Java, quindi si usa
+			       l'endpoint TCP (Docker Desktop: Settings > General > "Expose daemon on
+			       tcp://localhost:2375 without TLS");
+			     - docker-java negozia l'API 1.32, mentre Docker 28+ richiede almeno la 1.40
+			       ("client version 1.32 is too old"), quindi la si forza via api.version.
+			     Su un ambiente con socket Docker standard basta sovrascrivere docker.host. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<api.version>${docker.api.version}</api.version>
+					</systemPropertyVariables>
+					<environmentVariables>
+						<DOCKER_HOST>${docker.host}</DOCKER_HOST>
+					</environmentVariables>
 				</configuration>
 			</plugin>
 			<plugin>

@@ -1,6 +1,23 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { authApi, profileApi } from '../api/endpoints'
 
+// Impostazioni della sezione risparmio più i dati del profilo che servono a
+// calcolare il budget disponibile (stipendio stimato e categoria dello
+// stipendio, per capire se è già stato incassato nel periodo).
+export interface SavingsSettings {
+  enabled: boolean
+  savingsPercent: number | null
+  defaultSalaryAmount: number | null
+  salaryCategoryId: string | null
+}
+
+const SAVINGS_DISABLED: SavingsSettings = {
+  enabled: false,
+  savingsPercent: null,
+  defaultSalaryAmount: null,
+  salaryCategoryId: null,
+}
+
 interface AuthContextValue {
   token: string | null
   email: string | null
@@ -10,6 +27,8 @@ interface AuthContextValue {
   setAvatarKey: (avatarKey: string | null) => void
   salaryDay: number | null
   setSalaryDay: (salaryDay: number | null) => void
+  savings: SavingsSettings
+  setSavings: (savings: SavingsSettings) => void
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -23,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [nickname, setNickname] = useState<string | null>(null)
   const [avatarKey, setAvatarKey] = useState<string | null>(null)
   const [salaryDay, setSalaryDay] = useState<number | null>(null)
+  const [savings, setSavings] = useState<SavingsSettings>(SAVINGS_DISABLED)
 
   useEffect(() => {
     if (!token) return
@@ -32,6 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNickname(profile.nickname)
         setAvatarKey(profile.avatarKey)
         setSalaryDay(profile.salaryDay)
+        setSavings({
+          enabled: profile.savingsEnabled,
+          savingsPercent: profile.savingsPercent,
+          defaultSalaryAmount: profile.defaultSalaryAmount,
+          salaryCategoryId: profile.salaryCategoryId,
+        })
       })
       .catch(() => {})
   }, [token])
@@ -62,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNickname(null)
     setAvatarKey(null)
     setSalaryDay(null)
+    setSavings(SAVINGS_DISABLED)
   }
 
   return (
@@ -75,6 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAvatarKey,
         salaryDay,
         setSalaryDay,
+        savings,
+        setSavings,
         login,
         register,
         logout,

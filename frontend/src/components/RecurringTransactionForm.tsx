@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Category, IntervalUnit, RecurringTransaction, TransactionType } from '../api/types'
+import { categoryOptionLabel, flattenCategoryTree } from '../utils/categoryTree'
 
 interface RecurringTransactionFormProps {
   categories: Category[]
@@ -61,7 +62,7 @@ export default function RecurringTransactionForm({
         intervalUnit,
         intervalValue: Number(intervalValue),
         startDate,
-        nextDueDate,
+        nextDueDate: initial ? nextDueDate : startDate,
         endDate: endDate || null,
       })
     } catch {
@@ -96,7 +97,7 @@ export default function RecurringTransactionForm({
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -107,7 +108,7 @@ export default function RecurringTransactionForm({
             onClick={() => handleTypeChange('EXPENSE')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'EXPENSE'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -118,7 +119,7 @@ export default function RecurringTransactionForm({
             onClick={() => handleTypeChange('INCOME')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'INCOME'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -139,11 +140,11 @@ export default function RecurringTransactionForm({
             id="rt-category"
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           >
-            {categoriesForType.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            {flattenCategoryTree(categoriesForType).map((entry) => (
+              <option key={entry.category.id} value={entry.category.id}>
+                {categoryOptionLabel(entry)}
               </option>
             ))}
           </select>
@@ -161,7 +162,7 @@ export default function RecurringTransactionForm({
           required
           value={defaultAmount}
           onChange={(e) => setDefaultAmount(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div className="flex gap-2">
@@ -176,7 +177,7 @@ export default function RecurringTransactionForm({
             required
             value={intervalValue}
             onChange={(e) => setIntervalValue(e.target.value)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
         </div>
         <div className="flex-1">
@@ -187,7 +188,7 @@ export default function RecurringTransactionForm({
             id="rt-interval-unit"
             value={intervalUnit}
             onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           >
             {(Object.keys(INTERVAL_LABELS) as IntervalUnit[]).map((unit) => (
               <option key={unit} value={unit}>
@@ -207,22 +208,24 @@ export default function RecurringTransactionForm({
           required
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
-      <div>
-        <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-next">
-          Prossima scadenza
-        </label>
-        <input
-          id="rt-next"
-          type="date"
-          required
-          value={nextDueDate}
-          onChange={(e) => setNextDueDate(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-        />
-      </div>
+      {initial && (
+        <div>
+          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-next">
+            Prossima scadenza
+          </label>
+          <input
+            id="rt-next"
+            type="date"
+            required
+            value={nextDueDate}
+            onChange={(e) => setNextDueDate(e.target.value)}
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          />
+        </div>
+      )}
       <div>
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="rt-end">
           Data di fine (opzionale)
@@ -232,7 +235,7 @@ export default function RecurringTransactionForm({
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div className="flex justify-end gap-2 pt-2">
@@ -242,7 +245,7 @@ export default function RecurringTransactionForm({
         <button
           type="submit"
           disabled={saving || categoriesForType.length === 0}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>

@@ -2,6 +2,208 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Valori di base = "Canvas neutro", la palette predefinita: tema chiaro
+   60/30/10 — 60% superfici neutre (bianco/quasi bianco), 30% tinte tenui di
+   supporto, 10% accento blu pieno riservato a pochi punti mirati (voce di
+   menu attiva, linea del grafico, bottoni/link).
+
+   Stanno qui, e non in un blocco html[data-palette="canvas"], perché è la
+   palette usata anche prima che PaletteContext scriva data-palette su <html>.
+   Le altre palette si limitano a sovrascrivere queste custom property.
+
+   Pensata per la modalità chiara: attivando anche il tema scuro le card
+   tornano nere (dark:bg-black) mentre sfondo pagina e sidebar restano quelli
+   della palette — combinazione non progettata, limite noto. */
+@theme {
+  --color-brand-100: #F5FAFF; /* sfondo pagina */
+  --color-brand-500: #FFFFFF; /* sfondo sidebar */
+  --color-brand-200: #30AFFF; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #30AFFF; /* accento: bottoni, link */
+  --color-brand-900: #30AFFF; /* usato dal ramo scuro di alcuni componenti */
+  --color-brand-300: #FFFFFF; /* sfondo card/liste generiche */
+  /* Testo della voce di menu attiva/hover: separato da brand-700 perché
+     quest'ultimo resta l'accento generale (bottoni/link) e qui i due
+     divergono (sfondo pieno blu → testo bianco). */
+  --color-nav-active: #FFFFFF;
+  /* Le due card "in evidenza" della Dashboard (Saldo attuale/previsto):
+     separate dal token "card" generico (brand-300) perché hanno tinte
+     diverse dallo sfondo card standard. */
+  --color-kpi-a: #EAF7FF;
+  --color-kpi-b: #EEFBE7;
+  /* Riempimento a gradiente sotto la linea del grafico "Andamento saldo". */
+  --color-chart-grad-start: #92EEFF;
+  --color-chart-grad-end: #FFFFFF;
+  /* Sfondo della card del grafico: separato da brand-300 perché in "KPI a
+     tinte piene" il grafico ha un fondo (crema) diverso dalle card generiche. */
+  --color-chart-card: #FFFFFF;
+  /* Sfondo della "traccia" (barra vuota) dietro le barre delle categorie —
+     il colore della barra stessa resta quello scelto dall'utente per la
+     categoria (categoryColor), invariato in tutte le palette. */
+  --color-bar-track: #f1f5f9;
+}
+
+/* Testo, bordi e colori funzionali di base (quelli di "Canvas neutro"),
+   applicati con un override mirato sulle classi Tailwind già in uso in tutta
+   l'app (text-slate-*, border-slate-*, text-emerald-600, text-red-600) invece
+   di riscrivere ogni pagina: fuori da @layer, quindi vincono sulle utility
+   Tailwind corrispondenti senza bisogno di !important.
+
+   Non sono legati a data-palette perché valgono anche prima che
+   PaletteContext lo scriva; le altre palette li sovrascrivono con selettori
+   più specifici. */
+body,
+.text-slate-900 {
+  color: #0B2A45;
+}
+.text-slate-600,
+.text-slate-500,
+.text-slate-400 {
+  color: #5B7387;
+}
+.border-slate-200,
+.border-slate-300 {
+  border-color: #E3EDF5;
+}
+.text-emerald-600 {
+  color: #1F8A46;
+}
+.text-red-600 {
+  color: #D6455B;
+}
+
+/* "KPI a tinte piene": base chiara e leggibile come "Canvas neutro", ma le
+   card KPI in alto e il grafico usano pesca/menta a saturazione media
+   invece di tinte pastello, con testo bruno caldo per il contrasto. Il
+   corallo pieno (#FF8080) resta l'accento riservato a voce di menu attiva
+   e azioni, mai sfondo di grandi aree — stessa filosofia di Canvas neutro,
+   pensata solo per il chiaro (stesso limite noto sulla combinazione con la
+   modalità scura). */
+html[data-palette="vividkpi"] {
+  --color-brand-100: #FFF4EF; /* sfondo pagina */
+  --color-brand-500: #FFFFFF; /* sfondo sidebar */
+  --color-brand-200: #FF8080; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #FF8080; /* accento: bottoni, link */
+  --color-brand-900: #FF8080; /* ramo dark: (poco rilevante, tema pensato per il chiaro) */
+  --color-brand-300: #FFFFFF; /* sfondo card/liste generiche */
+  --color-nav-active: #FFFFFF; /* testo della voce di menu attiva/hover, su sfondo corallo pieno */
+  --color-kpi-a: #FFC5AA; /* card "Saldo attuale" (pesca) */
+  --color-kpi-b: #BBF1D2; /* card "Saldo previsto a fine mese" (menta) */
+  --color-chart-card: #FFF6EE;
+  --color-chart-grad-start: #FFB48F;
+  --color-chart-grad-end: #FFF6EE;
+  --color-bar-track: #F1E0D8;
+}
+html[data-palette="vividkpi"] body,
+html[data-palette="vividkpi"] .text-slate-900 {
+  color: #4A2A28;
+}
+html[data-palette="vividkpi"] .text-slate-600,
+html[data-palette="vividkpi"] .text-slate-500,
+html[data-palette="vividkpi"] .text-slate-400 {
+  color: #8C6B62;
+}
+html[data-palette="vividkpi"] .border-slate-200,
+html[data-palette="vividkpi"] .border-slate-300 {
+  border-color: #F1DBD1;
+}
+html[data-palette="vividkpi"] .text-emerald-600 {
+  color: #2FA36B;
+}
+html[data-palette="vividkpi"] .text-red-600 {
+  color: #E5546A;
+}
+
+/* "Brezza marina": blu pastello tono-su-tono (sidebar/card/kpi sono tutte
+   variazioni chiare dello stesso azzurro), testo scuro ovunque — niente
+   sidebar a contrasto forte, quindi nessun override dedicato per <aside>
+   come nelle altre palette "vivaci". Pensata solo per il chiaro (stesso
+   limite noto delle palette precedenti in modalità scura). */
+html[data-palette="brezza"] {
+  --color-brand-100: #A6C7E4; /* sfondo pagina */
+  --color-brand-500: #7FADD6; /* sfondo sidebar */
+  --color-brand-200: #A1CFE8; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #5B8FC7; /* accento: bottoni, link */
+  --color-brand-900: #5B8FC7; /* ramo dark: poco rilevante, tema pensato per il chiaro */
+  --color-brand-300: #C3DCF0; /* sfondo card/liste generiche */
+  --color-nav-active: #0F2A3D; /* testo della voce di menu attiva/hover */
+  --color-kpi-a: #C6E9F5; /* card "Saldo attuale" */
+  --color-kpi-b: #EBFAF4; /* card "Saldo previsto a fine mese" */
+  --color-chart-card: #C3DCF0;
+  --color-bar-track: #E6F3F1;
+}
+html[data-palette="brezza"] body,
+html[data-palette="brezza"] .text-slate-900 {
+  color: #0F2A3D;
+}
+html[data-palette="brezza"] .text-slate-600,
+html[data-palette="brezza"] .text-slate-500,
+html[data-palette="brezza"] .text-slate-400 {
+  color: #5C8598;
+}
+html[data-palette="brezza"] .border-slate-200,
+html[data-palette="brezza"] .border-slate-300 {
+  border-color: #D6EEF5;
+}
+html[data-palette="brezza"] .text-emerald-600 {
+  color: #1F8A46;
+}
+html[data-palette="brezza"] .text-red-600 {
+  color: #D6455B;
+}
+
+/* "Lavanda vivace": sidebar e accento sullo stesso viola pieno, sfondo
+   pagina rosa chiaro, card bianche e testo bianco sulla sidebar. */
+html[data-palette="lavanda"] {
+  --color-brand-100: #FED2E2; /* sfondo pagina */
+  --color-brand-500: #8F87F1; /* sfondo sidebar */
+  --color-brand-200: #C68EFD; /* voce di menu: sfondo pieno su hover/attiva */
+  --color-brand-700: #8F87F1; /* accento: bottoni, link */
+  --color-brand-900: #8F87F1; /* ramo dark: poco rilevante, tema pensato per il chiaro */
+  --color-brand-300: #FFFFFF; /* sfondo card/liste generiche */
+  --color-nav-active: #FFFFFF; /* testo della voce di menu attiva/hover, su sfondo viola pieno */
+  --color-kpi-a: #E9A5F1; /* card "Saldo attuale" */
+  --color-kpi-b: #FDE6EF; /* card "Saldo previsto a fine mese" */
+  --color-chart-card: #FFFFFF;
+  --color-bar-track: #F3E2ED;
+}
+html[data-palette="lavanda"] body,
+html[data-palette="lavanda"] .text-slate-900 {
+  color: #3B2A5C;
+}
+html[data-palette="lavanda"] .text-slate-600,
+html[data-palette="lavanda"] .text-slate-500,
+html[data-palette="lavanda"] .text-slate-400 {
+  color: #7C6EA0;
+}
+html[data-palette="lavanda"] .border-slate-200,
+html[data-palette="lavanda"] .border-slate-300 {
+  border-color: #EEDDF5;
+}
+html[data-palette="lavanda"] .text-emerald-600 {
+  color: #1F8A46;
+}
+html[data-palette="lavanda"] .text-red-600 {
+  color: #D6455B;
+}
+html[data-palette="lavanda"] aside {
+  color: #FFFFFF;
+}
+html[data-palette="lavanda"] aside .text-slate-600,
+html[data-palette="lavanda"] aside .text-slate-500,
+html[data-palette="lavanda"] aside .text-slate-400 {
+  color: rgba(255, 255, 255, 0.85);
+}
+html[data-palette="lavanda"] aside .border-slate-200 {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+html[data-palette="lavanda"] aside .profile-menu,
+html[data-palette="lavanda"] aside .profile-menu .text-slate-600 {
+  color: #7C6EA0;
+}
+html[data-palette="lavanda"] aside .profile-menu .border-slate-200 {
+  border-color: #EEDDF5;
+}
+
 @font-face {
   font-family: "Lemon Milk";
   src: url("./assets/fonts/lemonMilk/LEMONMILK-Regular.otf") format("opentype");
@@ -36,7 +238,55 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Josefin Sans";
+  src: url("./assets/fonts/josefinSans/JosefinSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Josefin Sans";
+  src: url("./assets/fonts/josefinSans/JosefinSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Recharts rende focalizzabili sia l'SVG del grafico (tabindex=0, per
+   raggiungerlo da tastiera) sia i gruppi interni delle singole serie
+   (tabindex=-1, che il click mette comunque a fuoco): in entrambi i casi il
+   browser disegna il proprio contorno, attorno a tutto il grafico o attorno
+   alla sola area cliccata. Nascosto per scelta esplicita ovunque dentro un
+   grafico, mouse o tastiera. */
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible {
+  outline: none;
+}
+
 body {
   margin: 0;
   font-family: "Lemon Milk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Attivata dal toggle "Testo maiuscolo" nelle Impostazioni (CaseStyleContext):
+   Lemon Milk non ha minuscole, quindi la modalità "misto" cambia font invece
+   di provare a togliere una trasformazione CSS che non esiste. */
+html.mixed-case body {
+  font-family: "Josefin Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Sotto i 768px (lo stesso limite di useIsMobile) la pagina scrolla senza la
+   barra: su un telefono vero è già così — la barra dei touch device è overlay
+   e sparisce da sola — ma un Android in Chrome, o il pannello di sviluppo
+   emulato con un mouse, ne disegna una sottile e sempre visibile. */
+@media (max-width: 767px) {
+  html {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html::-webkit-scrollbar {
+    display: none;
+  }
 }

@@ -1,11 +1,11 @@
 package com.spesetracker;
 
+import com.spesetracker.support.AbstractIntegrationTest;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -22,9 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Percorre l'intero flusso applicativo (auth, categorie, transazioni, ricorrenze,
 // checkpoint, previsione) contro un vero database Postgres di test, senza aprire
 // una porta HTTP reale: verifica end-to-end sicurezza + JPA + logica di business.
-@SpringBootTest
-@AutoConfigureMockMvc
-class SmokeApiTest {
+class SmokeApiTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -99,7 +97,13 @@ class SmokeApiTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.months.length()").value(3))
-                .andExpect(jsonPath("$.months[1].projectedIncome").value(2500.00));
+                .andExpect(jsonPath("$.months[1].projectedIncome").value(2500.00))
+                // La spesa da 42.50 è datata oggi come il checkpoint, ma è stata
+                // registrata prima: un saldo scritto a mano fotografa il conto in
+                // quel momento, quindi quei 42.50 sono già dentro i 1000 e non si
+                // sottraggono una seconda volta. Quello che arriva dopo il saldo lo
+                // muove invece regolarmente (vedi ForecastApiTest).
+                .andExpect(jsonPath("$.currentBalance").value(1000.00));
 
         mockMvc.perform(get("/api/categories"))
                 .andExpect(status().isUnauthorized());

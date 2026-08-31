@@ -11,6 +11,11 @@ CREATE TABLE users (
     -- caricata dall'utente: NULL = icona utente generica di default.
     avatar_key VARCHAR(30) CHECK (avatar_key IS NULL OR avatar_key IN
         ('cat', 'dog', 'rabbit', 'bird', 'fish', 'turtle', 'squirrel', 'panda', 'mouse', 'snail')),
+    -- Sezione risparmio (opt-in): quota delle entrate del periodo da mettere
+    -- da parte, come percentuale e non importo fisso, così si ricalcola da sola
+    -- quando le entrate cambiano nel corso del mese.
+    savings_enabled BOOLEAN NOT NULL DEFAULT false,
+    savings_percent SMALLINT CHECK (savings_percent IS NULL OR savings_percent BETWEEN 0 AND 100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -23,10 +28,17 @@ CREATE TABLE categories (
     type category_type NOT NULL,
     color VARCHAR(7),
     icon VARCHAR(50),
+    -- Sottocategorie a un solo livello (es. "Supermercato" sotto "Alimentari"):
+    -- il vincolo "un figlio non può avere figli a sua volta" e quello sul tipo
+    -- uguale al padre sono applicati in CategoryService, non qui. RESTRICT come
+    -- le altre FK verso categories: un padre con figli non si cancella.
+    parent_id UUID REFERENCES categories(id) ON DELETE RESTRICT,
     archived BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, name)
 );
+
+CREATE INDEX idx_categories_parent ON categories(parent_id);
 
 CREATE TYPE interval_unit AS ENUM ('DAY', 'WEEK', 'MONTH', 'YEAR');
 
@@ -141,3 +153,80 @@ CREATE INDEX idx_expense_reminders_next_due ON expense_reminders (next_due_date)
 -- Aggiunta qui (non nella CREATE TABLE transactions più sopra) perché
 -- expense_reminders viene creata solo a questo punto del file.
 ALTER TABLE transactions ADD COLUMN expense_reminder_id UUID REFERENCES expense_reminders(id) ON DELETE SET NULL;
+
+-- Nota: il risparmio non ha tabelle proprie. È una grandezza derivata
+-- (entrate - uscite del periodo), calcolata dalle transazioni già presenti:
+-- non c'è nulla da accantonare a mano, quindi non c'è nulla da memorizzare.
+-- L'unica impostazione persistita è la percentuale obiettivo, su users.
+
+-- ---------------------------------------------------------------------------
+-- Import dell'estratto conto della banca
+-- ---------------------------------------------------------------------------
+
+-- Tracciabilità delle transazioni arrivate da un import bancario. Serve a
+-- riconoscere cosa è già stato importato quando lo stesso estratto conto viene
+-- ripassato all'app aggiornato: l'export della banca non ha un identificativo
+-- di transazione, quindi l'impronta è calcolata sul contenuto della riga.
+ALTER TABLE transactions
+    ADD COLUMN import_source VARCHAR(30),
+    ADD COLUMN import_fingerprint VARCHAR(64),
+    -- Movimento non ancora contabilizzato: la banca lo riscrive quando diventa
+    -- definitivo (cambiano descrizione e a volte data), quindi la sua impronta
+    -- è destinata a cambiare e va riabbinata al passaggio successivo.
+    ADD COLUMN import_provisional BOOLEAN NOT NULL DEFAULT false;
+
+-- Indice parziale: le transazioni scritte a mano hanno impronta NULL e non
+-- devono essere vincolate fra loro.
+CREATE UNIQUE INDEX ux_transactions_import
+    ON transactions (user_id, import_fingerprint)
+    WHERE import_fingerprint IS NOT NULL;
+
+CREATE INDEX idx_transactions_provisional
+    ON transactions (user_id, import_provisional)
+    WHERE import_provisional;
+
+-- Corrispondenza fra le categorie della banca e quelle dell'utente, così la
+-- mappatura si fa una volta sola e gli import successivi sono automatici.
+CREATE TABLE bank_category_mappings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source VARCHAR(30) NOT NULL,
+    bank_category VARCHAR(120) NOT NULL,
+    -- Il tipo fa parte della chiave: un rimborso su una categoria di spesa
+    -- arriva con segno positivo e va su una categoria di entrata.
+    transaction_type transaction_type NOT NULL,
+    -- NULL = "non importare" (es. i prelievi di contante, che non sono una
+    -- spesa: i soldi si spendono dopo).
+    category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, source, bank_category, transaction_type)
+);
+CREATE INDEX idx_bank_category_mappings_user ON bank_category_mappings (user_id, source);
+
+-- Righe da non importare mai, riconosciute dal testo: giroconti verso sé
+-- stessi e simili, che gonfierebbero le spese senza essere spese.
+CREATE TABLE bank_import_exclusions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source VARCHAR(30) NOT NULL,
+    -- Sottostringa cercata in "Operazione + Dettagli", senza distinzione di
+    -- maiuscole. Niente espressioni regolari: deve poterla scrivere l'utente.
+    pattern VARCHAR(200) NOT NULL,
+    note VARCHAR(200),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, source, pattern)
+);
+CREATE INDEX idx_bank_import_exclusions_user ON bank_import_exclusions (user_id, source);
+
+-- Da quale istante le transazioni del giorno del saldo vanno conteggiate.
+--
+-- Serve perché "saldo del 26/08" da solo è ambiguo. Chi lo scrive a mano
+-- guarda il conto in quel momento, quindi le spese già registrate quel giorno
+-- sono dentro il numero e non vanno sottratte di nuovo; quelle registrate dopo
+-- sì. L'import Excel invece legge un "SALDO INIZIO MESE", che precede tutto il
+-- giorno. Dedurlo dall'ordine di inserimento funzionerebbe oggi e si romperebbe
+-- al primo riordino, quindi lo si scrive.
+--
+-- NULL = saldo a inizio giornata (il significato che avevano tutti i saldi
+-- registrati prima di questa colonna: non vanno reinterpretati).
+ALTER TABLE balance_checkpoints ADD COLUMN counts_from TIMESTAMPTZ;

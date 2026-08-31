@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: spesometro
+      POSTGRES_USER: spesometro
+      POSTGRES_PASSWORD: spesometro
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Eseguito automaticamente da Postgres solo alla prima creazione del
+      # volume (data dir vuota): se lo schema cambia dopo il primo avvio,
+      # va applicato a mano (es. con `docker compose exec db psql ...`) o
+      # ricreando il volume con `docker compose down -v`.
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spesometro -d spesometro"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    # Gira dentro un container Linux invece che sull'host Windows: aggira il
+    # bug locale per cui la JVM non riesce ad aprire un selettore NIO
+    # (Tomcat/RestClient falliscono con "Unable to establish loopback
+    # connection" per un blocco a livello di sistema sui socket AF_UNIX).
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/spesometro
+      DATABASE_USERNAME: spesometro
+      DATABASE_PASSWORD: spesometro
+      JWT_SECRET: local-dev-secret-not-for-production-0123456789abcdef0123456789
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

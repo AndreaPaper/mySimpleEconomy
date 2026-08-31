@@ -244,35 +244,18 @@ public class ExcelSheetParser {
         return LocalDate.now().getYear();
     }
 
+    // Le tre letture di cella stanno in PoiCells perché le usa anche il parser
+    // degli estratti conto: una sola implementazione, così non divergono.
     private String readString(Cell cell) {
-        if (cell == null || cell.getCellType() != CellType.STRING) return null;
-        String value = cell.getStringCellValue();
-        return value.isBlank() ? null : value;
+        return PoiCells.readString(cell);
     }
 
     private LocalDate readDate(Cell cell) {
-        if (cell == null || cell.getCellType() != CellType.NUMERIC) return null;
-        if (!DateUtil.isCellDateFormatted(cell)) return null;
-        return cell.getLocalDateTimeCellValue().toLocalDate();
+        return PoiCells.readDate(cell);
     }
 
     private BigDecimal readNumeric(Cell cell, FormulaEvaluator evaluator) {
-        if (cell == null) return null;
-        try {
-            CellType type = cell.getCellType();
-            if (type == CellType.NUMERIC && !DateUtil.isCellDateFormatted(cell)) {
-                return BigDecimal.valueOf(cell.getNumericCellValue()).setScale(2, java.math.RoundingMode.HALF_UP);
-            }
-            if (type == CellType.FORMULA) {
-                CellValue value = evaluator.evaluate(cell);
-                if (value != null && value.getCellType() == CellType.NUMERIC) {
-                    return BigDecimal.valueOf(value.getNumberValue()).setScale(2, java.math.RoundingMode.HALF_UP);
-                }
-            }
-        } catch (Exception ignored) {
-            // cella non numerica/non valutabile: trattata come assente
-        }
-        return null;
+        return PoiCells.readNumeric(cell, evaluator);
     }
 
     // XSSFColor.getTheme() ritorna 0 (non null) anche per colori RGB diretti senza

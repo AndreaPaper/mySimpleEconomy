@@ -1,5 +1,6 @@
 package com.spesetracker.model;
 
+import com.spesetracker.model.enums.BankSource;
 import com.spesetracker.model.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -58,11 +59,29 @@ public class Transaction {
     @Column(length = 255)
     private String description;
 
+    // Tracciabilità dell'import bancario. Null su tutto ciò che è stato scritto
+    // a mano: l'impronta serve a riconoscere le righe già importate quando lo
+    // stesso estratto conto viene ripassato aggiornato.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "import_source", length = 30)
+    private BankSource importSource;
+
+    @Column(name = "import_fingerprint", length = 64)
+    private String importFingerprint;
+
+    // Movimento non ancora contabilizzato dalla banca: la sua impronta è
+    // destinata a cambiare quando diventa definitivo, quindi va riabbinato.
+    @Column(name = "import_provisional", nullable = false)
+    private Boolean importProvisional;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = Instant.now();
+        if (this.importProvisional == null) {
+            this.importProvisional = false;
+        }
     }
 }

@@ -1,4 +1,5 @@
 import type { Category, CategorySuggestion } from '../api/types'
+import { categoryOptionLabel, flattenCategoryTree } from '../utils/categoryTree'
 
 const NEW_CATEGORY_VALUE = '__new__'
 
@@ -44,14 +45,14 @@ export default function CategoryPicker({
     <select
       value={encode(existingCategoryId, newCategoryTempId)}
       onChange={handleChange}
-      className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-2 py-1 text-sm text-slate-900 dark:text-white"
+      className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-sm text-slate-900 dark:text-white"
     >
       <option value="">Seleziona categoria...</option>
       {existingCategories.length > 0 && (
         <optgroup label="Categorie esistenti">
-          {existingCategories.map((c) => (
-            <option key={c.id} value={`existing:${c.id}`}>
-              {c.name}
+          {flattenCategoryTree(existingCategories).map((entry) => (
+            <option key={entry.category.id} value={`existing:${entry.category.id}`}>
+              {categoryOptionLabel(entry)}
             </option>
           ))}
         </optgroup>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Category, Debt } from '../api/types'
+import { categoryOptionLabel, flattenCategoryTree } from '../utils/categoryTree'
 
 interface DebtFormProps {
   categories: Category[]
@@ -86,7 +87,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
           placeholder="Es. Debito Papà"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -97,11 +98,11 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
           id="debt-category"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         >
-          {expenseCategories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
+          {flattenCategoryTree(expenseCategories).map((entry) => (
+            <option key={entry.category.id} value={entry.category.id}>
+              {categoryOptionLabel(entry)}
             </option>
           ))}
         </select>
@@ -121,7 +122,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
           required
           value={totalAmount}
           onChange={(e) => setTotalAmount(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -135,7 +136,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
           min="0"
           value={alreadyPaidAmount}
           onChange={(e) => handleAlreadyPaidAmountChange(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
         <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
           Utile solo per un debito che stai già pagando da tempo: lascia vuoto per un debito nuovo.
@@ -152,7 +153,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
             required
             value={alreadyPaidAsOf}
             onChange={(e) => setAlreadyPaidAsOf(e.target.value)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           />
           <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
             Le spese di questa categoria da questa data in poi si sommano al già pagato; quelle precedenti si considerano già incluse.
@@ -170,7 +171,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
           min="0.01"
           value={monthlyPaymentAmount}
           onChange={(e) => setMonthlyPaymentAmount(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
         <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
           Serve solo a stimare quando finirai di pagare, non genera transazioni automatiche.
@@ -183,7 +184,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
         <button
           type="submit"
           disabled={saving}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>

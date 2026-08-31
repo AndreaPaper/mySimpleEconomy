@@ -11,6 +11,7 @@ public record CategoryResponse(
         CategoryType type,
         String color,
         String icon,
+        UUID parentId,
         boolean archived
 ) {
     public static CategoryResponse from(Category category) {
@@ -20,6 +21,7 @@ public record CategoryResponse(
                 category.getType(),
                 category.getColor(),
                 category.getIcon(),
+                category.getParent() != null ? category.getParent().getId() : null,
                 Boolean.TRUE.equals(category.getArchived())
         );
     }

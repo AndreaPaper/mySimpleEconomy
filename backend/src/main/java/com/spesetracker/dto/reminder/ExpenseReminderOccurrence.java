@@ -8,6 +8,9 @@ public record ExpenseReminderOccurrence(
         UUID reminderId,
         String name,
         LocalDate date,
-        BigDecimal amount
+        BigDecimal amount,
+        // true se amount non è il prezzo impostato sul promemoria, ma una stima
+        // presa dall'ultima spesa registrata nella sua categoria.
+        boolean estimated
 ) {
 }

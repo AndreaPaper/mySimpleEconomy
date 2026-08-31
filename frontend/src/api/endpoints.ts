@@ -1,5 +1,11 @@
 import client from './client'
 import type {
+  BankCategoryMappingDto,
+  BankImportCommitRow,
+  BankImportExclusionDto,
+  BankImportPreviewResponse,
+  BankImportResult,
+  BankSource,
   BalanceCheckpoint,
   Category,
   DataCleanupResult,
@@ -32,10 +38,17 @@ export const authApi = {
 
 export const categoriesApi = {
   list: () => client.get<Category[]>('/categories').then((r) => r.data),
-  create: (data: { name: string; type: string; color?: string | null; icon?: string | null }) =>
-    client.post<Category>('/categories', data).then((r) => r.data),
-  update: (id: string, data: { name: string; color?: string | null; icon?: string | null }) =>
-    client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
+  create: (data: {
+    name: string
+    type: string
+    color?: string | null
+    icon?: string | null
+    parentId?: string | null
+  }) => client.post<Category>('/categories', data).then((r) => r.data),
+  update: (
+    id: string,
+    data: { name: string; color?: string | null; icon?: string | null; parentId?: string | null },
+  ) => client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
   archive: (id: string) => client.post(`/categories/${id}/archive`),
   generateDefaults: () => client.post<Category[]>('/categories/generate-defaults').then((r) => r.data),
   delete: (id: string) => client.delete(`/categories/${id}`),
@@ -172,6 +185,8 @@ export const profileApi = {
     defaultSalaryAmount?: number | null
     salaryDay?: number | null
     avatarKey?: string | null
+    savingsEnabled?: boolean
+    savingsPercent?: number | null
   }) => client.put<Profile>('/profile', data).then((r) => r.data),
 }
 
@@ -192,4 +207,26 @@ export const excelImportApi = {
   },
   commit: (data: ExcelImportPreviewResponse) =>
     client.post<ExcelImportResult>('/import/excel/commit', data).then((r) => r.data),
+}
+
+export const bankImportApi = {
+  analyze: (source: BankSource, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return client
+      .post<BankImportPreviewResponse>(`/import/bank/analyze?source=${source}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data)
+  },
+  commit: (data: {
+    source: BankSource
+    rows: BankImportCommitRow[]
+    mappings: BankCategoryMappingDto[]
+    exclusions: BankImportExclusionDto[]
+  }) => client.post<BankImportResult>('/import/bank/commit', data).then((r) => r.data),
+  // Crea in blocco le categorie con i nomi della banca e restituisce le
+  // mappature già risolte.
+  createCategoriesFromBank: (mappings: BankCategoryMappingDto[]) =>
+    client.post<BankCategoryMappingDto[]>('/import/bank/categories/from-bank', mappings).then((r) => r.data),
 }

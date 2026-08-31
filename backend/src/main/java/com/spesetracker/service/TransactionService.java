@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,19 +31,48 @@ public class TransactionService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
 
+    // Estremi di comodo per gli intervalli aperti: fuori da qualsiasi data
+    // plausibile per una transazione, quindi non filtrano nulla.
+    private static final LocalDate OPEN_RANGE_START = LocalDate.of(1900, 1, 1);
+    private static final LocalDate OPEN_RANGE_END = LocalDate.of(2999, 12, 31);
+
     @Transactional(readOnly = true)
     public TransactionPageResponse list(UUID userId, LocalDate from, LocalDate to, UUID categoryId, int page, int size) {
+        // Un intervallo aperto da un lato viene chiuso con una data abbastanza
+        // larga da non escludere nulla, così sotto basta il caso "from e to
+        // presenti". L'alternativa (una query con filtri opzionali) non regge:
+        // Postgres non sa dedurre il tipo di un parametro confrontato solo con
+        // NULL e fallisce con "could not determine data type of parameter".
+        if (from != null || to != null) {
+            if (from == null) from = OPEN_RANGE_START;
+            if (to == null) to = OPEN_RANGE_END;
+        }
+
         if (from != null && to != null) {
-            // Intervallo di date: comportamento invariato, elenco completo non
-            // paginato (usato da Dashboard/Export, che si aspettano tutto lo storico
-            // del periodo, non una pagina).
+            // Con un filtro di date si restituisce l'intervallo completo, non
+            // paginato: Dashboard ed Export si aspettano tutto lo storico del
+            // periodo, e la pagina Transazioni vede l'intervallo scelto in una
+            // volta sola invece che a scaglioni.
             List<Transaction> transactions = (categoryId != null)
                     ? transactionRepository.findByUserIdAndCategoryIdAndOccurredOnBetween(userId, categoryId, from, to)
                     : transactionRepository.findByUserIdAndOccurredOnBetween(userId, from, to);
 
-            return new TransactionPageResponse(transactions.stream().map(TransactionResponse::from).toList(), false);
+            // Le query derivate qui sopra non ordinano: senza questo la pagina
+            // Transazioni spezzerebbe lo stesso mese in più gruppi, perché
+            // raggruppa scorrendo la lista e assume l'ordine decrescente.
+            Comparator<Transaction> mostRecentFirst = Comparator
+                    .<Transaction, LocalDate>comparing(Transaction::getOccurredOn)
+                    .thenComparing(Transaction::getCreatedAt)
+                    .reversed();
+            List<TransactionResponse> ordered = transactions.stream()
+                    .sorted(mostRecentFirst)
+                    .map(TransactionResponse::from)
+                    .toList();
+
+            return new TransactionPageResponse(ordered, false);
         }
 
+        // Nessuna data: elenco paginato dell'archivio.
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "occurredOn", "createdAt"));
         Slice<Transaction> slice = (categoryId != null)
                 ? transactionRepository.findByUserIdAndCategoryId(userId, categoryId, pageable)

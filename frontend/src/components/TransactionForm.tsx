@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { CATEGORY_COLORS } from '../constants/colors'
 import { CATEGORY_ICONS } from '../constants/icons'
 import type { Category, Transaction, TransactionType } from '../api/types'
+import { categoryOptionLabel, flattenCategoryTree } from '../utils/categoryTree'
 
 const NEW_CATEGORY_VALUE = '__new__'
 
@@ -105,7 +106,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             onClick={() => handleTypeChange('EXPENSE')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'EXPENSE'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -116,7 +117,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             onClick={() => handleTypeChange('INCOME')}
             className={`flex-1 rounded border px-3 py-2 text-sm font-medium ${
               type === 'INCOME'
-                ? 'border-green-600 bg-green-600 text-white'
+                ? 'border-brand-700 bg-brand-700 text-white'
                 : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
@@ -141,7 +142,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
                 autoFocus
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+                className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
               />
             </div>
             <div>
@@ -189,7 +190,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
                 type="button"
                 onClick={handleCreateCategory}
                 disabled={creatingCategorySaving || !newCategoryName.trim()}
-                className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                className="rounded bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
               >
                 {creatingCategorySaving ? 'Creazione...' : 'Crea categoria'}
               </button>
@@ -203,7 +204,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             <button
               type="button"
               onClick={() => handleCategorySelectChange(NEW_CATEGORY_VALUE)}
-              className="shrink-0 text-sm font-medium text-green-600 hover:underline"
+              className="shrink-0 text-sm font-medium text-brand-700 hover:underline"
             >
               + Nuova categoria
             </button>
@@ -213,11 +214,11 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
             id="category"
             value={categoryId}
             onChange={(e) => handleCategorySelectChange(e.target.value)}
-            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+            className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
           >
-            {categoriesForType.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            {flattenCategoryTree(categoriesForType).map((entry) => (
+              <option key={entry.category.id} value={entry.category.id}>
+                {categoryOptionLabel(entry)}
               </option>
             ))}
             <option value={NEW_CATEGORY_VALUE}>+ Nuova categoria...</option>
@@ -236,7 +237,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
           required
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -249,7 +250,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
           required
           value={occurredOn}
           onChange={(e) => setOccurredOn(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div>
@@ -260,7 +261,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
       </div>
       <div className="flex justify-end gap-2 pt-2">
@@ -270,7 +271,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
         <button
           type="submit"
           disabled={saving || creatingCategory || !categoryId}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>

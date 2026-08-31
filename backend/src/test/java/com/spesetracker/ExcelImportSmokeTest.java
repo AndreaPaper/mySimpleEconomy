@@ -1,5 +1,7 @@
 package com.spesetracker;
 
+import com.spesetracker.support.AbstractIntegrationTest;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.poi.ss.usermodel.*;
@@ -7,8 +9,6 @@ import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,9 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // riproduce la struttura reale scoperta nel file dell'utente (tabelle Fisse/Non
 // Fisse, legenda colore per riga, foglio Stima con saldo) - non usa il file reale
 // dell'utente, che non esiste fuori dalla sua macchina.
-@SpringBootTest
-@AutoConfigureMockMvc
-class ExcelImportSmokeTest {
+class ExcelImportSmokeTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

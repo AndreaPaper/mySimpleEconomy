@@ -30,9 +30,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-green-100 via-green-50 to-white px-4 dark:from-green-950 dark:via-black dark:to-black">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-brand-100 px-4 dark:bg-black">
       <img src={logo} alt="MySimpleEconomy" className="h-16 w-16" />
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-black">
+      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-brand-300 p-6 shadow-sm dark:border-slate-800 dark:bg-black">
         <h1 className="text-xl font-semibold dark:text-white">Accedi a MySimpleEconomy</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div>
@@ -60,12 +60,12 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="w-full rounded bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
           {loading ? 'Accesso in corso...' : 'Accedi'}
         </button>
         <p className="text-center text-sm text-slate-600 dark:text-slate-300">
-          Non hai un account? <Link to="/register" className="text-green-600">Registrati</Link>
+          Non hai un account? <Link to="/register" className="text-brand-700">Registrati</Link>
         </p>
       </form>
     </div>

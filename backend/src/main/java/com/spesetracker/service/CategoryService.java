@@ -50,6 +50,9 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
 
+    // readOnly per tenere aperta la sessione: CategoryResponse.from legge
+    // category.getParent(), che è LAZY, e open-in-view è disattivato.
+    @Transactional(readOnly = true)
     public List<CategoryResponse> list(UUID userId) {
         return categoryRepository.findByUserIdAndArchivedFalse(userId).stream()
                 .map(CategoryResponse::from)
@@ -68,6 +71,7 @@ public class CategoryService {
                 .type(request.type())
                 .color(request.color())
                 .icon(request.icon())
+                .parent(resolveParent(userId, request.parentId(), request.type()))
                 .build();
 
         return CategoryResponse.from(categoryRepository.save(category));
@@ -82,11 +86,48 @@ public class CategoryService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Esiste già una categoria con questo nome");
         }
 
+        if (request.parentId() != null) {
+            if (request.parentId().equals(categoryId)) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Una categoria non può essere sottocategoria di se stessa");
+            }
+            // Se ha già dei figli, agganciarla a un padre creerebbe un terzo
+            // livello (nonno → padre → figlio), che non è supportato.
+            if (categoryRepository.existsByParentId(categoryId)) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Questa categoria ha già delle sottocategorie: non può diventare a sua volta una sottocategoria");
+            }
+        }
+
         category.setName(request.name());
         category.setColor(request.color());
         category.setIcon(request.icon());
+        category.setParent(resolveParent(userId, request.parentId(), category.getType()));
 
         return CategoryResponse.from(category);
+    }
+
+    // Risolve e valida la categoria padre: deve appartenere all'utente, avere
+    // lo stesso tipo (una spesa non può stare sotto un'entrata) e non essere
+    // essa stessa una sottocategoria — la gerarchia è a un solo livello.
+    private Category resolveParent(UUID userId, UUID parentId, CategoryType childType) {
+        if (parentId == null) {
+            return null;
+        }
+
+        Category parent = findOwned(userId, parentId);
+
+        if (parent.getType() != childType) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "La sottocategoria deve essere dello stesso tipo della categoria padre");
+        }
+        if (parent.getParent() != null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Una sottocategoria non può contenere altre sottocategorie");
+        }
+
+        return parent;
     }
 
     // Find-or-create per nome (come ExcelImportCommitService.createCategories):
@@ -120,6 +161,13 @@ public class CategoryService {
     public void archive(UUID userId, UUID categoryId) {
         Category category = findOwned(userId, categoryId);
         category.setArchived(true);
+
+        // Archiviando un padre si archiviano anche i suoi figli: altrimenti
+        // ricomparirebbero in elenco come categorie principali, staccate dal
+        // contesto che li spiegava.
+        for (Category child : categoryRepository.findByParentId(categoryId)) {
+            child.setArchived(true);
+        }
     }
 
     // Eliminazione definitiva, distinta dall'archiviazione: possibile solo se
@@ -137,7 +185,7 @@ public class CategoryService {
         } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Categoria in uso (transazioni, ricorrenze, debiti o promemoria collegati): archiviala invece di eliminarla");
+                    "Categoria in uso (sottocategorie, transazioni, ricorrenze, debiti o promemoria collegati): archiviala invece di eliminarla");
         }
     }
 

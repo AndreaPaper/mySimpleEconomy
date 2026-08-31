@@ -4,6 +4,7 @@ import com.spesetracker.dto.recurring.RecurringOverrideRequest;
 import com.spesetracker.dto.recurring.RecurringOverrideResponse;
 import com.spesetracker.dto.recurring.RecurringTransactionRequest;
 import com.spesetracker.dto.recurring.RecurringTransactionResponse;
+import com.spesetracker.job.RecurringTransactionGenerationService;
 import com.spesetracker.model.Category;
 import com.spesetracker.model.RecurringOverride;
 import com.spesetracker.model.RecurringTransaction;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +30,7 @@ public class RecurringTransactionService {
     private final RecurringOverrideRepository recurringOverrideRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final RecurringTransactionGenerationService generationService;
 
     @Transactional(readOnly = true)
     public List<RecurringTransactionResponse> list(UUID userId) {
@@ -52,7 +55,12 @@ public class RecurringTransactionService {
                 .endDate(request.endDate())
                 .build();
 
-        return RecurringTransactionResponse.from(recurringTransactionRepository.save(rt));
+        recurringTransactionRepository.save(rt);
+        // Genera subito le occorrenze già dovute (es. data di inizio nel
+        // passato), invece di aspettare il job notturno delle 05:00.
+        generationService.processDueRule(rt.getId(), LocalDate.now());
+
+        return RecurringTransactionResponse.from(rt);
     }
 
     @Transactional
@@ -68,6 +76,8 @@ public class RecurringTransactionService {
         rt.setStartDate(request.startDate());
         rt.setNextDueDate(request.nextDueDate());
         rt.setEndDate(request.endDate());
+
+        generationService.processDueRule(rt.getId(), LocalDate.now());
 
         return RecurringTransactionResponse.from(rt);
     }

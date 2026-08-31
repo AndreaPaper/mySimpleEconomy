@@ -1,5 +1,6 @@
 package com.spesetracker.security;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -70,6 +71,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Quando un controller risponde con un errore, Spring Boot fa un
+                        // forward interno a /error per costruirne il corpo. Senza questa
+                        // riga quel forward ripassa dalla catena di sicurezza senza
+                        // autenticazione nel contesto, e ogni 400/404/409 arrivava al
+                        // client come un 401 con corpo vuoto, nascondendo il messaggio.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/auth/**", "/api/ping").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

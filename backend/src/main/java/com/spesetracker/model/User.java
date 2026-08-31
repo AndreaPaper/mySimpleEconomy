@@ -49,11 +49,23 @@ public class User {
     @JoinColumn(name = "salary_recurring_transaction_id")
     private RecurringTransaction salaryRecurringTransaction;
 
+    // Sezione risparmio (opt-in): quota delle entrate da mettere da parte,
+    // espressa in percentuale così si ricalcola da sola al variare delle
+    // entrate. Resta memorizzata anche a sezione spenta.
+    @Column(name = "savings_enabled", nullable = false)
+    private Boolean savingsEnabled;
+
+    @Column(name = "savings_percent")
+    private Short savingsPercent;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = Instant.now();
+        if (this.savingsEnabled == null) {
+            this.savingsEnabled = false;
+        }
     }
 }

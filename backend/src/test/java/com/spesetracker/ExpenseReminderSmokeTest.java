@@ -1,16 +1,18 @@
 package com.spesetracker;
 
+import com.spesetracker.support.AbstractIntegrationTest;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,9 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // Promemoria di spesa fissa senza importo: crea una regola mensile e verifica che
 // venga proiettata correttamente nei mesi futuri richiesti.
-@SpringBootTest
-@AutoConfigureMockMvc
-class ExpenseReminderSmokeTest {
+class ExpenseReminderSmokeTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -41,14 +41,27 @@ class ExpenseReminderSmokeTest {
                 .andReturn();
         String token = objectMapper.readTree(registerResult.getResponse().getContentAsString()).get("token").asText();
 
+        // Un promemoria richiede sempre una categoria di uscita (ExpenseReminderRequest.categoryId
+        // è @NotNull e il service accetta solo categorie EXPENSE dell'utente), anche quando
+        // l'importo non è noto in anticipo — che è il caso coperto da questo test.
+        MvcResult categoryResult = mockMvc.perform(post("/api/categories")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Assicurazioni","type":"EXPENSE","color":"#3B82F6"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String categoryId = objectMapper.readTree(categoryResult.getResponse().getContentAsString()).get("id").asText();
+
         LocalDate nextDue = LocalDate.now().plusDays(5);
         mockMvc.perform(post("/api/expense-reminders")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"Assicurazione scooter","intervalUnit":"MONTH","intervalValue":1,\
+                                {"categoryId":"%s","name":"Assicurazione scooter","intervalUnit":"MONTH","intervalValue":1,\
                                 "startDate":"%s","nextDueDate":"%s"}
-                                """.formatted(nextDue, nextDue)))
+                                """.formatted(categoryId, nextDue, nextDue)))
                 .andExpect(status().isCreated());
 
         MvcResult upcomingResult = mockMvc.perform(get("/api/expense-reminders/upcoming")
@@ -68,7 +81,17 @@ class ExpenseReminderSmokeTest {
         // almeno 2 volte in un orizzonte di 3 mesi (questo mese + il successivo, a
         // seconda di dove cade esattamente rispetto alla fine del mese corrente).
         assertThat(totalOccurrences).isGreaterThanOrEqualTo(2);
-        assertThat(response.get("months").get(0).get("occurrences").get(0).get("name").asText())
-                .isEqualTo("Assicurazione scooter");
+
+        // In quale mese cada la prima occorrenza dipende dal giorno in cui gira il
+        // test: negli ultimi cinque giorni del mese la scadenza slitta a quello
+        // dopo e il primo mese resta vuoto. Si cerca quindi fra tutti i mesi,
+        // altrimenti la suite si rompe da sola una volta al mese.
+        List<String> names = new ArrayList<>();
+        for (JsonNode month : response.get("months")) {
+            for (JsonNode occurrence : month.get("occurrences")) {
+                names.add(occurrence.get("name").asText());
+            }
+        }
+        assertThat(names).contains("Assicurazione scooter");
     }
 }
