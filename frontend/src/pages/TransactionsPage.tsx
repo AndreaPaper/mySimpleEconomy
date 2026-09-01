@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Pencil, Plus, Search, SlidersHorizontal, Tag, Trash2 } from 'lucide-react'
+import { Download, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
 import type { Category, Transaction, TransactionType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import DateRangePicker from '../components/DateRangePicker'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
+import CategoryCombobox from '../components/CategoryCombobox'
 import { getCategoryIcon } from '../constants/icons'
 import { TransactionsPageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
@@ -351,21 +352,15 @@ export default function TransactionsPage() {
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="tx-category-filter">
           Categoria
         </label>
-        <select
-          id="tx-category-filter"
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className={`rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white ${
-            isMobile ? 'w-full' : 'w-full max-w-xs'
-          }`}
-        >
-          <option value="">Tutte le categorie</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div className={isMobile ? 'w-full' : 'w-full max-w-xs'}>
+          <CategoryCombobox
+            id="tx-category-filter"
+            categories={categories}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            extraOptions={[{ value: '', label: 'Tutte le categorie' }]}
+          />
+        </div>
       </div>
 
       {/* max/min incrociati: il browser impedisce di comporre un intervallo
@@ -445,26 +440,15 @@ export default function TransactionsPage() {
             ))}
           </div>
 
-          {/* Stesso <select> di sempre, solo rivestito da pillola e icona:
-              il menu nativo resta quello che tastiera e lettore di schermo
-              già sanno usare. */}
-          <div className="relative shrink-0">
-            <Tag className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-            <select
-              id="tx-category-filter"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              aria-label="Categoria"
-              className="appearance-none rounded-full border border-slate-300 bg-brand-300 py-2 pl-9 pr-8 text-sm text-slate-600 dark:border-slate-700 dark:bg-black dark:text-slate-300"
-            >
-              <option value="">Categoria</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CategoryCombobox
+            id="tx-category-filter"
+            variant="pill"
+            ariaLabel="Categoria"
+            categories={categories}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            extraOptions={[{ value: '', label: 'Categoria' }]}
+          />
 
           <DateRangePicker from={dateFrom} to={dateTo} onApply={(f, t) => { setDateFrom(f); setDateTo(t) }} />
 

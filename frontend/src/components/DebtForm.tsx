@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Category, Debt } from '../api/types'
-import { categoryOptionLabel, flattenCategoryTree } from '../utils/categoryTree'
+import CategoryCombobox from './CategoryCombobox'
 
 interface DebtFormProps {
   categories: Category[]
@@ -94,18 +94,12 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="debt-category">
           Categoria
         </label>
-        <select
+        <CategoryCombobox
           id="debt-category"
+          categories={expenseCategories}
           value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-        >
-          {flattenCategoryTree(expenseCategories).map((entry) => (
-            <option key={entry.category.id} value={entry.category.id}>
-              {categoryOptionLabel(entry)}
-            </option>
-          ))}
-        </select>
+          onChange={setCategoryId}
+        />
         <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
           Ogni spesa registrata con questa categoria verrà conteggiata come pagamento di questo debito.
         </span>

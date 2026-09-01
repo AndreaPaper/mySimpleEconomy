@@ -1,7 +1,10 @@
 import type { Category, CategorySuggestion } from '../api/types'
-import { categoryOptionLabel, flattenCategoryTree } from '../utils/categoryTree'
+import CategoryCombobox from './CategoryCombobox'
 
-const NEW_CATEGORY_VALUE = '__new__'
+// Le categorie che l'import propone di creare non esistono ancora, quindi non
+// hanno un id: viaggiano con un tempId, e nel menu stanno accanto a quelle
+// vere. Il prefisso tiene distinte le due famiglie in un unico valore.
+const NEW_PREFIX = 'new:'
 
 interface CategoryPickerProps {
   existingCategories: Category[]
@@ -12,12 +15,6 @@ interface CategoryPickerProps {
   onRequestNewCategory: () => void
 }
 
-function encode(existingCategoryId: string | null, newCategoryTempId: string | null): string {
-  if (existingCategoryId) return `existing:${existingCategoryId}`
-  if (newCategoryTempId) return `new:${newCategoryTempId}`
-  return ''
-}
-
 export default function CategoryPicker({
   existingCategories,
   newCategorySuggestions,
@@ -26,47 +23,31 @@ export default function CategoryPicker({
   onChange,
   onRequestNewCategory,
 }: CategoryPickerProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value
-    if (value === NEW_CATEGORY_VALUE) {
-      onRequestNewCategory()
+  const value = existingCategoryId ?? (newCategoryTempId ? `${NEW_PREFIX}${newCategoryTempId}` : '')
+
+  const handleChange = (next: string) => {
+    if (next.startsWith(NEW_PREFIX)) {
+      onChange({ existingCategoryId: null, newCategoryTempId: next.slice(NEW_PREFIX.length) })
       return
     }
-    if (value.startsWith('existing:')) {
-      onChange({ existingCategoryId: value.slice('existing:'.length), newCategoryTempId: null })
-    } else if (value.startsWith('new:')) {
-      onChange({ existingCategoryId: null, newCategoryTempId: value.slice('new:'.length) })
-    } else {
-      onChange({ existingCategoryId: null, newCategoryTempId: null })
-    }
+    onChange({ existingCategoryId: next || null, newCategoryTempId: null })
   }
 
   return (
-    <select
-      value={encode(existingCategoryId, newCategoryTempId)}
-      onChange={handleChange}
-      className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-sm text-slate-900 dark:text-white"
-    >
-      <option value="">Seleziona categoria...</option>
-      {existingCategories.length > 0 && (
-        <optgroup label="Categorie esistenti">
-          {flattenCategoryTree(existingCategories).map((entry) => (
-            <option key={entry.category.id} value={`existing:${entry.category.id}`}>
-              {categoryOptionLabel(entry)}
-            </option>
-          ))}
-        </optgroup>
-      )}
-      {newCategorySuggestions.length > 0 && (
-        <optgroup label="Nuove categorie (da questa importazione)">
-          {newCategorySuggestions.map((c) => (
-            <option key={c.tempId} value={`new:${c.tempId}`}>
-              {c.name}
-            </option>
-          ))}
-        </optgroup>
-      )}
-      <option value={NEW_CATEGORY_VALUE}>+ Nuova categoria...</option>
-    </select>
+    <div className="w-56 shrink-0">
+      <CategoryCombobox
+        categories={existingCategories}
+        value={value}
+        onChange={handleChange}
+        onCreateNew={onRequestNewCategory}
+        placeholder="Seleziona categoria..."
+        extraOptions={newCategorySuggestions.map((c) => ({
+          value: `${NEW_PREFIX}${c.tempId}`,
+          label: c.name,
+          color: c.color,
+          hint: 'nuova',
+        }))}
+      />
+    </div>
   )
 }

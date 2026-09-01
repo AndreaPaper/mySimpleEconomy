@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { bankImportApi } from '../api/endpoints'
 import FilePicker from './FilePicker'
+import CategoryCombobox from './CategoryCombobox'
 import type {
   BankCategoryMappingDto,
   BankImportExclusionDto,
@@ -392,25 +393,20 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                       {decidedByRow > 0 && ` · ${decidedByRow} decisi singolarmente`}
                     </p>
                   </div>
-                  <select
-                    value={m.doNotImport ? 'skip' : (m.categoryId ?? '')}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setMapping(i, {
-                        doNotImport: value === 'skip',
-                        categoryId: value === 'skip' || value === '' ? null : value,
-                      })
-                    }}
-                    className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-                  >
-                    <option value="">Scegli...</option>
-                    {categoryOptions.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                    <option value="skip">Non importare</option>
-                  </select>
+                  <div className="w-56 shrink-0">
+                    <CategoryCombobox
+                      categories={categoryOptions}
+                      value={m.doNotImport ? 'skip' : (m.categoryId ?? '')}
+                      onChange={(value) =>
+                        setMapping(i, {
+                          doNotImport: value === 'skip',
+                          categoryId: value === 'skip' || value === '' ? null : value,
+                        })
+                      }
+                      placeholder="Scegli..."
+                      extraOptions={[{ value: 'skip', label: 'Non importare' }]}
+                    />
+                  </div>
                 </div>
 
                 {mappingRows.length > 0 && (
@@ -448,24 +444,23 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                               <p className="truncate text-xs text-slate-400 dark:text-slate-500">{row.rawDetails}</p>
                             )}
                           </div>
-                          <select
-                            value={rowCategories.get(row.rowNumber) ?? ''}
-                            onChange={(e) => setRowCategory(row.rowNumber, e.target.value || null)}
-                            className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-xs text-slate-900 dark:text-white"
-                          >
-                            <option value="">
-                              {m.doNotImport
-                                ? 'Come sopra (non importare)'
-                                : m.categoryId
-                                  ? `Come sopra (${categoryName(m.categoryId)})`
-                                  : 'Come sopra (da scegliere)'}
-                            </option>
-                            {categoryOptions.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="w-52 shrink-0">
+                            <CategoryCombobox
+                              categories={categoryOptions}
+                              value={rowCategories.get(row.rowNumber) ?? ''}
+                              onChange={(value) => setRowCategory(row.rowNumber, value || null)}
+                              extraOptions={[
+                                {
+                                  value: '',
+                                  label: m.doNotImport
+                                    ? 'Come sopra (non importare)'
+                                    : m.categoryId
+                                      ? `Come sopra (${categoryName(m.categoryId)})`
+                                      : 'Come sopra (da scegliere)',
+                                },
+                              ]}
+                            />
+                          </div>
                         </li>
                       ))}
                     </ul>

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { CATEGORY_COLORS } from '../constants/colors'
 import { CATEGORY_ICONS } from '../constants/icons'
 import type { Category, CategoryType } from '../api/types'
+import CategoryCombobox from './CategoryCombobox'
 
 interface CategoryFormProps {
   initial?: Category
@@ -102,19 +103,13 @@ export default function CategoryForm({ initial, categories, onSubmit, onCancel }
           </p>
         ) : (
           <>
-            <select
+            <CategoryCombobox
               id="parent"
+              categories={parentOptions}
               value={parentId ?? ''}
-              onChange={(e) => setParentId(e.target.value || null)}
-              className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-            >
-              <option value="">— Nessuna (categoria principale) —</option>
-              {parentOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setParentId(v || null)}
+              extraOptions={[{ value: '', label: '— Nessuna (categoria principale) —' }]}
+            />
             <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
               Scegliendo un padre, questa diventa una sua sottocategoria (es. "Supermercato" sotto "Alimentari") e le
               sue spese confluiscono nel totale del padre in Dashboard.
