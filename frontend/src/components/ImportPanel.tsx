@@ -15,21 +15,6 @@ import FilePicker from './FilePicker'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
-function categoryLabel(
-  existingCategoryId: string | null,
-  newCategoryTempId: string | null,
-  existingCategories: Category[],
-  newCategorySuggestions: CategorySuggestion[],
-): string {
-  if (existingCategoryId) {
-    return existingCategories.find((c) => c.id === existingCategoryId)?.name ?? '—'
-  }
-  if (newCategoryTempId) {
-    return newCategorySuggestions.find((c) => c.tempId === newCategoryTempId)?.name ?? '—'
-  }
-  return '—'
-}
-
 // I due formati non hanno niente in comune se non l'essere .xlsx: il diario
 // spese è un foglio per mese scritto a mano, l'estratto conto una tabella di
 // movimenti. Sceglierlo qui evita di doverli riconoscere a naso, che con un
@@ -52,7 +37,14 @@ export default function ImportPanel() {
   const [committing, setCommitting] = useState(false)
   const [result, setResult] = useState<ExcelImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [newCategoryTarget, setNewCategoryTarget] = useState<number | null>(null)
+  // Sia le regole ricorrenti che le transazioni singole arrivano dall'analisi
+  // già con una categoria assegnata (esistente per nome o una nuova suggerita
+  // in automatico): "list" dice quale dei due elenchi del preview aggiornare
+  // quando l'utente sceglie di sostituirla con un'altra, invece di tenersi
+  // per forza quella indovinata.
+  const [newCategoryTarget, setNewCategoryTarget] = useState<{ list: 'oneOff' | 'recurring'; index: number } | null>(
+    null,
+  )
 
   const reloadCategories = () => {
     categoriesApi.list().then(setExistingCategories)
@@ -81,6 +73,13 @@ export default function ImportPanel() {
     setPreview({ ...preview, oneOffTransactions })
   }
 
+  const updateRecurring = (index: number, value: { existingCategoryId: string | null; newCategoryTempId: string | null }) => {
+    if (!preview) return
+    const recurringTransactions = [...preview.recurringTransactions]
+    recurringTransactions[index] = { ...recurringTransactions[index], ...value }
+    setPreview({ ...preview, recurringTransactions })
+  }
+
   const handleNewCategoryCreated = (suggestion: {
     name: string
     type: 'INCOME' | 'EXPENSE'
@@ -90,17 +89,17 @@ export default function ImportPanel() {
     if (!preview || newCategoryTarget === null) return Promise.resolve()
     const tempId = `new-manual-${Date.now()}`
     const newSuggestion: CategorySuggestion = { tempId, name: suggestion.name, type: suggestion.type, color: suggestion.color }
-    const oneOffTransactions = [...preview.oneOffTransactions]
-    oneOffTransactions[newCategoryTarget] = {
-      ...oneOffTransactions[newCategoryTarget],
-      existingCategoryId: null,
-      newCategoryTempId: tempId,
+    const newCategorySuggestions = [...preview.newCategorySuggestions, newSuggestion]
+    const value = { existingCategoryId: null, newCategoryTempId: tempId }
+    if (newCategoryTarget.list === 'oneOff') {
+      const oneOffTransactions = [...preview.oneOffTransactions]
+      oneOffTransactions[newCategoryTarget.index] = { ...oneOffTransactions[newCategoryTarget.index], ...value }
+      setPreview({ ...preview, newCategorySuggestions, oneOffTransactions })
+    } else {
+      const recurringTransactions = [...preview.recurringTransactions]
+      recurringTransactions[newCategoryTarget.index] = { ...recurringTransactions[newCategoryTarget.index], ...value }
+      setPreview({ ...preview, newCategorySuggestions, recurringTransactions })
     }
-    setPreview({
-      ...preview,
-      newCategorySuggestions: [...preview.newCategorySuggestions, newSuggestion],
-      oneOffTransactions,
-    })
     setNewCategoryTarget(null)
     return Promise.resolve()
   }
@@ -254,16 +253,21 @@ export default function ImportPanel() {
             {preview.recurringTransactions.length === 0 ? (
               <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna.</p>
             ) : (
-              <ul className="space-y-1 text-sm">
+              <ul className="space-y-2 text-sm">
                 {preview.recurringTransactions.map((r, i) => (
-                  <li key={i} className="flex items-center justify-between">
-                    <span>
-                      {r.name} <span className="text-slate-400 dark:text-slate-500">· {r.occurrenceCount} fogli</span>
+                  <li key={i} className="flex items-center justify-between gap-2">
+                    <span className="truncate">
+                      {r.name} <span className="text-slate-400 dark:text-slate-500">· {r.occurrenceCount} fogli</span> ·{' '}
+                      {currency.format(r.amount)}
                     </span>
-                    <span>
-                      {currency.format(r.amount)} ·{' '}
-                      {categoryLabel(r.existingCategoryId, r.newCategoryTempId, existingCategories, preview.newCategorySuggestions)}
-                    </span>
+                    <CategoryPicker
+                      existingCategories={existingCategories}
+                      newCategorySuggestions={preview.newCategorySuggestions}
+                      existingCategoryId={r.existingCategoryId}
+                      newCategoryTempId={r.newCategoryTempId}
+                      onChange={(value) => updateRecurring(i, value)}
+                      onRequestNewCategory={() => setNewCategoryTarget({ list: 'recurring', index: i })}
+                    />
                   </li>
                 ))}
               </ul>
@@ -278,20 +282,14 @@ export default function ImportPanel() {
                   <span className="truncate">
                     {t.occurredOn} · {t.name} · {currency.format(t.amount)}
                   </span>
-                  {t.existingCategoryId || t.newCategoryTempId ? (
-                    <span className="whitespace-nowrap text-slate-500 dark:text-slate-400">
-                      {categoryLabel(t.existingCategoryId, t.newCategoryTempId, existingCategories, preview.newCategorySuggestions)}
-                    </span>
-                  ) : (
-                    <CategoryPicker
-                      existingCategories={existingCategories}
-                      newCategorySuggestions={preview.newCategorySuggestions}
-                      existingCategoryId={t.existingCategoryId}
-                      newCategoryTempId={t.newCategoryTempId}
-                      onChange={(value) => updateOneOff(i, value)}
-                      onRequestNewCategory={() => setNewCategoryTarget(i)}
-                    />
-                  )}
+                  <CategoryPicker
+                    existingCategories={existingCategories}
+                    newCategorySuggestions={preview.newCategorySuggestions}
+                    existingCategoryId={t.existingCategoryId}
+                    newCategoryTempId={t.newCategoryTempId}
+                    onChange={(value) => updateOneOff(i, value)}
+                    onRequestNewCategory={() => setNewCategoryTarget({ list: 'oneOff', index: i })}
+                  />
                 </li>
               ))}
             </ul>
