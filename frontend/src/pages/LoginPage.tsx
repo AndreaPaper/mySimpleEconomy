@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import PasswordInput from '../components/PasswordInput'
 import logo from '../assets/mySimpleEconomyIcon.png'
 
 export default function LoginPage() {
@@ -48,14 +49,7 @@ export default function LoginPage() {
         </div>
         <div>
           <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-black dark:text-white"
-          />
+          <PasswordInput id="password" required value={password} onChange={setPassword} />
         </div>
         <button
           type="submit"
