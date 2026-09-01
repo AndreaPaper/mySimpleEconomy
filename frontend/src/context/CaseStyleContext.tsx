@@ -10,7 +10,7 @@ interface CaseStyleContextValue {
 const CaseStyleContext = createContext<CaseStyleContextValue | undefined>(undefined)
 
 function getInitialCaseStyle(): CaseStyle {
-  return localStorage.getItem('caseStyle') === 'mixed' ? 'mixed' : 'uppercase'
+  return localStorage.getItem('caseStyle') === 'uppercase' ? 'uppercase' : 'mixed'
 }
 
 export function CaseStyleProvider({ children }: { children: ReactNode }) {
