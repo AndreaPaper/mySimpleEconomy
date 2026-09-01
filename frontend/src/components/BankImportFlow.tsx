@@ -88,6 +88,14 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
   // un'esclusione o cambiare una mappatura aggiorni da sé cosa entra, senza
   // cancellare le scelte fatte a mano.
   const [flipped, setFlipped] = useState<Set<number>>(new Set())
+  // Categorie scelte sulla singola riga, che scavalcano quella della categoria
+  // della banca. Servono perché certe categorie della banca sono contenitori e
+  // basta ("Bonifici in uscita" tiene insieme la psicologa e i soldi di un
+  // regalo): senza, l'unica scelta è metterci tutto nella stessa categoria.
+  // Valgono solo per questo import e non diventano una mappatura salvata: la
+  // regola per il futuro resta quella della categoria della banca.
+  const [rowCategories, setRowCategories] = useState<Map<number, string>>(new Map())
+  const [expandedMappings, setExpandedMappings] = useState<Set<string>>(new Set())
   const [mappingDone, setMappingDone] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [committing, setCommitting] = useState(false)
@@ -108,6 +116,8 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
       // gonfierebbero le spese, e chi non le vuole le toglie con un click.
       setAcceptedSuggestions(new Set(response.suggestedExclusions.map((e) => e.pattern)))
       setFlipped(new Set())
+      setRowCategories(new Map())
+      setExpandedMappings(new Set())
     } catch (e) {
       // Il backend spiega cosa non va nel file (formato sbagliato, tabella non
       // trovata): il suo messaggio è più utile di uno generico.
@@ -141,12 +151,19 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
       if (row.outcome === 'GIA_IMPORTATA') return row
       // La categoria si assegna anche alle righe escluse: se l'utente decide di
       // includerne una, deve poter entrare senza tornare alla mappatura.
-      const withCategory = { ...row, categoryId: mapping?.categoryId ?? row.categoryId }
+      const override = rowCategories.get(row.rowNumber)
+      const withCategory = { ...row, categoryId: override ?? mapping?.categoryId ?? row.categoryId }
+      // Una scelta fatta sulla singola riga scavalca il "non importare" della
+      // sua categoria della banca: è più specifica, ed è l'unico modo per far
+      // entrare una spesa vera da un gruppo scartato in blocco. Le esclusioni
+      // per testo restano invece valide, perché si decidono dopo la mappatura e
+      // hanno una loro casella per riga nell'anteprima.
+      if (override && !excludedByRule) return withCategory
       return mapping?.doNotImport || excludedByRule
         ? { ...withCategory, outcome: 'ESCLUSA' as BankImportOutcome }
         : withCategory
     })
-  }, [preview, mappings, activeExclusions])
+  }, [preview, mappings, activeExclusions, rowCategories])
 
   const alreadyImported = rows.filter((r) => r.outcome === 'GIA_IMPORTATA')
 
@@ -159,7 +176,24 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
 
   const toImport = rows.filter((r) => r.outcome !== 'GIA_IMPORTATA' && isSelected(r))
   const missingCategory = toImport.filter((r) => !r.categoryId)
-  const mappingsResolved = mappings.every((m) => m.doNotImport || m.categoryId)
+
+  // I movimenti che ricadono sotto una categoria della banca ancora da mappare.
+  // Stesso filtro che il backend usa per contarli (rowCount), così l'elenco che
+  // si apre e il numero scritto accanto dicono la stessa cosa.
+  const rowsOfMapping = (m: BankCategoryMappingDto) =>
+    preview?.rows.filter(
+      (r) =>
+        r.bankCategory === m.bankCategory &&
+        r.type === m.transactionType &&
+        r.outcome !== 'GIA_IMPORTATA' &&
+        r.outcome !== 'ESCLUSA',
+    ) ?? []
+
+  // Una categoria della banca è a posto se ha una scelta valida per tutte le
+  // sue righe: quella "padre", oppure una riga per riga.
+  const isMappingResolved = (m: BankCategoryMappingDto) =>
+    m.doNotImport || !!m.categoryId || rowsOfMapping(m).every((r) => rowCategories.has(r.rowNumber))
+  const mappingsResolved = mappings.every(isMappingResolved)
 
   const toggleRow = (rowNumber: number) => {
     setFlipped((prev) => {
@@ -186,6 +220,24 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
 
   const setMapping = (index: number, value: Partial<BankCategoryMappingDto>) => {
     setMappings((prev) => prev.map((m, i) => (i === index ? { ...m, ...value } : m)))
+  }
+
+  const setRowCategory = (rowNumber: number, categoryId: string | null) => {
+    setRowCategories((prev) => {
+      const next = new Map(prev)
+      if (categoryId) next.set(rowNumber, categoryId)
+      else next.delete(rowNumber)
+      return next
+    })
+  }
+
+  const toggleExpanded = (key: string) => {
+    setExpandedMappings((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
   const handleCreateBankCategories = async () => {
@@ -301,7 +353,8 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
           <h2 className="font-medium dark:text-white">A quali tue categorie corrispondono?</h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            La banca usa categorie sue. Scegli una volta sola: dagli import successivi non te lo chiederò più.
+            La banca usa categorie sue. Scegli una volta sola: dagli import successivi non te lo chiederò più. Se una
+            categoria della banca mette insieme spese diverse, aprila e assegna una categoria ai singoli movimenti.
           </p>
           <button
             type="button"
@@ -316,42 +369,111 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <ul className="space-y-2">
-          {mappings.map((m, i) => (
-            <li
-              key={`${m.bankCategory}-${m.transactionType}`}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="font-medium dark:text-white">{m.bankCategory}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {m.transactionType === 'INCOME' ? 'Entrata' : 'Uscita'} · {m.rowCount}{' '}
-                  {m.rowCount === 1 ? 'movimento' : 'movimenti'}
-                  {m.sampleDescription ? ` · es. ${m.sampleDescription}` : ''}
-                </p>
-              </div>
-              <select
-                value={m.doNotImport ? 'skip' : (m.categoryId ?? '')}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setMapping(i, {
-                    doNotImport: value === 'skip',
-                    categoryId: value === 'skip' || value === '' ? null : value,
-                  })
-                }}
-                className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          {mappings.map((m, i) => {
+            const key = `${m.bankCategory}-${m.transactionType}`
+            const categoryOptions = categories.filter((c) =>
+              m.transactionType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE',
+            )
+            const mappingRows = rowsOfMapping(m)
+            const isExpanded = expandedMappings.has(key)
+            const decidedByRow = mappingRows.filter((r) => rowCategories.has(r.rowNumber)).length
+
+            return (
+              <li
+                key={key}
+                className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black px-4 py-3"
               >
-                <option value="">Scegli...</option>
-                {categories
-                  .filter((c) => (m.transactionType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE'))
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                <option value="skip">Non importare</option>
-              </select>
-            </li>
-          ))}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium dark:text-white">{m.bankCategory}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {m.transactionType === 'INCOME' ? 'Entrata' : 'Uscita'} · {m.rowCount}{' '}
+                      {m.rowCount === 1 ? 'movimento' : 'movimenti'}
+                      {decidedByRow > 0 && ` · ${decidedByRow} decisi singolarmente`}
+                    </p>
+                  </div>
+                  <select
+                    value={m.doNotImport ? 'skip' : (m.categoryId ?? '')}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setMapping(i, {
+                        doNotImport: value === 'skip',
+                        categoryId: value === 'skip' || value === '' ? null : value,
+                      })
+                    }}
+                    className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+                  >
+                    <option value="">Scegli...</option>
+                    {categoryOptions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                    <option value="skip">Non importare</option>
+                  </select>
+                </div>
+
+                {mappingRows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(key)}
+                    className="mt-2 text-xs text-brand-700 hover:underline"
+                  >
+                    {isExpanded
+                      ? 'Nascondi i movimenti'
+                      : `Vedi i ${mappingRows.length} ${mappingRows.length === 1 ? 'movimento' : 'movimenti'}`}
+                  </button>
+                )}
+
+                {isExpanded && (
+                  <div className="mt-2 border-t border-slate-200 dark:border-slate-800 pt-2">
+                    <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                      Ogni movimento segue la categoria scelta qui sopra, a meno che tu non gliene dia una sua. Le
+                      scelte singole valgono solo per questo import.
+                    </p>
+                    <ul className="max-h-80 space-y-2 overflow-y-auto">
+                      {mappingRows.map((row) => (
+                        <li key={row.rowNumber} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate dark:text-white">{row.description}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {row.occurredOn} · {row.type === 'INCOME' ? '+' : '-'}
+                              {currency.format(row.amount)}
+                            </p>
+                            {/* La descrizione viene dalla colonna Operazione, che sui
+                                bonifici è spesso solo "Bonifico": senza i dettagli
+                                grezzi le righe da distinguere sarebbero identiche, e
+                                sceglierne la categoria una per una diventa un indovinello. */}
+                            {row.rawDetails && row.rawDetails.trim() !== row.description.trim() && (
+                              <p className="truncate text-xs text-slate-400 dark:text-slate-500">{row.rawDetails}</p>
+                            )}
+                          </div>
+                          <select
+                            value={rowCategories.get(row.rowNumber) ?? ''}
+                            onChange={(e) => setRowCategory(row.rowNumber, e.target.value || null)}
+                            className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-2 py-1 text-xs text-slate-900 dark:text-white"
+                          >
+                            <option value="">
+                              {m.doNotImport
+                                ? 'Come sopra (non importare)'
+                                : m.categoryId
+                                  ? `Come sopra (${categoryName(m.categoryId)})`
+                                  : 'Come sopra (da scegliere)'}
+                            </option>
+                            {categoryOptions.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
 
         <div className="flex gap-2">
@@ -369,7 +491,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
         </div>
         {!mappingsResolved && (
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Manca ancora una scelta per {mappings.filter((m) => !m.doNotImport && !m.categoryId).length} categorie.
+            Manca ancora una scelta per {mappings.filter((m) => !isMappingResolved(m)).length} categorie.
           </p>
         )}
       </div>
