@@ -1,12 +1,14 @@
 package com.spesetracker.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spesetracker.service.EmailNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -39,6 +41,20 @@ public abstract class AbstractIntegrationTest {
     static {
         POSTGRES.start();
     }
+
+    /**
+     * L'unico bean finto della suite, e per un motivo preciso: il costruttore di
+     * {@link EmailNotificationService} costruisce subito un {@code RestClient} verso l'API di
+     * Resend, quindi Spring deve creare il bean {@code RestClient.Builder} — e su una macchina
+     * dove la JVM non riesce ad aprire un socket di loopback quello fallisce, il context non si
+     * carica e l'intera suite va in errore prima di iniziare.
+     *
+     * <p>Non è un aggiramento: un test non deve costruire un client verso un servizio esterno.
+     * Così la suite smette anche di dipendere dalla configurazione di rete della macchina.
+     * Tutto il resto continua a passare dall'API pubblica, senza mock.
+     */
+    @MockitoBean
+    protected EmailNotificationService emailNotificationService;
 
     @Autowired
     protected MockMvc mockMvc;
