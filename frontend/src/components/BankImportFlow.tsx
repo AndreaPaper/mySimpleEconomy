@@ -2,9 +2,16 @@ import { useMemo, useState } from 'react'
 import { bankImportApi } from '../api/endpoints'
 import FilePicker from './FilePicker'
 import CategoryCombobox from './CategoryCombobox'
+import {
+  activeExclusions,
+  applyDecisions,
+  isMappingResolved,
+  isSelected,
+  rowsOfMapping,
+  toggleSection as toggleSectionOf,
+} from '../utils/bankImportRows'
 import type {
   BankCategoryMappingDto,
-  BankImportExclusionDto,
   BankImportOutcome,
   BankImportPreviewResponse,
   BankImportResult,
@@ -130,71 +137,26 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
   }
 
   // Le esclusioni in vigore: quelle già salvate più le proposte accettate.
-  const activeExclusions: BankImportExclusionDto[] = useMemo(() => {
-    if (!preview) return []
-    return [
-      ...preview.exclusions,
-      ...preview.suggestedExclusions.filter((e) => acceptedSuggestions.has(e.pattern)),
-    ]
-  }, [preview, acceptedSuggestions])
+  const exclusions = useMemo(
+    () => (preview ? activeExclusions(preview.exclusions, preview.suggestedExclusions, acceptedSuggestions) : []),
+    [preview, acceptedSuggestions],
+  )
 
-  // Le righe con mappature ed esclusioni applicate. Si fa qui invece di
-  // rianalizzare: il file è già stato letto e il risultato non cambierebbe.
-  const rows: BankImportRowPreview[] = useMemo(() => {
-    if (!preview) return []
-    return preview.rows.map((row) => {
-      const mapping = mappings.find(
-        (m) => m.bankCategory === row.bankCategory && m.transactionType === row.type,
-      )
-      const text = `${row.rawOperation ?? ''} ${row.rawDetails ?? ''}`.toUpperCase()
-      const excludedByRule = activeExclusions.some((e) => text.includes(e.pattern.toUpperCase()))
-
-      if (row.outcome === 'GIA_IMPORTATA') return row
-      // La categoria si assegna anche alle righe escluse: se l'utente decide di
-      // includerne una, deve poter entrare senza tornare alla mappatura.
-      const override = rowCategories.get(row.rowNumber)
-      const withCategory = { ...row, categoryId: override ?? mapping?.categoryId ?? row.categoryId }
-      // Una scelta fatta sulla singola riga scavalca il "non importare" della
-      // sua categoria della banca: è più specifica, ed è l'unico modo per far
-      // entrare una spesa vera da un gruppo scartato in blocco. Le esclusioni
-      // per testo restano invece valide, perché si decidono dopo la mappatura e
-      // hanno una loro casella per riga nell'anteprima.
-      if (override && !excludedByRule) return withCategory
-      return mapping?.doNotImport || excludedByRule
-        ? { ...withCategory, outcome: 'ESCLUSA' as BankImportOutcome }
-        : withCategory
-    })
-  }, [preview, mappings, activeExclusions, rowCategories])
+  const rows: BankImportRowPreview[] = useMemo(
+    () => (preview ? applyDecisions(preview.rows, mappings, exclusions, rowCategories) : []),
+    [preview, mappings, exclusions, rowCategories],
+  )
 
   const alreadyImported = rows.filter((r) => r.outcome === 'GIA_IMPORTATA')
+  const selected = (row: BankImportRowPreview) => isSelected(row, flipped)
 
-  // Entrano di default solo le righe nuove e quelle da aggiornare: quello che va
-  // deciso o è stato escluso parte spento.
-  const selectedByDefault = (row: BankImportRowPreview) =>
-    row.outcome === 'NUOVA' || row.outcome === 'AGGIORNA_PROVVISORIA'
-  const isSelected = (row: BankImportRowPreview) =>
-    selectedByDefault(row) !== flipped.has(row.rowNumber)
-
-  const toImport = rows.filter((r) => r.outcome !== 'GIA_IMPORTATA' && isSelected(r))
+  const toImport = rows.filter((r) => r.outcome !== 'GIA_IMPORTATA' && selected(r))
   const missingCategory = toImport.filter((r) => !r.categoryId)
 
-  // I movimenti che ricadono sotto una categoria della banca ancora da mappare.
-  // Stesso filtro che il backend usa per contarli (rowCount), così l'elenco che
-  // si apre e il numero scritto accanto dicono la stessa cosa.
-  const rowsOfMapping = (m: BankCategoryMappingDto) =>
-    preview?.rows.filter(
-      (r) =>
-        r.bankCategory === m.bankCategory &&
-        r.type === m.transactionType &&
-        r.outcome !== 'GIA_IMPORTATA' &&
-        r.outcome !== 'ESCLUSA',
-    ) ?? []
-
-  // Una categoria della banca è a posto se ha una scelta valida per tutte le
-  // sue righe: quella "padre", oppure una riga per riga.
-  const isMappingResolved = (m: BankCategoryMappingDto) =>
-    m.doNotImport || !!m.categoryId || rowsOfMapping(m).every((r) => rowCategories.has(r.rowNumber))
-  const mappingsResolved = mappings.every(isMappingResolved)
+  const mappingRowsOf = (m: BankCategoryMappingDto) => rowsOfMapping(preview?.rows ?? [], m)
+  const mappingResolved = (m: BankCategoryMappingDto) =>
+    isMappingResolved(m, preview?.rows ?? [], rowCategories)
+  const mappingsResolved = mappings.every(mappingResolved)
 
   const toggleRow = (rowNumber: number) => {
     setFlipped((prev) => {
@@ -207,16 +169,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
 
   const toggleSection = (outcome: BankImportOutcome, on: boolean) => {
     const section = rows.filter((r) => r.outcome === outcome)
-    setFlipped((prev) => {
-      const next = new Set(prev)
-      section.forEach((row) => {
-        // Uno scostamento serve solo quando lo stato voluto differisce dalla
-        // proposta: altrimenti si toglie e la riga torna a seguirla.
-        if (selectedByDefault(row) === on) next.delete(row.rowNumber)
-        else next.add(row.rowNumber)
-      })
-      return next
-    })
+    setFlipped((prev) => toggleSectionOf(prev, section, on))
   }
 
   const setMapping = (index: number, value: Partial<BankCategoryMappingDto>) => {
@@ -275,7 +228,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
             updateTransactionId: r.matchedTransactionId,
           })),
           mappings,
-          exclusions: activeExclusions,
+          exclusions,
         }),
       )
     } catch (e) {
@@ -375,7 +328,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
             const categoryOptions = categories.filter((c) =>
               m.transactionType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE',
             )
-            const mappingRows = rowsOfMapping(m)
+            const mappingRows = mappingRowsOf(m)
             const isExpanded = expandedMappings.has(key)
             const decidedByRow = mappingRows.filter((r) => rowCategories.has(r.rowNumber)).length
 
@@ -486,7 +439,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
         </div>
         {!mappingsResolved && (
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Manca ancora una scelta per {mappings.filter((m) => !isMappingResolved(m)).length} categorie.
+            Manca ancora una scelta per {mappings.filter((m) => !mappingResolved(m)).length} categorie.
           </p>
         )}
       </div>
@@ -546,7 +499,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
       {SECTIONS.map((section) => {
         const sectionRows = rows.filter((r) => r.outcome === section.outcome)
         if (sectionRows.length === 0) return null
-        const allOn = sectionRows.every(isSelected)
+        const allOn = sectionRows.every(selected)
         return (
           <div key={section.outcome} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -574,7 +527,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                   <input
                     type="checkbox"
                     className="mt-1 shrink-0"
-                    checked={isSelected(row)}
+                    checked={selected(row)}
                     onChange={() => toggleRow(row.rowNumber)}
                   />
                   <div className="min-w-0 flex-1">
