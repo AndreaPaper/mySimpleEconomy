@@ -11,9 +11,8 @@
    palette usata anche prima che PaletteContext scriva data-palette su <html>.
    Le altre palette si limitano a sovrascrivere queste custom property.
 
-   Pensata per la modalità chiara: attivando anche il tema scuro le card
-   tornano nere (dark:bg-black) mentre sfondo pagina e sidebar restano quelli
-   della palette — combinazione non progettata, limite noto. */
+   Questi sono i valori del chiaro. Il tema scuro di questa palette ha i suoi,
+   nel blocco html.dark più sotto. */
 @theme {
   --color-brand-100: #F5FAFF; /* sfondo pagina */
   --color-brand-500: #FFFFFF; /* sfondo sidebar */
@@ -40,6 +39,9 @@
      il colore della barra stessa resta quello scelto dall'utente per la
      categoria (categoryColor), invariato in tutte le palette. */
   --color-bar-track: #f1f5f9;
+  /* Griglia dei grafici Recharts: era un #e2e8f0 scritto a mano nei componenti,
+     che al buio diventava un reticolo bianco sopra il grafico. */
+  --color-chart-grid: #e2e8f0;
 }
 
 /* Testo, bordi e colori funzionali di base (quelli di "Canvas neutro"),
@@ -202,6 +204,106 @@ html[data-palette="lavanda"] aside .profile-menu .text-slate-600 {
 }
 html[data-palette="lavanda"] aside .profile-menu .border-slate-200 {
   border-color: #EEDDF5;
+}
+
+/* ---------------------------------------------------------------------------
+   Tema scuro di "Canvas neutro" — "Ardesia"
+
+   Prima di questo blocco il tema scuro non aveva una palette propria: le card
+   diventavano nere (dark:bg-black) ma testo, bordi, card KPI, fondo del grafico
+   e traccia delle barre restavano quelli del chiaro, perché gli override qui
+   sopra stanno fuori da @layer e battono le utility dark: corrispondenti.
+   Titoli blu notte su nero: 1,43:1, illeggibili.
+
+   Le superfici prendono lo stesso blu notte (#0B2A45) che nel chiaro è il
+   colore del testo, così il tema scuro resta riconoscibile come Canvas neutro
+   invece di essere un tema qualunque. Pagina più scura della sidebar, sidebar
+   più scura delle card: la stessa gerarchia del chiaro, traslata.
+
+   Vale solo per Canvas neutro: le altre tre palette hanno lo stesso problema al
+   buio ma una tinta diversa, e vanno progettate a parte. Il :not() le esclude e
+   copre sia il caso "data-palette=canvas" sia quello in cui l'attributo non è
+   ancora stato scritto da PaletteContext.
+
+   Come il resto del file, sta fuori da @layer: è l'unico modo di battere le
+   utility dark: dei componenti senza riscriverli uno per uno. --------------- */
+
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) {
+  --color-brand-100: #0B1620; /* sfondo pagina */
+  --color-brand-500: #0F1D29; /* sfondo sidebar */
+  --color-brand-300: #142430; /* sfondo card/liste generiche */
+  --color-brand-200: #1E5E88; /* voce di menu attiva: fondo pieno */
+  --color-brand-700: #4FBEFF; /* accento: bottoni, link */
+  --color-brand-900: #7CCBFF; /* hover dell'accento: al buio schiarisce */
+  --color-nav-active: #FFFFFF;
+
+  --color-kpi-a: #12303F; /* "Saldo attuale" */
+  --color-kpi-b: #14332A; /* "Saldo previsto a fine mese" */
+  --color-chart-card: #142430;
+  --color-chart-grad-start: #4FBEFF;
+  --color-chart-grad-end: #142430;
+  --color-bar-track: #1E3242;
+  --color-chart-grid: #22384A;
+}
+
+/* Testo e bordi: il ramo scuro degli stessi override del chiaro. */
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) body,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .text-slate-900,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:text-white {
+  color: #E8F1F8; /* 13,9:1 sulla pagina */
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .text-slate-600,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .text-slate-500,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .text-slate-400,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:text-slate-200,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:text-slate-300,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:text-slate-400,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:text-slate-500 {
+  color: #A0B6C6; /* 7,5:1 sulla pagina */
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .border-slate-200,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .border-slate-300,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:border-slate-700,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:border-slate-800 {
+  border-color: #22384A;
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:divide-slate-800 > * + * {
+  border-color: #22384A;
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .text-emerald-600,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:text-emerald-400 {
+  color: #3FD68A;
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .text-red-600,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:text-red-400 {
+  color: #FF7A8A;
+}
+
+/* Superfici. dark:bg-black è usato per ruoli diversi (pagina, sidebar, card):
+   qui si distingue dalla classe chiara che gli sta accanto, così ogni ruolo
+   riprende il proprio token invece di collassare tutto sullo stesso nero. */
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .bg-brand-100.dark\:bg-black {
+  background-color: var(--color-brand-100);
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .bg-brand-500.dark\:bg-black {
+  background-color: var(--color-brand-500);
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .bg-brand-300.dark\:bg-black,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .bg-chart-card.dark\:bg-black,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .bg-white.dark\:bg-black {
+  background-color: var(--color-brand-300);
+}
+
+/* Superfici di appoggio: un gradino sopra la card (menu aperti, pastiglie,
+   stati premuti). Nel chiaro erano grigi zinc, che sul blu notte stonano. */
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:bg-zinc-900,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:hover\:bg-zinc-900:hover {
+  background-color: #1B3040;
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:bg-zinc-800,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:bg-slate-800,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:bg-slate-700 {
+  background-color: #22384A;
 }
 
 @font-face {

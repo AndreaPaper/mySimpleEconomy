@@ -854,7 +854,7 @@ export default function DashboardPage() {
               <stop offset="100%" stopColor="var(--color-chart-grad-end)" />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} width={70} />
           <Tooltip formatter={(value) => currency.format(Number(value))} />
