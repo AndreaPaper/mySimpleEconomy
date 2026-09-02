@@ -10,6 +10,12 @@ export type BudgetStatus = 'neutral' | 'warning' | 'danger'
 // Sotto questa quota di budget ancora disponibile si passa in "attenzione".
 const WARNING_REMAINING_RATIO = 0.2
 
+// Quanto deve valere un'entrata, rispetto allo stipendio stimato, perché la si
+// possa prendere per lo stipendio quando la categoria non lo dice. Larga
+// abbastanza da riconoscere un mese corto o una busta più leggera del solito,
+// stretta abbastanza da non scambiare per stipendio un rimborso.
+const SALARY_MATCH_RATIO = 0.6
+
 export interface BudgetBreakdown {
   income: number
   /** Obiettivo del periodo: entrate × percentuale configurata. */
@@ -48,8 +54,10 @@ function daysBetween(fromIso: string, toIso: string): number {
  * Applica la formula del budget disponibile alle transazioni di un periodo.
  *
  * Entrate: uno stipendio realmente incassato **sostituisce** la stima
- * configurata nel profilo (per non contarlo due volte); se non è ancora
- * arrivato si usa la stima. Le altre entrate si sommano sempre.
+ * configurata nel profilo, per non contarlo due volte. Riconoscerlo dalla sola
+ * categoria non basta — chi importa dalla banca se lo ritrova sotto la
+ * categoria della banca — quindi vale anche un'entrata singola di taglia
+ * paragonabile alla stima. Le altre entrate si sommano sempre.
  *
  * Spese fisse: quelle generate da una regola ricorrente (affitto, bollette,
  * abbonamenti). Il collegamento esiste già su ogni transazione, quindi non
@@ -69,20 +77,27 @@ export function computeBudget(
   const totalIncome = sum(incomeTransactions)
   const estimatedSalary = settings.defaultSalaryAmount ?? 0
 
-  let income: number
-  if (settings.salaryCategoryId) {
-    const salaryReceived = sum(incomeTransactions.filter((t) => t.categoryId === settings.salaryCategoryId))
-    const otherIncome = totalIncome - salaryReceived
-    // Lo stipendio davvero incassato sostituisce la stima; le altre entrate
-    // (regali, rimborsi) si sommano sempre.
-    income = (salaryReceived > 0 ? salaryReceived : estimatedSalary) + otherIncome
-  } else {
-    // Senza una categoria stipendio configurata non si può distinguere lo
-    // stipendio dalle altre entrate: si usa la stima solo finché non è
-    // entrato nulla, altrimenti la si sommerebbe a un'entrata che
-    // potrebbe già essere lo stipendio stesso.
-    income = totalIncome > 0 ? totalIncome : estimatedSalary
-  }
+  // Lo stipendio riconosciuto dalla categoria collegata al profilo. È il
+  // segnale preciso, ma non basta da solo: chi importa dalla banca se lo
+  // ritrova nella categoria della banca ("Stipendi e pensioni") e non in
+  // quella del profilo, e lì questo conteggio resta a zero.
+  const salaryInCategory = settings.salaryCategoryId
+    ? sum(incomeTransactions.filter((t) => t.categoryId === settings.salaryCategoryId))
+    : 0
+
+  // Ripiego per quando la categoria non lo riconosce: un'entrata singola di
+  // taglia paragonabile alla stima è, con ogni probabilità, lo stipendio. Si
+  // guarda la più grande e non il totale, perché lo stipendio è un accredito
+  // solo; sotto questa quota si tratta di rimborsi e regali, che vanno sommati
+  // alla stima invece di sostituirla.
+  const largestIncome = incomeTransactions.reduce((max, t) => Math.max(max, t.amount), 0)
+  const salaryArrived = salaryInCategory > 0 || largestIncome >= estimatedSalary * SALARY_MATCH_RATIO
+
+  // Arrivato lo stipendio, contano le entrate vere e la stima esce di scena:
+  // sommarla vorrebbe dire contarlo due volte. Finché non arriva, la stima si
+  // aggiunge a quello che è già entrato, così il budget del periodo non parte
+  // da zero il giorno dopo lo stipendio precedente.
+  const income = salaryArrived ? totalIncome : totalIncome + estimatedSalary
 
   const expenses = periodTransactions.filter((t) => t.type === 'EXPENSE')
   const fixedExpenses = sum(expenses.filter((t) => t.recurringTransactionId !== null))
