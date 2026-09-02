@@ -15,7 +15,14 @@ export interface QueuedTransaction {
 export function getQueue(): QueuedTransaction[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    // Il try/catch da solo non basta: un JSON valido ma che non è un elenco
+    // (un'altra scheda che scrive, un aggiornamento a metà) passava di qui
+    // intatto, e poi faceva esplodere count() e ogni .map() a valle. Qui c'è
+    // l'unico dato dell'utente che vive solo nel browser: deve degradare a
+    // coda vuota, non impedire l'avvio dell'app.
+    return Array.isArray(parsed) ? parsed : []
   } catch {
     return []
   }

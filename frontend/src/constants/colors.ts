@@ -81,7 +81,11 @@ function luminance(hex: string): number {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
 }
 
-const INK_DARK = '#1F2937'
+// Lo scuro è più scuro di quanto verrebbe naturale scegliere, e non per gusto:
+// con #1F2937 tre toni medi — il rosso, l'indaco e il viola — restavano fra
+// 4,28:1 e 4,48:1, cioè appena sotto il 4,5:1 che il testo richiede. Con questo
+// il peggiore sale a 5,17:1. Il vincolo è verificato in colors.test.ts.
+const INK_DARK = '#111827'
 const INK_LIGHT = '#FFFFFF'
 
 function contrast(a: number, b: number): number {
