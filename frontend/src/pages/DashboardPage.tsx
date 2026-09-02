@@ -23,6 +23,7 @@ import {
   remindersApi,
   transactionsApi,
 } from '../api/endpoints'
+import { categoryData, categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { DashboardPageSkeleton } from '../components/Skeleton'
 import Modal from '../components/Modal'
@@ -1009,7 +1010,7 @@ export default function DashboardPage() {
                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
                       style={{ backgroundColor: c.categoryColor ?? '#94a3b8' }}
                     >
-                      <Icon className="h-3.5 w-3.5 text-white" />
+                      <Icon className="h-3.5 w-3.5" style={{ color: categoryInk(c.categoryColor ?? '#94a3b8') }} />
                     </span>
                     <span className="truncate">{c.categoryName}</span>
                   </span>
@@ -1018,7 +1019,7 @@ export default function DashboardPage() {
                 <div className="h-2 rounded-full bg-bar-track dark:bg-zinc-800">
                   <div
                     className="h-2 rounded-full"
-                    style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}
+                    style={{ width: `${widthPct}%`, backgroundColor: categoryData(c.categoryColor) }}
                   />
                 </div>
               </>
@@ -1054,7 +1055,7 @@ export default function DashboardPage() {
                                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                                 style={{ backgroundColor: child.categoryColor ?? '#94a3b8' }}
                               >
-                                <ChildIcon className="h-3 w-3 text-white" />
+                                <ChildIcon className="h-3 w-3" style={{ color: categoryInk(child.categoryColor ?? '#94a3b8') }} />
                               </span>
                               <span className="truncate">{child.categoryName}</span>
                             </span>
@@ -1065,7 +1066,7 @@ export default function DashboardPage() {
                               className="h-1.5 rounded-full"
                               style={{
                                 width: `${childWidthPct}%`,
-                                backgroundColor: child.categoryColor ?? '#94a3b8',
+                                backgroundColor: categoryData(child.categoryColor),
                               }}
                             />
                           </div>
@@ -1198,7 +1199,7 @@ export default function DashboardPage() {
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                     style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
                   >
-                    <Icon className="h-4 w-4 text-white" />
+                    <Icon className="h-4 w-4" style={{ color: categoryInk(r.categoryColor ?? '#94a3b8') }} />
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold capitalize">{r.name}</p>

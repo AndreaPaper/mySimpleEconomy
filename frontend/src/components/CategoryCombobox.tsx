@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Plus, Search, Tag } from 'lucide-react'
+import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { flattenCategoryTree } from '../utils/categoryTree'
 import type { Category } from '../api/types'
@@ -235,7 +236,7 @@ export default function CategoryCombobox({
               className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md"
               style={{ backgroundColor: extra.color }}
             >
-              <ExtraIcon className="h-[13px] w-[13px] text-white" />
+              <ExtraIcon className="h-[13px] w-[13px]" style={{ color: categoryInk(extra.color) }} />
             </span>
           ) : (
             isPill && <Tag className="h-3.5 w-3.5 flex-none text-slate-500 dark:text-slate-400" />
@@ -253,7 +254,7 @@ export default function CategoryCombobox({
           className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md"
           style={{ backgroundColor: category.color ?? FALLBACK_COLOR }}
         >
-          <Icon className="h-[13px] w-[13px] text-white" />
+          <Icon className="h-[13px] w-[13px]" style={{ color: categoryInk(category.color ?? FALLBACK_COLOR) }} />
         </span>
         <span className={`min-w-0 truncate ${isPill ? '' : 'flex-1'}`}>{category.name}</span>
         {parentName && !isPill && (
@@ -349,7 +350,7 @@ export default function CategoryCombobox({
                         className="flex h-6 w-6 flex-none items-center justify-center rounded-[7px]"
                         style={{ backgroundColor: extra.color }}
                       >
-                        <ExtraIcon className="h-3.5 w-3.5 text-white" />
+                        <ExtraIcon className="h-3.5 w-3.5" style={{ color: categoryInk(extra.color) }} />
                       </span>
                     )}
                     <span className="min-w-0 flex-1 truncate">{extra.label}</span>
@@ -397,7 +398,7 @@ export default function CategoryCombobox({
                       className="flex h-6 w-6 flex-none items-center justify-center rounded-[7px]"
                       style={{ backgroundColor: color }}
                     >
-                      <Icon className="h-3.5 w-3.5 text-white" />
+                      <Icon className="h-3.5 w-3.5" style={{ color: categoryInk(color) }} />
                     </span>
                   )}
                   <span className="min-w-0 flex-1 truncate">{category.name}</span>

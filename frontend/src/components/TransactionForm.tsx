@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CATEGORY_COLORS } from '../constants/colors'
+import { CATEGORY_COLORS, categoryInk } from '../constants/colors'
 import { CATEGORY_ICONS } from '../constants/icons'
 import type { Category, Transaction, TransactionType } from '../api/types'
 import CategoryCombobox from './CategoryCombobox'
@@ -173,7 +173,7 @@ export default function TransactionForm({ categories, initial, onSubmit, onCreat
                     }`}
                     aria-label={iconName}
                   >
-                    <Icon className="h-4 w-4" style={{ color: newCategoryColor ?? undefined }} />
+                    <Icon className="h-4 w-4" style={{ color: categoryInk(newCategoryColor) }} />
                   </button>
                 ))}
               </div>

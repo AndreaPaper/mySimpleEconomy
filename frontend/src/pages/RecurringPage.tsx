@@ -8,6 +8,7 @@ import Modal from '../components/Modal'
 import RecurringTransactionForm from '../components/RecurringTransactionForm'
 import OverridesPanel from '../components/OverridesPanel'
 import { ListPageSkeleton } from '../components/Skeleton'
+import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { useIsMobile } from '../hooks/useIsMobile'
 
@@ -176,7 +177,7 @@ export default function RecurringPage() {
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                     style={{ backgroundColor: r.categoryColor }}
                   >
-                    <Icon className="h-[18px] w-[18px] text-white" />
+                    <Icon className="h-[18px] w-[18px]" style={{ color: categoryInk(r.categoryColor) }} />
                   </span>
                   <button
                     type="button"
@@ -258,7 +259,7 @@ export default function RecurringPage() {
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                       style={{ backgroundColor: r.categoryColor }}
                     >
-                      <Icon className="h-4 w-4 text-white" />
+                      <Icon className="h-4 w-4" style={{ color: categoryInk(r.categoryColor) }} />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{r.name}</p>

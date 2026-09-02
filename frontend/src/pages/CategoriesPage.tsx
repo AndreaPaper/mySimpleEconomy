@@ -6,6 +6,7 @@ import BottomSheet from '../components/BottomSheet'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
 import CategoryForm from '../components/CategoryForm'
+import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { ListPageSkeleton } from '../components/Skeleton'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -274,7 +275,7 @@ export default function CategoriesPage() {
                           className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: c.color ?? '#94a3b8' }}
                         >
-                          <Icon className="h-4 w-4 text-white" />
+                          <Icon className="h-4 w-4" style={{ color: categoryInk(c.color ?? '#94a3b8') }} />
                         </span>
                         <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{c.name}</span>
                         <span className="shrink-0 text-slate-300 dark:text-slate-600">›</span>
@@ -329,7 +330,7 @@ export default function CategoriesPage() {
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                         style={{ backgroundColor: c.color ?? '#94a3b8' }}
                       >
-                        <Icon className="h-4 w-4 text-white" />
+                        <Icon className="h-4 w-4" style={{ color: categoryInk(c.color ?? '#94a3b8') }} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold">{c.name}</p>
@@ -357,7 +358,7 @@ export default function CategoriesPage() {
                               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                               style={{ backgroundColor: child.color ?? '#94a3b8' }}
                             >
-                              <ChildIcon className="h-3.5 w-3.5 text-white" />
+                              <ChildIcon className="h-3.5 w-3.5" style={{ color: categoryInk(child.color ?? '#94a3b8') }} />
                             </span>
                             <span className="min-w-0 flex-1 truncate text-[13px] text-slate-600 dark:text-slate-300">
                               {child.name}

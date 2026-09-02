@@ -5,6 +5,7 @@ import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
 import Modal from '../components/Modal'
 import ExpenseReminderForm from '../components/ExpenseReminderForm'
 import { ListPageSkeleton } from '../components/Skeleton'
+import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { useIsMobile } from '../hooks/useIsMobile'
 
@@ -112,7 +113,7 @@ export default function RemindersPage() {
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                   style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
                 >
-                  <Icon className="h-[18px] w-[18px] text-white" />
+                  <Icon className="h-[18px] w-[18px]" style={{ color: categoryInk(r.categoryColor ?? '#94a3b8') }} />
                 </span>
                 {/* Niente foglio azioni: qui c'è solo Modifica, e il tocco
                     sulla riga apre già il form direttamente. */}
@@ -175,7 +176,7 @@ export default function RemindersPage() {
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                       style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
                     >
-                      <Icon className="h-4 w-4 text-white" />
+                      <Icon className="h-4 w-4" style={{ color: categoryInk(r.categoryColor ?? '#94a3b8') }} />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{r.name}</p>

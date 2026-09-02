@@ -8,6 +8,7 @@ import DateRangePicker from '../components/DateRangePicker'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
 import CategoryCombobox from '../components/CategoryCombobox'
+import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { TransactionsPageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
@@ -518,7 +519,7 @@ export default function TransactionsPage() {
                           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
                         >
-                          <Icon className="h-5 w-5 text-white" />
+                          <Icon className="h-5 w-5" style={{ color: categoryInk(t.categoryColor ?? '#94a3b8') }} />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[15px] font-semibold">{t.description || t.categoryName}</p>
@@ -564,7 +565,7 @@ export default function TransactionsPage() {
                           className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
                         >
-                          <Icon className="h-4 w-4 text-white" />
+                          <Icon className="h-4 w-4" style={{ color: categoryInk(t.categoryColor ?? '#94a3b8') }} />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[14.5px] font-bold">{t.description || t.categoryName}</p>

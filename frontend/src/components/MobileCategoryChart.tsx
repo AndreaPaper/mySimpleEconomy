@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import type { PieLabelRenderProps } from 'recharts'
 import type { CategoryAmount, CategoryAmountNode } from '../api/types'
+import { categoryData, categoryInk, readableOn } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 
 // Sotto questa quota una fetta è troppo sottile perché il donut resti leggibile:
@@ -111,7 +112,7 @@ export default function MobileCategoryChart({ breakdown, currency }: MobileCateg
               {slices.map((slice) => (
                 <Cell
                   key={slice.categoryId}
-                  fill={slice.categoryColor}
+                  fill={categoryData(slice.categoryColor)}
                   // La fetta scelta resta piena, le altre si attenuano: il
                   // colore da solo non basterebbe a dire quale hai toccato.
                   fillOpacity={selected && selected.categoryId !== slice.categoryId ? 0.35 : 1}
@@ -131,7 +132,7 @@ export default function MobileCategoryChart({ breakdown, currency }: MobileCateg
                 className="mb-1 flex h-5 w-5 items-center justify-center rounded-full"
                 style={{ backgroundColor: selected.categoryColor }}
               >
-                {SelectedIcon && <SelectedIcon className="h-3 w-3 text-white" />}
+                {SelectedIcon && <SelectedIcon className="h-3 w-3" style={{ color: categoryInk(selected.categoryColor) }} />}
               </span>
               <span className="max-w-[110px] truncate text-xs font-bold text-slate-600 dark:text-slate-300">
                 {selected.categoryName}
@@ -160,9 +161,16 @@ export default function MobileCategoryChart({ breakdown, currency }: MobileCateg
               aria-pressed={active}
               onClick={() => setSelectedId(active ? null : slice.categoryId)}
               className={`flex max-w-[150px] items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs ${
-                active ? 'text-white' : 'bg-bar-track dark:bg-zinc-800 text-slate-600 dark:text-slate-300'
+                active ? '' : 'bg-bar-track dark:bg-zinc-800 text-slate-600 dark:text-slate-300'
               }`}
-              style={active ? { backgroundColor: slice.categoryColor } : undefined}
+              // Il chip scelto si tinge del pastello della categoria: lì il
+              // testo bianco di prima sparirebbe, e vale la stessa regola del
+              // glifo sulla pastiglia.
+              style={
+                active
+                  ? { backgroundColor: slice.categoryColor, color: categoryInk(slice.categoryColor) }
+                  : undefined
+              }
             >
               {!active && (
                 <span
@@ -216,11 +224,15 @@ function renderSliceLabel(props: PieLabelRenderProps) {
   const x = cx + radius * Math.cos(-midAngle * radians)
   const y = cy + radius * Math.sin(-midAngle * radians)
 
+  // Il bianco fisso funzionava sulle tinte piene di prima; sui toni medi
+  // chiari — il giallo su tutti — faceva 1,65:1. Lo decide la fetta.
+  const sliceFill = typeof props.fill === 'string' ? props.fill : undefined
+
   return (
     <text
       x={x}
       y={y}
-      fill="#ffffff"
+      fill={sliceFill ? readableOn(sliceFill) : '#ffffff'}
       textAnchor="middle"
       dominantBaseline="central"
       fontSize={12}
