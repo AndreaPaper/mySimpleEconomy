@@ -1,0 +1,68 @@
+name: Test
+
+# Su develop, che è il ramo su cui si lavora, e sulle pull request verso main.
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+# Una serie di push ravvicinati non deve accodare esecuzioni su codice già
+# superato: conta l'esito dell'ultimo commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (${{ github.ref_name }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      # I test di integrazione avviano un Postgres con Testcontainers: il
+      # runner ha Docker, ma il pom punta a tcp://localhost:2375 per una
+      # stranezza di Docker Desktop su Windows (le named pipe rispondono 400 al
+      # client Java). Su Linux vale il socket, e la proprietà è fatta apposta
+      # per essere sovrascritta da riga di comando.
+      - name: Esegui i test
+        working-directory: backend
+        run: ./mvnw --batch-mode test -Ddocker.host=unix:///var/run/docker.sock
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # La stessa versione usata in sviluppo: jsdom 26 è fissato apposta perché
+      # la 27 richiede Node 20.19+.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installa le dipendenze
+        working-directory: frontend
+        run: npm ci
+
+      - name: Esegui i test
+        working-directory: frontend
+        run: npm run test
+
+      # `npm run build` esegue anche `tsc -b`, quindi vale da controllo dei
+      # tipi: un errore di tipo qui è un errore che romperebbe il deploy.
+      - name: Compila e controlla i tipi
+        working-directory: frontend
+        run: npm run build
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
