@@ -550,10 +550,34 @@ export default function DashboardPage() {
   // La mascotte cambia espressione insieme al colore: chi guarda la card di
   // sfuggita capisce come sta andando il periodo prima ancora di leggere la
   // cifra, e lo stato non resta affidato al solo colore.
+  // Tinte via token e non esadecimali: al buio la superficie deve scurirsi
+  // insieme al testo, e la regola che decide quando farlo (tema scuro *e*
+  // palette Canvas neutro) sta già scritta una volta sola in index.css.
   const BUDGET_TONES = {
-    neutral: { bg: '#eff6ff', ring: '#1C8ADB', head: '#1e40af', label: 'In linea', husky: happyHusky, huskyAlt: 'Husky contento' },
-    warning: { bg: '#fffbeb', ring: '#d97706', head: '#92400e', label: 'Attenzione', husky: warningHusky, huskyAlt: 'Husky preoccupato' },
-    danger: { bg: '#fef2f2', ring: '#dc2626', head: '#991b1b', label: 'Sforato', husky: angryHusky, huskyAlt: 'Husky arrabbiato' },
+    neutral: {
+      bg: 'var(--color-budget-neutral-card)',
+      ring: 'var(--color-budget-neutral-ring)',
+      head: 'var(--color-budget-neutral-head)',
+      label: 'In linea',
+      husky: happyHusky,
+      huskyAlt: 'Husky contento',
+    },
+    warning: {
+      bg: 'var(--color-budget-warning-card)',
+      ring: 'var(--color-budget-warning-ring)',
+      head: 'var(--color-budget-warning-head)',
+      label: 'Attenzione',
+      husky: warningHusky,
+      huskyAlt: 'Husky preoccupato',
+    },
+    danger: {
+      bg: 'var(--color-budget-danger-card)',
+      ring: 'var(--color-budget-danger-ring)',
+      head: 'var(--color-budget-danger-head)',
+      label: 'Sforato',
+      husky: angryHusky,
+      huskyAlt: 'Husky arrabbiato',
+    },
   } as const
   const tone = BUDGET_TONES[budget.status]
   const RING = 276.46
@@ -613,12 +637,12 @@ export default function DashboardPage() {
   const cardAmount = isMobile ? 'text-xl' : 'text-2xl'
 
   const savingsProgressCard = (
-    <div className={cardChrome} style={{ backgroundColor: '#ecfdf5' }}>
+    <div className={cardChrome} style={{ backgroundColor: 'var(--color-save-card)' }}>
       <div className={cardHeader}>
         <Link
           to="/risparmio"
           className="flex items-center gap-1.5 text-[13px] font-bold hover:underline"
-          style={{ color: '#166534' }}
+          style={{ color: 'var(--color-save-head)' }}
         >
           <PiggyBank className="h-[15px] w-[15px]" />
           Risparmio
@@ -628,7 +652,7 @@ export default function DashboardPage() {
         </span>
       </div>
       <div className={cardBody}>
-        {savingsRing(savingsRingPct, '#2FA36B', 'rgba(255,255,255,.6)')}
+        {savingsRing(savingsRingPct, 'var(--color-save-ring)', 'var(--color-save-ring-track)')}
         <div className="min-w-0">
           <p className="text-xs text-slate-600">Risparmiato in questo periodo</p>
           <p
@@ -643,7 +667,7 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-      <p className="mt-3 border-t border-slate-900/10 pt-2.5 text-[11px] text-slate-600">
+      <p className="mt-3 border-t pt-2.5 text-[11px] text-slate-600" style={{ borderColor: 'var(--color-save-divider)' }}>
         {averageSaved === null
           ? 'Si calcola da solo: è quello che resta tra entrate e uscite del periodo.'
           : `Media dei periodi precedenti: ${currency.format(averageSaved)}`}
@@ -660,14 +684,14 @@ export default function DashboardPage() {
         </span>
         <span
           ref={badgeRef}
-          className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold tracking-wide"
-          style={{ color: tone.ring }}
+          className="rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide"
+          style={{ color: tone.ring, backgroundColor: 'var(--color-budget-badge-bg)' }}
         >
           {tone.label.toUpperCase()}
         </span>
       </div>
       <div className={cardBody}>
-        {savingsRing(budgetRingPct, tone.ring, 'rgba(255,255,255,.6)')}
+        {savingsRing(budgetRingPct, tone.ring, 'var(--color-save-ring-track)')}
         {/* Niente min-w-0 qui: la colonna non deve poter scendere sotto la
             larghezza dell'importo, altrimenti in due colonne la cifra si
             taglia. Chi cede spazio è la mascotte accanto. */}

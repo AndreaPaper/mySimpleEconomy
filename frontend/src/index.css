@@ -42,6 +42,34 @@
   /* Griglia dei grafici Recharts: era un #e2e8f0 scritto a mano nei componenti,
      che al buio diventava un reticolo bianco sopra il grafico. */
   --color-chart-grid: #e2e8f0;
+
+  /* Le due card della fascia risparmio della Dashboard. Erano esadecimali
+     scritti a mano nel componente, quindi al buio la superficie restava chiara
+     mentre il testo passava ai colori del tema scuro: importi a 1,05:1.
+     Sono colori semantici (accumulo/consumo) e non di palette: restano uguali
+     in tutte e quattro le palette, e cambiano solo fra chiaro e scuro. */
+  --color-save-card: #ecfdf5;
+  --color-save-head: #166534;
+  --color-save-ring: #2FA36B;
+
+  /* Il budget ha tre stati, non uno: il fondo dice a colpo d'occhio come sta
+     andando il periodo, quindi ognuno tiene la propria tinta. */
+  --color-budget-neutral-card: #eff6ff;
+  --color-budget-neutral-head: #1e40af;
+  --color-budget-neutral-ring: #1C8ADB;
+  --color-budget-warning-card: #fffbeb;
+  --color-budget-warning-head: #92400e;
+  --color-budget-warning-ring: #d97706;
+  --color-budget-danger-card: #fef2f2;
+  --color-budget-danger-head: #991b1b;
+  --color-budget-danger-ring: #dc2626;
+
+  /* Pastiglia dello stato del budget, traccia dell'anello e riga di
+     separazione: sul chiaro poggiano su una tinta pastello, sullo scuro su una
+     superficie scura, e vanno invertite insieme alle card. */
+  --color-budget-badge-bg: #FFFFFF;
+  --color-save-ring-track: rgba(255, 255, 255, 0.6);
+  --color-save-divider: rgba(11, 42, 69, 0.1);
 }
 
 /* Testo, bordi e colori funzionali di base (quelli di "Canvas neutro"),
@@ -244,6 +272,30 @@ html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-
   --color-chart-grad-end: #142430;
   --color-bar-track: #1E3242;
   --color-chart-grid: #22384A;
+
+  /* Le card risparmio/budget: stesse tinte, alla luminosità del tema scuro —
+     lo stesso trattamento che hanno già le due card KPI qui sopra. Il mock
+     copriva solo lo stato "in linea": ambra e rosso sono la sua stessa ricetta
+     applicata agli altri due stati del budget. */
+  --color-save-card: #12332A;
+  --color-save-head: #3FD68A;
+  --color-save-ring: #3FD68A;
+
+  --color-budget-neutral-card: #12303F;
+  --color-budget-neutral-head: #4FBEFF;
+  --color-budget-neutral-ring: #4FBEFF;
+  --color-budget-warning-card: #33290F;
+  --color-budget-warning-head: #F5B849;
+  --color-budget-warning-ring: #F5B849;
+  --color-budget-danger-card: #3A1C21;
+  --color-budget-danger-head: #FF7A8A;
+  --color-budget-danger-ring: #FF7A8A;
+
+  /* La pastiglia bianca su fondo scuro sarebbe la cosa più luminosa della
+     pagina: diventa un velo del proprio colore. */
+  --color-budget-badge-bg: rgba(255, 255, 255, 0.1);
+  --color-save-ring-track: rgba(255, 255, 255, 0.08);
+  --color-save-divider: rgba(255, 255, 255, 0.1);
 }
 
 /* Testo e bordi: il ramo scuro degli stessi override del chiaro. */
