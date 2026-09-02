@@ -14,33 +14,21 @@
 -- Idempotente: dopo la prima esecuzione la gemella non esiste più e non c'è
 -- altro da spostare.
 --
--- PRIMA DI ESEGUIRLO, guarda cosa toccherà con la query qui sotto: se non
--- restituisce righe, non hai il problema e non serve lanciare nulla.
---
---   SELECT tieni.name AS categoria_del_profilo,
---          unisci.name AS categoria_da_unire,
---          (SELECT count(*) FROM transactions t WHERE t.category_id = unisci.id)
---              AS transazioni_da_spostare
---   FROM users u
---   JOIN recurring_transactions rt ON rt.id = u.salary_recurring_transaction_id
---   JOIN categories tieni ON tieni.id = rt.category_id
---   JOIN categories unisci
---        ON unisci.user_id = u.id
---       AND unisci.type = 'INCOME'
---       AND unisci.id <> tieni.id
---       AND (lower(unisci.name) LIKE '%stipend%' OR lower(unisci.name) LIKE '%salari%'
---         OR lower(unisci.name) LIKE '%pension%' OR lower(unisci.name) LIKE '%retribuz%'
---         OR lower(unisci.name) LIKE '%emolument%');
+-- Niente tabelle temporanee: l'editor SQL di Supabase esegue gli statement in
+-- transazioni separate, e una tabella temporanea creata in uno non esiste più
+-- in quello dopo. La coppia da unire si ricalcola quindi dentro ogni comando.
 -- ---------------------------------------------------------------------------
 
-BEGIN;
 
--- La coppia da unire, per ogni utente: `tieni` è la categoria collegata al
--- profilo (quella della regola ricorrente dello stipendio), `unisci` è la
--- gemella nata dall'import. Si guarda solo fra le entrate: fra le uscite
--- "previdenza" o "fondo pensione" sono versamenti, non stipendi.
-CREATE TEMP TABLE unione_stipendio ON COMMIT DROP AS
-SELECT u.id AS user_id, tieni.id AS tieni_id, unisci.id AS unisci_id
+-- ---------------------------------------------------------------------------
+-- 1. VERIFICA — eseguilo da solo e guarda il risultato.
+--    Se non restituisce righe non hai il problema, e non serve altro.
+-- ---------------------------------------------------------------------------
+
+SELECT tieni.name AS categoria_del_profilo,
+       unisci.name AS categoria_da_unire,
+       (SELECT count(*) FROM transactions t WHERE t.category_id = unisci.id)
+           AS transazioni_da_spostare
 FROM users u
 JOIN recurring_transactions rt ON rt.id = u.salary_recurring_transaction_id
 JOIN categories tieni ON tieni.id = rt.category_id
@@ -52,31 +40,66 @@ JOIN categories unisci
       OR lower(unisci.name) LIKE '%pension%' OR lower(unisci.name) LIKE '%retribuz%'
       OR lower(unisci.name) LIKE '%emolument%');
 
--- Tutto quello che punta alla gemella passa sulla categoria del profilo. Vanno
--- spostati tutti i riferimenti prima di eliminarla: le chiavi esterne sono in
--- RESTRICT, quindi una sola dimenticanza farebbe fallire l'eliminazione (e con
--- essa l'intera transazione, senza lasciare mezzo lavoro).
-UPDATE transactions t SET category_id = m.tieni_id
-FROM unione_stipendio m WHERE t.category_id = m.unisci_id;
 
-UPDATE recurring_transactions r SET category_id = m.tieni_id
-FROM unione_stipendio m WHERE r.category_id = m.unisci_id;
+-- ---------------------------------------------------------------------------
+-- 2. UNIONE — un comando solo, quindi o riesce tutto o non cambia niente.
+--
+--    `coppia` trova, per ogni utente, la categoria del profilo (quella della
+--    regola ricorrente dello stipendio) e la gemella nata dall'import. Si
+--    guarda solo fra le entrate: fra le uscite "previdenza" o "fondo pensione"
+--    sono versamenti, non stipendi.
+--
+--    Vanno spostati tutti i riferimenti prima di eliminare la gemella: le
+--    chiavi esterne sono in RESTRICT, e una sola dimenticanza farebbe fallire
+--    l'eliminazione. Stando tutti nello stesso comando, i controlli di
+--    integrità scattano alla fine, quando gli spostamenti sono già avvenuti.
+-- ---------------------------------------------------------------------------
 
-UPDATE expense_reminders e SET category_id = m.tieni_id
-FROM unione_stipendio m WHERE e.category_id = m.unisci_id;
-
-UPDATE debts d SET category_id = m.tieni_id
-FROM unione_stipendio m WHERE d.category_id = m.unisci_id;
-
+WITH coppia AS (
+    SELECT rt.category_id AS tieni_id, unisci.id AS unisci_id
+    FROM users u
+    JOIN recurring_transactions rt ON rt.id = u.salary_recurring_transaction_id
+    JOIN categories unisci
+         ON unisci.user_id = u.id
+        AND unisci.type = 'INCOME'
+        AND unisci.id <> rt.category_id
+        AND (lower(unisci.name) LIKE '%stipend%' OR lower(unisci.name) LIKE '%salari%'
+          OR lower(unisci.name) LIKE '%pension%' OR lower(unisci.name) LIKE '%retribuz%'
+          OR lower(unisci.name) LIKE '%emolument%')
+),
+sposta_transazioni AS (
+    UPDATE transactions t SET category_id = c.tieni_id
+    FROM coppia c WHERE t.category_id = c.unisci_id
+    RETURNING 1
+),
+sposta_ricorrenti AS (
+    UPDATE recurring_transactions r SET category_id = c.tieni_id
+    FROM coppia c WHERE r.category_id = c.unisci_id
+    RETURNING 1
+),
+sposta_promemoria AS (
+    UPDATE expense_reminders e SET category_id = c.tieni_id
+    FROM coppia c WHERE e.category_id = c.unisci_id
+    RETURNING 1
+),
+sposta_debiti AS (
+    UPDATE debts d SET category_id = c.tieni_id
+    FROM coppia c WHERE d.category_id = c.unisci_id
+    RETURNING 1
+),
 -- La mappatura salvata della banca: così il prossimo import manda lo stipendio
--- direttamente sulla categoria giusta senza richiedere nulla.
-UPDATE bank_category_mappings b SET category_id = m.tieni_id
-FROM unione_stipendio m WHERE b.category_id = m.unisci_id;
-
+-- sulla categoria giusta senza richiedere nulla.
+sposta_mappature AS (
+    UPDATE bank_category_mappings b SET category_id = c.tieni_id
+    FROM coppia c WHERE b.category_id = c.unisci_id
+    RETURNING 1
+),
 -- Eventuali sottocategorie della gemella passano sotto quella del profilo.
-UPDATE categories c SET parent_id = m.tieni_id
-FROM unione_stipendio m WHERE c.parent_id = m.unisci_id;
-
-DELETE FROM categories c USING unione_stipendio m WHERE c.id = m.unisci_id;
-
-COMMIT;
+sposta_sottocategorie AS (
+    UPDATE categories s SET parent_id = c.tieni_id
+    FROM coppia c WHERE s.parent_id = c.unisci_id
+    RETURNING 1
+)
+DELETE FROM categories vittima
+USING coppia c
+WHERE vittima.id = c.unisci_id;
