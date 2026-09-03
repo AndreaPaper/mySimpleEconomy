@@ -106,13 +106,38 @@ public class ApiTestClient {
     }
 
     public String createReminder(String token, String categoryId, String name, LocalDate nextDue) throws Exception {
+        return createReminder(token, categoryId, name, nextDue, "MONTH", 1, null, null, null);
+    }
+
+    /**
+     * Versione completa: serve ai test dei job, che devono poter impostare il preavviso, un
+     * intervallo diverso dal mensile, una data di fine o un importo — nessuno dei quali è
+     * esprimibile con la scorciatoia sopra. I parametri opzionali sono {@code null} quando il
+     * campo non va inviato affatto, che per il preavviso e per l'importo è un caso diverso da
+     * "inviato a zero".
+     */
+    public String createReminder(
+            String token,
+            String categoryId,
+            String name,
+            LocalDate nextDue,
+            String intervalUnit,
+            int intervalValue,
+            Integer notifyDaysBefore,
+            LocalDate endDate,
+            String amount
+    ) throws Exception {
+        String optional = (notifyDaysBefore == null ? "" : ",\"notifyDaysBefore\":" + notifyDaysBefore)
+                + (endDate == null ? "" : ",\"endDate\":\"" + endDate + "\"")
+                + (amount == null ? "" : ",\"amount\":" + amount);
         MvcResult result = mockMvc.perform(post("/api/expense-reminders")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"categoryId":"%s","name":"%s","intervalUnit":"MONTH","intervalValue":1,\
-                                "startDate":"%s","nextDueDate":"%s"}
-                                """.formatted(categoryId, name, nextDue, nextDue)))
+                                {"categoryId":"%s","name":"%s","intervalUnit":"%s","intervalValue":%d,\
+                                "startDate":"%s","nextDueDate":"%s"%s}
+                                """.formatted(
+                                categoryId, name, intervalUnit, intervalValue, nextDue, nextDue, optional)))
                 .andExpect(status().isCreated())
                 .andReturn();
         return json(result).get("id").asText();
