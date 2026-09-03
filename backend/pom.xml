@@ -160,6 +160,32 @@
 					</environmentVariables>
 				</configuration>
 			</plugin>
+			<!-- Copertura. Nessuna soglia bloccante: serve a leggere dove siamo,
+			     non a far fallire la build su un numero. prepare-agent imposta la
+			     proprieta' argLine, che surefire qui sopra non usa - quindi le due
+			     configurazioni convivono senza sovrascriversi.
+			     Il riepilogo resta in target/site/jacoco/index.html; jacoco.csv e'
+			     quello che la CI stampa nel log. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.12</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

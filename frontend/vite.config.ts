@@ -46,5 +46,16 @@ export default defineConfig({
     // Escluso il resto perché per impostazione predefinita vitest guarda anche
     // dentro node_modules delle dipendenze.
     include: ['src/**/*.test.{ts,tsx}'],
+    // Nessuna soglia bloccante: la copertura serve a leggere dove siamo, non a
+    // far fallire la build su un numero. 'text-summary' e' cio' che la CI
+    // stampa nel log; il dettaglio resta in coverage/index.html.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      // Fuori i file che non contengono logica da coprire: le definizioni di
+      // tipo, il punto d'ingresso e l'impalcatura dei test stessi.
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/vite-env.d.ts', 'src/api/types.ts'],
+    },
   },
 })

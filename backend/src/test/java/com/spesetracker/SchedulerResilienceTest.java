@@ -1,5 +1,11 @@
 package com.spesetracker;
 
+import com.spesetracker.job.ExpenseReminderAdvancementService;
+import com.spesetracker.job.ExpenseReminderGenerationScheduler;
+import com.spesetracker.job.ExpenseReminderGenerationService;
+import com.spesetracker.job.ExpenseReminderNotificationScheduler;
+import com.spesetracker.job.ExpenseReminderNotificationService;
+import com.spesetracker.job.ExpenseReminderScheduler;
 import com.spesetracker.job.RecurringTransactionGenerationService;
 import com.spesetracker.job.RecurringTransactionScheduler;
 import com.spesetracker.model.Category;
@@ -7,6 +13,7 @@ import com.spesetracker.model.RecurringTransaction;
 import com.spesetracker.model.User;
 import com.spesetracker.model.enums.IntervalUnit;
 import com.spesetracker.repository.CategoryRepository;
+import com.spesetracker.repository.ExpenseReminderRepository;
 import com.spesetracker.repository.RecurringTransactionRepository;
 import com.spesetracker.repository.UserRepository;
 import com.spesetracker.support.AbstractIntegrationTest;
@@ -41,8 +48,29 @@ class SchedulerResilienceTest extends AbstractIntegrationTest {
     @Autowired
     private RecurringTransactionScheduler scheduler;
 
+    @Autowired
+    private ExpenseReminderScheduler reminderScheduler;
+
+    @Autowired
+    private ExpenseReminderNotificationScheduler notificationScheduler;
+
+    @Autowired
+    private ExpenseReminderGenerationScheduler generationScheduler;
+
     @MockitoSpyBean
     private RecurringTransactionGenerationService generationService;
+
+    @MockitoSpyBean
+    private ExpenseReminderAdvancementService advancementService;
+
+    @MockitoSpyBean
+    private ExpenseReminderNotificationService notificationService;
+
+    @MockitoSpyBean
+    private ExpenseReminderGenerationService generationServiceReminder;
+
+    @Autowired
+    private ExpenseReminderRepository expenseReminderRepository;
 
     @Autowired
     private RecurringTransactionRepository recurringTransactionRepository;
@@ -82,6 +110,82 @@ class SchedulerResilienceTest extends AbstractIntegrationTest {
         // Quella guasta è rimasta dov'era: verrà riprovata domani.
         assertThat(recurringTransactionRepository.findById(guasta).orElseThrow().getNextDueDate())
                 .isEqualTo(ieri);
+
+        assertThat(api.listTransactions(token).findValuesAsText("description"))
+                .containsExactlyInAnyOrder("Prima", "Terza");
+    }
+
+    /**
+     * Gli altri tre schedulatori hanno la stessa forma, e la stessa garanzia. Un test per
+     * ciascuno, con il finto che fallisce sul secondo promemoria: gli altri due devono essere
+     * elaborati lo stesso.
+     *
+     * <p>Sono raggruppati qui invece che sparsi perché è una proprietà sola ripetuta quattro
+     * volte: chi domani riscrive uno dei cicli trova in un colpo d'occhio cosa deve continuare
+     * a valere per tutti.
+     */
+    @Test
+    void anchePerIPromemoriaUnaRegolaGuastaNonFermaLeAltre() throws Exception {
+        String token = api.registerAndLogin();
+        String categoryId = api.createExpenseCategory(token);
+        LocalDate ieri = LocalDate.now().minusDays(1);
+
+        UUID prima = UUID.fromString(api.createReminder(token, categoryId, "Prima", ieri));
+        UUID guasta = UUID.fromString(api.createReminder(token, categoryId, "Guasta", ieri));
+        UUID terza = UUID.fromString(api.createReminder(token, categoryId, "Terza", ieri));
+
+        doThrow(new RuntimeException("promemoria incoerente"))
+                .when(advancementService).advanceDueReminder(eq(guasta), any());
+
+        reminderScheduler.advanceDueReminders();
+
+        // Le due sane sono avanzate al mese prossimo, la guasta è rimasta dov'era.
+        assertThat(expenseReminderRepository.findById(prima).orElseThrow().getNextDueDate())
+                .isAfter(LocalDate.now());
+        assertThat(expenseReminderRepository.findById(terza).orElseThrow().getNextDueDate())
+                .isAfter(LocalDate.now());
+        assertThat(expenseReminderRepository.findById(guasta).orElseThrow().getNextDueDate())
+                .isEqualTo(ieri);
+    }
+
+    @Test
+    void unaNotificaFallitaNonFermaLeAltre() throws Exception {
+        String token = api.registerAndLogin();
+        String categoryId = api.createExpenseCategory(token);
+        LocalDate oggi = LocalDate.now();
+
+        UUID prima = UUID.fromString(api.createReminder(token, categoryId, "Prima", oggi, "MONTH", 1, 3, null, null));
+        UUID guasta = UUID.fromString(api.createReminder(token, categoryId, "Guasta", oggi, "MONTH", 1, 3, null, null));
+        UUID terza = UUID.fromString(api.createReminder(token, categoryId, "Terza", oggi, "MONTH", 1, 3, null, null));
+
+        doThrow(new RuntimeException("Resend non risponde"))
+                .when(notificationService).notifyIfDue(eq(guasta), any());
+
+        notificationScheduler.sendDueNotifications();
+
+        // Chi ha ricevuto l'avviso lo ha segnato; la guasta è ancora da avvisare, e il
+        // giorno dopo si riprova.
+        assertThat(expenseReminderRepository.findById(prima).orElseThrow().getLastNotifiedDueDate()).isNotNull();
+        assertThat(expenseReminderRepository.findById(terza).orElseThrow().getLastNotifiedDueDate()).isNotNull();
+        assertThat(expenseReminderRepository.findById(guasta).orElseThrow().getLastNotifiedDueDate()).isNull();
+    }
+
+    @Test
+    void unaGenerazioneFallitaNonFermaLeAltre() throws Exception {
+        String token = api.registerAndLogin();
+        String categoryId = api.createExpenseCategory(token);
+        // Scadenza dentro il mese corrente: è la finestra su cui il job raccoglie.
+        LocalDate questoMese = LocalDate.now().withDayOfMonth(Math.min(15, LocalDate.now().lengthOfMonth()));
+
+        UUID guasta = UUID.fromString(
+                api.createReminder(token, categoryId, "Guasta", questoMese, "MONTH", 1, null, null, "50.00"));
+        api.createReminder(token, categoryId, "Prima", questoMese, "MONTH", 1, null, null, "10.00");
+        api.createReminder(token, categoryId, "Terza", questoMese, "MONTH", 1, null, null, "20.00");
+
+        doThrow(new RuntimeException("categoria incoerente"))
+                .when(generationServiceReminder).generateForMonth(eq(guasta), any());
+
+        generationScheduler.generateForCurrentMonth();
 
         assertThat(api.listTransactions(token).findValuesAsText("description"))
                 .containsExactlyInAnyOrder("Prima", "Terza");

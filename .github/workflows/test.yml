@@ -35,6 +35,21 @@ jobs:
         working-directory: backend
         run: ./mvnw --batch-mode test -Ddocker.host=unix:///var/run/docker.sock
 
+      # Nessuna soglia bloccante: il numero serve a leggere dove siamo, non a
+      # far fallire la build su una cifra. JaCoCo scrive il dettaglio navigabile
+      # in target/site/jacoco/index.html; qui si stampa solo il riepilogo, che è
+      # quello che si guarda scorrendo il log di una PR.
+      - name: Copertura
+        working-directory: backend
+        run: |
+          awk -F, 'NR>1 { m += $4; c += $5 }
+                   END { printf "Istruzioni coperte: %.1f%% (%d di %d)\n\n", 100*c/(c+m), c, c+m }' \
+              target/site/jacoco/jacoco.csv
+          echo "Per package:"
+          awk -F, 'NR>1 { m[$2] += $4; c[$2] += $5 }
+                   END { for (p in m) printf "%6.1f%%  %s\n", 100*c[p]/(c[p]+m[p]), p }' \
+              target/site/jacoco/jacoco.csv | sort -n
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -55,7 +70,7 @@ jobs:
 
       - name: Esegui i test
         working-directory: frontend
-        run: npm run test
+        run: npm run test:coverage
 
       # `npm run build` esegue anche `tsc -b`, quindi vale da controllo dei
       # tipi: un errore di tipo qui è un errore che romperebbe il deploy.
