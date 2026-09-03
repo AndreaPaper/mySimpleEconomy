@@ -1,80 +1,24 @@
 import { useMemo, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import type { PieLabelRenderProps } from 'recharts'
-import type { CategoryAmount, CategoryAmountNode } from '../api/types'
+import type { CategoryAmountNode } from '../api/types'
 import { categoryData, categoryInk, readableOn } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
-
-// Sotto questa quota una fetta è troppo sottile perché il donut resti leggibile:
-// le minori confluiscono in "Altro", che resta selezionabile per vedere cosa
-// contiene invece di sparire.
-const MINOR_SHARE = 0.05
+import { buildCategorySlices, OTHER_COLOR } from '../utils/categorySlices'
 
 // Sotto questa quota non c'è spazio per scrivere il numero dentro la fetta.
 const LABEL_MIN_SHARE = 0.08
 
-const OTHER_ID = '__altro__'
-const OTHER_COLOR = '#94a3b8'
 
 interface MobileCategoryChartProps {
   breakdown: CategoryAmountNode[]
   currency: Intl.NumberFormat
 }
 
-interface Slice {
-  categoryId: string
-  categoryName: string
-  categoryColor: string
-  categoryIcon: string | null
-  amount: number
-  children: CategoryAmount[]
-}
-
 export default function MobileCategoryChart({ breakdown, currency }: MobileCategoryChartProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const { slices, total } = useMemo(() => {
-    const sum = breakdown.reduce((acc, c) => acc + c.amount, 0)
-    const major: Slice[] = []
-    const minor: CategoryAmountNode[] = []
-
-    for (const c of breakdown) {
-      const slice: Slice = {
-        categoryId: c.categoryId,
-        categoryName: c.categoryName,
-        categoryColor: c.categoryColor ?? OTHER_COLOR,
-        categoryIcon: c.categoryIcon,
-        amount: c.amount,
-        children: c.children,
-      }
-      if (sum > 0 && c.amount / sum < MINOR_SHARE) minor.push(c)
-      else major.push(slice)
-    }
-
-    // Una sola categoria minore non guadagna niente a chiamarsi "Altro".
-    if (minor.length === 1) {
-      const only = minor[0]
-      major.push({
-        categoryId: only.categoryId,
-        categoryName: only.categoryName,
-        categoryColor: only.categoryColor ?? OTHER_COLOR,
-        categoryIcon: only.categoryIcon,
-        amount: only.amount,
-        children: only.children,
-      })
-    } else if (minor.length > 1) {
-      major.push({
-        categoryId: OTHER_ID,
-        categoryName: 'Altro',
-        categoryColor: OTHER_COLOR,
-        categoryIcon: null,
-        amount: minor.reduce((acc, c) => acc + c.amount, 0),
-        children: minor,
-      })
-    }
-
-    return { slices: major, total: sum }
-  }, [breakdown])
+  const { slices, total } = useMemo(() => buildCategorySlices(breakdown), [breakdown])
 
   if (slices.length === 0) return null
 

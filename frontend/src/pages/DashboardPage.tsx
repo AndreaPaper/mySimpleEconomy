@@ -35,6 +35,7 @@ import { useIsMobile } from '../hooks/useIsMobile'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { buildCategoryBreakdown } from '../utils/categoryBreakdown'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
+import { buildBalanceSeries, buildHistoricalPoints, type ChartPoint } from '../utils/balanceSeries'
 import { buildPeriodSavings, computeBudget } from '../utils/savings'
 import type {
   BalanceCheckpoint,
@@ -51,23 +52,6 @@ const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short', y
 const monthLabelFullFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 const dayBadgeMonthFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short' })
 const fullDateFormatter = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-
-interface ChartPoint {
-  label: string
-  actual: number | null
-  projected: number | null
-  /**
-   * Periodo della card "Spese per categoria" a cui questo punto rimanda al
-   * click. Il grafico ragiona per mese di calendario, la card per periodo
-   * stipendio-to-stipendio: null sui mesi futuri, che non hanno spese
-   * registrate da mostrare.
-   */
-  periodKey: string | null
-}
-
-function monthKey(dateStr: string): string {
-  return dateStr.slice(0, 7)
-}
 
 function monthLabel(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number)
@@ -312,46 +296,26 @@ export default function DashboardPage() {
   const currentCalendarKey = todayStr.slice(0, 7)
 
   // Il grafico "Andamento saldo" resta a mese di calendario (fuori
-  // dall'ambito del periodo personalizzato): esclude esplicitamente il mese
-  // corrente, come faceva già prima che la finestra di fetch di
-  // historicalTransactions si allargasse per includerlo.
-  const netByMonth = new Map<string, number>()
-  for (const t of historicalTransactions) {
-    if (monthKey(t.occurredOn) >= currentCalendarKey) continue
-    const key = monthKey(t.occurredOn)
-    const signed = t.type === 'INCOME' ? t.amount : -t.amount
-    netByMonth.set(key, (netByMonth.get(key) ?? 0) + signed)
-  }
-  const historicalKeys = Array.from(netByMonth.keys()).sort()
-  const totalHistoricalNet = historicalKeys.reduce((sum, k) => sum + (netByMonth.get(k) ?? 0), 0)
+  // dall'ambito del periodo personalizzato) ed esclude il mese corrente:
+  // l'aritmetica sta in utils/balanceSeries.ts, dove si puo' provare.
+  const historicalPoints = buildHistoricalPoints(
+    historicalTransactions,
+    currentBalance,
+    currentCalendarKey,
+    startMonthKey,
+    endMonthKey,
+    salaryDay,
+    monthLabel,
+  )
 
-  let running = currentBalance - totalHistoricalNet
-  const historicalPoints: ChartPoint[] = historicalKeys
-    .map((key) => {
-      running += netByMonth.get(key) ?? 0
-      return {
-        key,
-        label: monthLabel(key),
-        actual: running,
-        projected: null,
-        // Il periodo che contiene la metà di questo mese di calendario: con
-        // un accredito a inizio mese il periodo omonimo cadrebbe quasi tutto
-        // nel mese precedente, quindi non basta riusare la stessa chiave.
-        periodKey: periodKeyOf(`${key}-15`, salaryDay),
-      }
-    })
-    .filter((p) => p.key >= startMonthKey && p.key <= endMonthKey)
-
-  const chartData: ChartPoint[] = [
-    ...historicalPoints,
-    { label: 'Ora', actual: currentBalance, projected: currentBalance, periodKey: periodKeyOf(todayStr, salaryDay) },
-    ...futureMonths.map((m) => ({
-      label: monthLabel(m.yearMonth),
-      actual: null,
-      projected: m.runningBalance,
-      periodKey: null,
-    })),
-  ]
+  const chartData: ChartPoint[] = buildBalanceSeries(
+    historicalPoints,
+    currentBalance,
+    todayStr,
+    futureMonths,
+    salaryDay,
+    monthLabel,
+  )
 
   const upcomingExpenses = recurring
     .filter((r) => r.active && r.categoryType === 'EXPENSE')
