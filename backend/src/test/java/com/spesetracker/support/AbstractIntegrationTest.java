@@ -52,6 +52,10 @@ public abstract class AbstractIntegrationTest {
      * <p>Non è un aggiramento: un test non deve costruire un client verso un servizio esterno.
      * Così la suite smette anche di dipendere dalla configurazione di rete della macchina.
      * Tutto il resto continua a passare dall'API pubblica, senza mock.
+     *
+     * <p>Il servizio vero non resta scoperto: {@code EmailNotificationServiceTest} lo esercita
+     * senza Spring, legando {@code MockRestServiceServer} al {@code RestClient.Builder}. Qui il
+     * finto serve solo a tenere il context leggero e a permettere il {@code verify(...)} sui job.
      */
     @MockitoBean
     protected EmailNotificationService emailNotificationService;

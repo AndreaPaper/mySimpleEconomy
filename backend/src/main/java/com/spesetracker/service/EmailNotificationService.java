@@ -41,7 +41,16 @@ public class EmailNotificationService {
     public void sendReminderNotification(User user, ExpenseReminder reminder) {
         LocalDate today = LocalDate.now();
         long daysAway = ChronoUnit.DAYS.between(today, reminder.getNextDueDate());
-        String when = daysAway <= 0 ? "oggi" : "tra " + daysAway + " giorni";
+        // Il singolare conta: "tra 1 giorni" e' l'avviso che si legge il giorno
+        // prima della scadenza, cioe' quello che quasi tutti leggono.
+        String when;
+        if (daysAway <= 0) {
+            when = "oggi";
+        } else if (daysAway == 1) {
+            when = "tra 1 giorno";
+        } else {
+            when = "tra " + daysAway + " giorni";
+        }
 
         String subject = "Promemoria: " + reminder.getName() + " " + when;
         String body = "Il promemoria \"" + reminder.getName() + "\" scade il "
