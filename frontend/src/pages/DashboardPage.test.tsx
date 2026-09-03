@@ -33,7 +33,10 @@ describe('saldo e previsione', () => {
     )
     mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
 
-    expect(await screen.findByText('1.234,50 €')).toBeInTheDocument()
+    // Matcher tollerante al separatore delle migliaia: i dati ICU del runner
+    // (Node 24) rendono "1234,50" senza il punto, la mia macchina "1.234,50".
+    // Asserire la stringa esatta legava il test all'ICU locale.
+    expect(await screen.findByText(/1\.?234,50\s*€/)).toBeInTheDocument()
   })
 
   /**
