@@ -19,6 +19,7 @@ import { ListPageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
+import { lastPeriodKeys } from '../utils/savingsPeriods'
 import { buildPeriodSavings } from '../utils/savings'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
@@ -55,15 +56,7 @@ export default function SavingsPage() {
   const todayStr = new Date().toISOString().slice(0, 10)
   const currentPeriodKey = periodKeyOf(todayStr, salaryDay)
 
-  // Le ultime PERIODS_SHOWN chiavi di periodo fino a quella corrente inclusa.
-  const periodKeys: string[] = []
-  {
-    const [y, m] = currentPeriodKey.split('-').map(Number)
-    for (let i = PERIODS_SHOWN - 1; i >= 0; i--) {
-      const d = new Date(y, m - 1 - i, 1)
-      periodKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-    }
-  }
+  const periodKeys = lastPeriodKeys(currentPeriodKey, PERIODS_SHOWN)
 
   useEffect(() => {
     // Si scarica l'intervallo coperto dai periodi mostrati: il primo giorno del

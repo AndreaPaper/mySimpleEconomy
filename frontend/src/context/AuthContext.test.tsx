@@ -1,32 +1,18 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider, useAuth } from './AuthContext'
+import { server, setupApiMocks } from '../test/server'
 
 // La sessione. Due cose meritano un test, e nessuna delle due si vede a schermo:
 // dove finiscono le credenziali, e il fatto che l'accesso emetta un evento di
 // cui questo file non sa nulla — è quello che sveglia la sincronizzazione
 // differita e manda in archivio le spese registrate senza rete.
-
-const server = setupServer()
-
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterAll(() => server.close())
-
-afterEach(async () => {
-  server.resetHandlers()
-  // Il fail-fast "backend irraggiungibile" e' uno stato del *modulo* del client
-  // axios, condiviso da tutti i test del file. Un test che simula la rete giu'
-  // lo lascia acceso, e i successivi vengono rifiutati subito senza mai
-  // raggiungere MSW — fallendo per un motivo che non ha niente a che vedere con
-  // quello che dichiarano. Una risposta riuscita e' l'unica cosa che lo spegne.
-  server.use(http.get('*/api/__sveglia', () => HttpResponse.json({})))
-  const client = (await import('../api/client')).default
-  await client.get('/__sveglia', { skipUnreachableCheck: true }).catch(() => {})
-  server.resetHandlers()
-})
+//
+// Usa l'impalcatura condivisa (server + setupApiMocks): il reset del fail-fast
+// fra un test e l'altro sta lì, non più ricopiato qui.
+setupApiMocks()
 
 const profiloVuoto = {
   nickname: null,

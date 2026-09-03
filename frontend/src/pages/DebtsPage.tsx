@@ -10,6 +10,7 @@ import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { ListPageSkeleton } from '../components/Skeleton'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { projectPayoff } from '../utils/payoff'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const payoffDateFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
@@ -62,16 +63,6 @@ function DebtIconButton({ icon: Icon, label, tone, onClick }: { icon: LucideIcon
       <Icon className="h-4 w-4" />
     </button>
   )
-}
-
-// Proiezione client-side, non serve al backend: mesi stimati per saldare il
-// residuo alla rata mensile impostata, e la data (mese/anno) prevista.
-function projectPayoff(remainingAmount: number, monthlyPaymentAmount: number): string {
-  const monthsRemaining = Math.ceil(remainingAmount / monthlyPaymentAmount)
-  const payoffDate = new Date()
-  payoffDate.setDate(1)
-  payoffDate.setMonth(payoffDate.getMonth() + monthsRemaining)
-  return payoffDateFormatter.format(payoffDate)
 }
 
 export default function DebtsPage() {
@@ -220,7 +211,7 @@ export default function DebtsPage() {
                   {!saldato && (
                     <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
                       {d.monthlyPaymentAmount
-                        ? `Con una rata di ${currency.format(d.monthlyPaymentAmount)}/mese, saldo previsto per ${projectPayoff(d.remainingAmount, d.monthlyPaymentAmount)}.`
+                        ? `Con una rata di ${currency.format(d.monthlyPaymentAmount)}/mese, saldo previsto per ${projectPayoff(d.remainingAmount, d.monthlyPaymentAmount, payoffDateFormatter)}.`
                         : 'Imposta una rata mensile per stimare quando finirai di pagare.'}
                     </p>
                   )}
@@ -263,7 +254,7 @@ export default function DebtsPage() {
                   {!saldato && (
                     <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
                       {d.monthlyPaymentAmount
-                        ? `Con una rata di ${currency.format(d.monthlyPaymentAmount)}/mese, saldo previsto per ${projectPayoff(d.remainingAmount, d.monthlyPaymentAmount)}.`
+                        ? `Con una rata di ${currency.format(d.monthlyPaymentAmount)}/mese, saldo previsto per ${projectPayoff(d.remainingAmount, d.monthlyPaymentAmount, payoffDateFormatter)}.`
                         : 'Imposta una rata mensile per stimare quando finirai di pagare.'}
                     </p>
                   )}
