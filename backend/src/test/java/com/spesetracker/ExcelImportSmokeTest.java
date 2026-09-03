@@ -5,7 +5,6 @@ import com.spesetracker.support.AbstractIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +19,11 @@ import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.spesetracker.support.XlsxFixtures.setColoredBlank;
+import static com.spesetracker.support.XlsxFixtures.setColoredText;
+import static com.spesetracker.support.XlsxFixtures.setDate;
+import static com.spesetracker.support.XlsxFixtures.setNumeric;
+import static com.spesetracker.support.XlsxFixtures.setText;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -224,49 +228,4 @@ class ExcelImportSmokeTest extends AbstractIntegrationTest {
         setNumeric(sheet, 11, 1, salaryAmount);
     }
 
-    private Row row(Sheet sheet, int r) {
-        Row row = sheet.getRow(r);
-        return row != null ? row : sheet.createRow(r);
-    }
-
-    private void setText(Sheet sheet, int r, int c, String value) {
-        row(sheet, r).createCell(c).setCellValue(value);
-    }
-
-    private void setNumeric(Sheet sheet, int r, int c, double value) {
-        row(sheet, r).createCell(c).setCellValue(value);
-    }
-
-    private void setDate(Sheet sheet, int r, int c, LocalDate value) {
-        if (value == null) return;
-        Cell cell = row(sheet, r).createCell(c);
-        CellStyle style = sheet.getWorkbook().createCellStyle();
-        style.setDataFormat(sheet.getWorkbook().getCreationHelper().createDataFormat().getFormat("yyyy-mm-dd"));
-        cell.setCellStyle(style);
-        cell.setCellValue(value);
-    }
-
-    private void setColoredText(Sheet sheet, int r, int c, String value, String argbHex) {
-        Cell cell = row(sheet, r).createCell(c);
-        cell.setCellValue(value);
-        applyFill(sheet, cell, argbHex);
-    }
-
-    private void setColoredBlank(Sheet sheet, int r, int c, String argbHex) {
-        Cell cell = row(sheet, r).createCell(c);
-        applyFill(sheet, cell, argbHex);
-    }
-
-    private void applyFill(Sheet sheet, Cell cell, String argbHex) {
-        byte[] rgb = new byte[]{
-                (byte) Integer.parseInt(argbHex.substring(0, 2), 16),
-                (byte) Integer.parseInt(argbHex.substring(2, 4), 16),
-                (byte) Integer.parseInt(argbHex.substring(4, 6), 16),
-                (byte) Integer.parseInt(argbHex.substring(6, 8), 16)
-        };
-        CellStyle style = sheet.getWorkbook().createCellStyle();
-        style.setFillForegroundColor(new XSSFColor(rgb, null));
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        cell.setCellStyle(style);
-    }
 }
