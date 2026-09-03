@@ -16,7 +16,7 @@ import { useIsMobile } from '../hooks/useIsMobile'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { getQueue, type QueuedTransaction } from '../offline/queue'
-import { periodKeyOf } from '../utils/period'
+import { groupByMonth, toDisplayTransaction, type DisplayTransaction } from '../utils/transactionRows'
 
 const PAGE_SIZE = 30
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
@@ -25,44 +25,6 @@ const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', ye
 function monthLabel(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number)
   return monthLabelFormatter.format(new Date(year, month - 1, 1))
-}
-
-// Le transazioni arrivano già ordinate per data decrescente, quindi quelle
-// dello stesso periodo sono sempre adiacenti: basta accumularle in gruppi.
-function groupByMonth(
-  transactions: DisplayTransaction[],
-  salaryDay: number | null,
-): { key: string; items: DisplayTransaction[] }[] {
-  const groups: { key: string; items: DisplayTransaction[] }[] = []
-  for (const t of transactions) {
-    const key = periodKeyOf(t.occurredOn, salaryDay)
-    const lastGroup = groups[groups.length - 1]
-    if (lastGroup && lastGroup.key === key) {
-      lastGroup.items.push(t)
-    } else {
-      groups.push({ key, items: [t] })
-    }
-  }
-  return groups
-}
-
-type DisplayTransaction = Transaction & { pending?: boolean }
-
-function toDisplayTransaction(q: QueuedTransaction, categories: Category[]): DisplayTransaction {
-  const category = categories.find((c) => c.id === q.categoryId)
-  return {
-    id: q.localId,
-    categoryId: q.categoryId,
-    categoryName: category?.name ?? '—',
-    categoryIcon: category?.icon ?? null,
-    categoryColor: category?.color ?? null,
-    amount: q.amount,
-    type: q.type,
-    occurredOn: q.occurredOn,
-    description: q.description,
-    recurringTransactionId: null,
-    pending: true,
-  }
 }
 
 export default function TransactionsPage() {
