@@ -1,26 +1,11 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest'
+import { installMatchMedia, resetMatchMedia } from './matchMedia'
 
-// jsdom non implementa alcune cose che questa app usa *in fase di
-// inizializzazione*, non dentro un effetto: ThemeContext e useIsMobile chiamano
-// matchMedia mentre calcolano lo stato iniziale, quindi senza lo stub qualunque
-// test che monta un componente esplode prima di arrivare alle asserzioni.
-if (!window.matchMedia) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: (query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-    }),
-  })
-}
+// Lo stub di matchMedia sta in un file a parte perché i test lo pilotano:
+// vedi src/test/matchMedia.ts per il perché non basta rispondere sempre "no".
+installMatchMedia()
 
 // Usato dai grafici Recharts.
 if (!globalThis.ResizeObserver) {
@@ -44,6 +29,9 @@ beforeEach(() => {
   // Le palette e il tema scrivono su <html>: stessa storia.
   document.documentElement.className = ''
   document.documentElement.removeAttribute('data-palette')
+  // Ogni test parte da desktop e tema chiaro, che sono i valori predefiniti:
+  // chi vuole il mobile lo chiede con setViewport('mobile').
+  resetMatchMedia()
 })
 
 afterEach(() => {
