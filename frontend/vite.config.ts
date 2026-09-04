@@ -43,6 +43,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // I 5 s predefiniti non bastano a suite piena: i test che digitano con
+    // userEvent (TransactionForm, CategoryForm) fanno un ciclo di eventi per
+    // tasto, e con i worker in contesa qualcuno sfora — falliva un test diverso
+    // a ogni corsa, tutti verdi se lanciati da soli. Non nasconde un blocco
+    // vero: quello sfora anche 15 s.
+    testTimeout: 15000,
     // Escluso il resto perché per impostazione predefinita vitest guarda anche
     // dentro node_modules delle dipendenze.
     include: ['src/**/*.test.{ts,tsx}'],

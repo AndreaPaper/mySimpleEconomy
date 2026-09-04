@@ -2,6 +2,7 @@ import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AxiosInstance } from 'axios'
+import { navigazioniRichieste, setLocation } from '../test/location'
 
 // Lo strato di rete. Sono quattro comportamenti, nessuno visibile a schermo, e
 // tutti e quattro invisibili anche quando si rompono: l'app continua a
@@ -175,33 +176,12 @@ describe('backend irraggiungibile', () => {
 })
 
 describe('la sessione scaduta', () => {
-  // Sostituire `window.location` con un oggetto qualunque non basta: axios
-  // risolve la base `/api` contro l'indirizzo corrente, quindi senza origine la
-  // richiesta non arriverebbe mai al gestore e fallirebbe come errore di rete —
-  // il test passerebbe l'attesa di rifiuto e proverebbe tutt'altro. Il finto
-  // indirizzo porta quindi un URL completo, e solo `pathname` cambia.
-  const vaiA = (pathname: string) => {
-    const url = new URL(pathname, 'http://localhost:3000')
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      configurable: true,
-      value: {
-        href: url.href,
-        origin: url.origin,
-        protocol: url.protocol,
-        host: url.host,
-        hostname: url.hostname,
-        port: url.port,
-        pathname: url.pathname,
-        search: '',
-        hash: '',
-        toString: () => url.href,
-      },
-    })
-  }
-
+  // La finta `window.location` è installata una volta per tutti i test in
+  // src/test/setup.ts: qui basta portarla dove serve. (Prima ne viveva una copia
+  // in questo file, e gli altri test che prendono un 401 restavano scoperti,
+  // riempiendo il log di "Not implemented: navigation".)
   it('un 401 ripulisce le credenziali e porta al login', async () => {
-    vaiA('/dashboard')
+    setLocation('/dashboard')
     localStorage.setItem('token', 'scaduto')
     localStorage.setItem('email', 'andrea@example.com')
     const client = await clientPulito()
@@ -211,7 +191,7 @@ describe('la sessione scaduta', () => {
 
     expect(localStorage.getItem('token')).toBeNull()
     expect(localStorage.getItem('email')).toBeNull()
-    expect(window.location.href).toBe('/login')
+    expect(navigazioniRichieste()).toEqual(['http://localhost:3000/login'])
   })
 
   /**
@@ -220,14 +200,14 @@ describe('la sessione scaduta', () => {
    * pagina cancellerebbe il messaggio di errore prima che si riesca a leggerlo.
    */
   it('un 401 sulla pagina di accesso non ricarica la pagina', async () => {
-    vaiA('/login')
+    setLocation('/login')
     const client = await clientPulito()
     server.use(http.get('*/api/ok', () => new HttpResponse(null, { status: 401 })))
 
     await expect(client.get('/ok')).rejects.toThrow()
 
-    // L'indirizzo è rimasto quello di partenza: nessuna assegnazione, quindi
-    // nessun ricaricamento. (Il caso precedente lo riscrive in `/login` secco.)
-    expect(window.location.href).toBe('http://localhost:3000/login')
+    // Nessuna navigazione richiesta: la guardia sul pathname ha tenuto, quindi
+    // il messaggio d'errore della pagina di accesso resta a schermo.
+    expect(navigazioniRichieste()).toEqual([])
   })
 })
