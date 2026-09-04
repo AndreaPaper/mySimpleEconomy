@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { render, type RenderResult } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { vi } from 'vitest'
+import { AppRoutes } from '../App'
 import type { Profile } from '../api/types'
 import { AuthProvider } from '../context/AuthContext'
 import { CaseStyleProvider } from '../context/CaseStyleContext'
@@ -102,6 +103,17 @@ export function mountPage(ui: ReactElement, options: MountPageOptions = {}): Mou
   )
 
   return Object.assign(utils, { currentPath: () => posizione.current })
+}
+
+/**
+ * L'albero di rotte vero, per i pochi test che riguardano la navigazione fra
+ * pagine (il rimando al login, il catch-all su una rotta sconosciuta). Per tutto
+ * il resto si usa `mountPage`, che monta la pagina sola.
+ */
+export function mountApp(
+  options: Omit<MountPageOptions, 'path' | 'extraRoutes'> = {},
+): MountPageResult {
+  return mountPage(<AppRoutes />, { ...options, path: '*' })
 }
 
 /**

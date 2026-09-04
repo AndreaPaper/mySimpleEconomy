@@ -20,6 +20,36 @@ import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import SectionsPage from './pages/SectionsPage'
 
+// La tabella delle rotte, separata da App perché i test la montino dentro un
+// MemoryRouter invece del BrowserRouter, che scriverebbe nella cronologia
+// condivisa del documento e si porterebbe dietro lo stato da un test all'altro.
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/transazioni" element={<TransactionsPage />} />
+          <Route path="/categorie" element={<CategoriesPage />} />
+          <Route path="/ricorrenti" element={<RecurringPage />} />
+          <Route path="/debiti" element={<DebtsPage />} />
+          <Route path="/promemoria" element={<RemindersPage />} />
+          <Route path="/risparmio" element={<SavingsPage />} />
+          <Route path="/importa" element={<ImportPage />} />
+          <Route path="/impostazioni" element={<SettingsPage />} />
+          <Route path="/sezioni" element={<SectionsPage />} />
+          <Route path="/profilo" element={<ProfilePage />} />
+        </Route>
+      </Route>
+      {/* Una rotta sconosciuta riporta alla Dashboard invece di lasciare una
+          pagina bianca: succede con un vecchio segnalibro o un link rotto. */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
 function App() {
   return (
     <ThemeProvider>
@@ -28,26 +58,7 @@ function App() {
           <OfflineSyncProvider>
             <AuthProvider>
               <BrowserRouter>
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                  <Route element={<ProtectedRoute />}>
-                    <Route element={<Layout />}>
-                      <Route path="/" element={<DashboardPage />} />
-                      <Route path="/transazioni" element={<TransactionsPage />} />
-                      <Route path="/categorie" element={<CategoriesPage />} />
-                      <Route path="/ricorrenti" element={<RecurringPage />} />
-                      <Route path="/debiti" element={<DebtsPage />} />
-                      <Route path="/promemoria" element={<RemindersPage />} />
-                      <Route path="/risparmio" element={<SavingsPage />} />
-                      <Route path="/importa" element={<ImportPage />} />
-                      <Route path="/impostazioni" element={<SettingsPage />} />
-                      <Route path="/sezioni" element={<SectionsPage />} />
-                      <Route path="/profilo" element={<ProfilePage />} />
-                    </Route>
-                  </Route>
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                <AppRoutes />
               </BrowserRouter>
             </AuthProvider>
           </OfflineSyncProvider>

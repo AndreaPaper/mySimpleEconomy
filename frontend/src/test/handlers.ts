@@ -7,6 +7,7 @@ import type {
   ExpenseReminder,
   ForecastResponse,
   Profile,
+  RecurringOverride,
   RecurringTransaction,
   Transaction,
   TransactionPage,
@@ -91,6 +92,14 @@ export const ricorrente = (over: Partial<RecurringTransaction> = {}): RecurringT
   ...over,
 })
 
+export const eccezione = (over: Partial<RecurringOverride> = {}): RecurringOverride => ({
+  id: 'o-1',
+  occurrenceDate: '2026-04-01',
+  overrideAmount: 230,
+  note: null,
+  ...over,
+})
+
 export const promemoria = (over: Partial<ExpenseReminder> = {}): ExpenseReminder => ({
   id: 'p-1',
   categoryId: 'c-1',
@@ -164,6 +173,12 @@ export const defaultHandlers: HttpHandler[] = [
   http.delete(`${API}/recurring-transactions/:id`, () => new HttpResponse(null, { status: 204 })),
   http.post(`${API}/recurring-transactions/:id/deactivate`, () => HttpResponse.json(ricorrente({ active: false }))),
   http.post(`${API}/recurring-transactions/:id/reactivate`, () => HttpResponse.json(ricorrente())),
+  // Le eccezioni di importo su una singola occorrenza: OverridesPanel le chiama
+  // da sé, e senza questi gestori `onUnhandledRequest: 'error'` farebbe fallire
+  // qualunque test che monta quel pannello.
+  http.get(`${API}/recurring-transactions/:id/overrides`, () => HttpResponse.json<RecurringOverride[]>([])),
+  http.post(`${API}/recurring-transactions/:id/overrides`, () => HttpResponse.json(eccezione(), { status: 201 })),
+  http.delete(`${API}/recurring-transactions/:id/overrides/:overrideId`, () => new HttpResponse(null, { status: 204 })),
 
   http.get(`${API}/expense-reminders`, () => HttpResponse.json<ExpenseReminder[]>([])),
   http.post(`${API}/expense-reminders`, () => HttpResponse.json(promemoria(), { status: 201 })),
