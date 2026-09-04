@@ -29,9 +29,13 @@ export default function CategoryForm({ initial, categories, onSubmit, onCancel }
   const [saving, setSaving] = useState(false)
 
   // Padri ammessi, con le stesse regole applicate dal backend: stesso tipo,
-  // non già sottocategorie, e diversi dalla categoria in modifica. In più si
-  // escludono quelle che hanno già figli, perché agganciarle creerebbe un
-  // terzo livello (non supportato).
+  // non già sottocategorie, e diverse dalla categoria in modifica.
+  //
+  // Una categoria che ha già dei figli resta invece un padre valido: aggiungerle
+  // un'altra sottocategoria non crea un terzo livello. È `!c.parentId` a
+  // impedirlo, escludendo chi è già figlio di qualcun altro. hasChildren serve
+  // solo al caso opposto, più sotto: una categoria con figli non può diventare
+  // lei stessa una sottocategoria.
   const hasChildren = (categoryId: string) => categories.some((c) => c.parentId === categoryId)
   const parentOptions = categories
     .filter((c) => c.type === type && !c.parentId && c.id !== initial?.id)

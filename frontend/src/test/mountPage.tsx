@@ -19,7 +19,8 @@ import { server } from './server'
 // Si monta la PAGINA SOLA e non l'albero di rotte vero: `Layout` renderebbe
 // tutta la navigazione, e ogni ricerca per testo in ogni test di pagina
 // rischierebbe di trovare due volte "Risparmio". `ProtectedRoute` e `Layout`
-// hanno i propri test, separati.
+// hanno i propri test, separati (components/shell.test.tsx e
+// pages/composition.test.tsx); per la navigazione fra pagine c'è `mountApp`.
 
 export interface MountPageOptions {
   /** Rotta iniziale, con eventuale query. Predefinita '/'. */
