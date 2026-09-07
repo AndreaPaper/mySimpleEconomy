@@ -136,6 +136,27 @@ describe('RecurringTransactionForm', () => {
 
     expect(screen.queryByRole('button', { name: 'Salva' })).not.toBeInTheDocument()
   })
+
+  /**
+   * Cambiando tipo la categoria scelta va ri-scelta, perché quella di prima è
+   * di un altro tipo. È la stessa regola di TransactionForm, che il suo test ce
+   * l'ha; qui mancava, ed è l'ultimo gestore del progetto che poteva salvare in
+   * silenzio una regola di spesa dentro una categoria di entrata.
+   */
+  it('cambiando tipo ri-sceglie la prima categoria del nuovo tipo', async () => {
+    const utente = userEvent.setup()
+    const { onSubmit } = monta({
+      categories: [...USCITE, categoria({ id: 'c-ent1', name: 'Stipendio', type: 'INCOME' })],
+    })
+
+    await utente.click(screen.getByRole('button', { name: 'Entrata' }))
+    await utente.type(screen.getByLabelText('Nome'), 'Stipendio mensile')
+    await utente.type(screen.getByLabelText('Importo'), '1800')
+    await utente.click(salva())
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ categoryId: 'c-ent1' })
+  })
 })
 
 // ------------------------------------------------------------------

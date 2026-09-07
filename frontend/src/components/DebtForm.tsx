@@ -27,12 +27,25 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Un acconto esiste solo se è un numero maggiore di zero.
+  //
+  // Il confronto sulla stringa non basta, ed è costato un difetto: il backend
+  // manda 0 e non null per ogni debito senza acconto (ce lo mette
+  // Debt.onCreate), e "0" è una stringa non vuota. Bastava quindi aprire un
+  // debito qualsiasi in modifica perché comparisse il campo data obbligatorio
+  // di un acconto che non c'era, e il salvataggio si bloccasse.
+  //
+  // È anche la regola che il backend applica già per conto suo
+  // (DebtService.validatedAlreadyPaidAmount confronta con zero): qui il
+  // frontend era l'unico a ragionare sul testo invece che sul valore.
+  const haAcconto = Number(alreadyPaidAmount) > 0
+
   const handleAlreadyPaidAmountChange = (value: string) => {
     setAlreadyPaidAmount(value)
     // La prima volta che si valorizza l'importo, propone oggi come data di
     // riferimento (modificabile): così le spese storiche già presenti nella
     // categoria non vengono ricontate sopra al totale inserito a mano.
-    if (value && !alreadyPaidAsOf) {
+    if (Number(value) > 0 && !alreadyPaidAsOf) {
       setAlreadyPaidAsOf(new Date().toISOString().slice(0, 10))
     }
   }
@@ -40,7 +53,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (alreadyPaidAmount && !alreadyPaidAsOf) {
+    if (haAcconto && !alreadyPaidAsOf) {
       setError('Indica da quale data in poi le spese vanno conteggiate separatamente dal già pagato.')
       return
     }
@@ -50,8 +63,8 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
         categoryId,
         name,
         totalAmount: Number(totalAmount),
-        alreadyPaidAmount: alreadyPaidAmount ? Number(alreadyPaidAmount) : null,
-        alreadyPaidAsOf: alreadyPaidAmount ? alreadyPaidAsOf : null,
+        alreadyPaidAmount: haAcconto ? Number(alreadyPaidAmount) : null,
+        alreadyPaidAsOf: haAcconto ? alreadyPaidAsOf : null,
         monthlyPaymentAmount: monthlyPaymentAmount ? Number(monthlyPaymentAmount) : null,
       })
     } catch {
@@ -136,7 +149,7 @@ export default function DebtForm({ categories, initial, onSubmit, onCancel }: De
           Utile solo per un debito che stai già pagando da tempo: lascia vuoto per un debito nuovo.
         </span>
       </div>
-      {alreadyPaidAmount && (
+      {haAcconto && (
         <div>
           <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="debt-already-paid-as-of">
             Già pagato fino al

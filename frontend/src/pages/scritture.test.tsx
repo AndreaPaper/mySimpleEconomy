@@ -74,9 +74,6 @@ describe('Debiti', () => {
     await scegliDalFoglio(u, 'Prestito auto', 'Modifica')
     await u.clear(screen.getByLabelText('Nome'))
     await u.type(screen.getByLabelText('Nome'), 'Prestito moto')
-    // Va svuotato il campo "già pagato", altrimenti il salvataggio è bloccato:
-    // è il difetto documentato dal test qui sotto, non un passaggio necessario.
-    await u.clear(screen.getByLabelText(/Già pagato prima di iniziare/i))
     await u.click(screen.getByRole('button', { name: 'Salva' }))
 
     await waitFor(() => expect(scritture).toHaveLength(1))
@@ -86,27 +83,20 @@ describe('Debiti', () => {
   })
 
   /**
-   * <strong>Difetto trovato scrivendo questi test, e qui fissato com'è, non
-   * corretto.</strong>
+   * La regressione che questo test difende, e che è già successa una volta.
    *
    * <p>Un debito creato senza acconto torna dal backend con
-   * {@code alreadyPaidAmount: 0} — è {@code Debt.onCreate} che ci mette zero al
-   * posto di null, quindi vale per <em>tutti</em> i debiti normali. Il modulo lo
-   * porta nel campo come la stringa "0", e la validazione incrociata controlla
-   * la stringa: "0" non è vuota, quindi pretende una data che l'utente non ha
-   * motivo di dare.
+   * {@code alreadyPaidAmount: 0} — ce lo mette {@code Debt.onCreate}, quindi
+   * vale per <em>tutti</em> i debiti normali. Finché il modulo giudicava sulla
+   * stringa, "0" non era vuota: faceva comparire il campo data obbligatorio di
+   * un acconto inesistente, e quel campo bloccava l'invio a livello di browser.
+   * Si apriva un debito qualsiasi, si premeva Salva, e non partiva nulla —
+   * nemmeno il messaggio d'errore, perché il modulo non arrivava a inviarsi.
    *
-   * <p>Il campo data "Già pagato fino al" viene reso solo quando l'importo è
-   * valorizzato, ed è {@code required}: comparendo per uno zero, blocca l'invio
-   * del modulo a livello di browser. L'utente preme Salva e non parte nulla —
-   * il messaggio d'errore scritto nel codice non fa nemmeno in tempo a
-   * comparire, perché il modulo non arriva a inviarsi.
-   *
-   * <p>L'unico modo di uscirne è svuotare a mano un campo che diceva zero. La
-   * correzione è confrontare il numero invece della stringa; non la applico qui
-   * perché cambia comportamento, e il test resta a dire cosa succede oggi.
+   * <p>Ora il giudizio è sul numero, come già faceva il backend
+   * ({@code DebtService.validatedAlreadyPaidAmount} confronta con zero).
    */
-  it('difetto: un debito con "già pagato" a zero chiede una data e non si salva', async () => {
+  it('uno zero come "già pagato" non chiede nessuna data', async () => {
     const u = utente()
     let inviato = false
     server.use(
@@ -120,16 +110,38 @@ describe('Debiti', () => {
     mountPage(<DebtsPage />, { route: '/debiti', viewport: 'mobile' })
 
     await scegliDalFoglio(u, 'Prestito auto', 'Modifica')
-    // Lo zero arrivato dal backend riempie il campo, e il campo riempito fa
-    // comparire la data obbligatoria che nessuno ha chiesto.
     expect(screen.getByLabelText(/Già pagato prima di iniziare/i)).toHaveValue(0)
-    expect(screen.getByLabelText('Già pagato fino al')).toBeRequired()
+    // Lo zero non è un acconto: il campo data non compare affatto.
+    expect(screen.queryByLabelText('Già pagato fino al')).not.toBeInTheDocument()
 
     await u.click(screen.getByRole('button', { name: 'Salva' }))
 
-    // Niente parte, e niente lo spiega: la modale resta lì.
-    await waitFor(() => expect(screen.getByText('Modifica debito')).toBeInTheDocument())
-    expect(inviato).toBe(false)
+    await waitFor(() => expect(inviato).toBe(true))
+  })
+
+  /**
+   * E il verso che deve restare: con un acconto <em>vero</em> la data serve
+   * ancora, perché senza si sommerebbero due volte le spese storiche della
+   * categoria. La correzione doveva togliere di mezzo lo zero, non spegnere la
+   * validazione.
+   */
+  it('con un acconto vero la data resta obbligatoria', async () => {
+    const u = utente()
+    server.use(
+      http.get('*/api/debts', () => HttpResponse.json([prestito])),
+      http.get('*/api/categories', () => HttpResponse.json(categorie)),
+    )
+    mountPage(<DebtsPage />, { route: '/debiti', viewport: 'mobile' })
+
+    await scegliDalFoglio(u, 'Prestito auto', 'Modifica')
+    const acconto = screen.getByLabelText(/Già pagato prima di iniziare/i)
+    await u.clear(acconto)
+    await u.type(acconto, '500')
+
+    const data = screen.getByLabelText('Già pagato fino al')
+    expect(data).toBeRequired()
+    // E viene proposta oggi, così il campo non resta vuoto per distrazione.
+    expect(data).toHaveValue(new Date().toISOString().slice(0, 10))
   })
 
   it('confermando l eliminazione parte la DELETE e la riga sparisce', async () => {

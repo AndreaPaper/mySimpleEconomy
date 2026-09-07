@@ -221,6 +221,29 @@ class ExcelSheetParserTest {
         assertThat(parsed.sheetsProcessed()).isEqualTo(1);
     }
 
+    /**
+     * L'anno del saldo viene dal <em>nome</em> del foglio di stima. Se il nome non ne contiene
+     * uno — "Stima" e basta — si ricade sull'anno corrente.
+     *
+     * <p>È il ripiego giusto, ma non era mai stato eseguito, e sbagliarlo non dà errore: darebbe
+     * un saldo di partenza datato in un anno diverso da quello vero, cioè un grafico
+     * dell'andamento che parte da un punto sbagliato senza che nulla lo segnali.
+     */
+    @Test
+    void unFoglioDiStimaSenzaAnnoNelNomeRicadeSullAnnoCorrente() throws Exception {
+        XSSFWorkbook wb = cartella("Marzo", "Stima");
+        intestazioni(wb.getSheetAt(0), 1);
+        Sheet stima = wb.getSheetAt(1);
+        setText(stima, 0, 0, "Mese");
+        setText(stima, 1, 0, "gennaio");
+        setNumeric(stima, 1, 1, 1000);
+
+        ParsedWorkbook parsed = parse(wb);
+
+        assertThat(parsed.checkpointDate())
+                .isEqualTo(LocalDate.of(LocalDate.now().getYear(), 1, 1));
+    }
+
     // Il foglio "Spese ricorrenti" ha solo date e nessun importo: leggerlo produrrebbe righe
     // senza costo, quindi è escluso per nome.
     @Test
