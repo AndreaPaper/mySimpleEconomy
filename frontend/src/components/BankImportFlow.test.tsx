@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import BankImportFlow from './BankImportFlow'
@@ -238,5 +238,90 @@ describe('errori', () => {
     await userEvent.click(screen.getByRole('button', { name: /Analizza/i }))
 
     expect(await screen.findByText(/Analisi del file non riuscita/)).toBeInTheDocument()
+  })
+})
+
+describe('la selezione di un intero gruppo', () => {
+  /**
+   * "Deseleziona tutte" su un gruppo di esiti: è il gesto con cui si scarta in
+   * blocco, per esempio, tutte le righe sospette. Agisce su un gruppo solo — le
+   * altre sezioni non si devono muovere, o si finirebbe per importare (o
+   * scartare) righe che non si è nemmeno guardate.
+   */
+  it('spegne solo il gruppo su cui si preme', async () => {
+    await analizza(
+      anteprima({
+        rows: [
+          riga({ rowNumber: 1, description: 'Spesa nuova', outcome: 'NUOVA' }),
+          riga({ rowNumber: 2, description: 'Forse doppia', outcome: 'SOSPETTO_MANUALE', selectedByDefault: false }),
+          riga({ rowNumber: 3, description: 'Anche questa', outcome: 'SOSPETTO_MANUALE', selectedByDefault: false }),
+        ],
+        summary: { ...anteprima().summary, rowsInFile: 3, nuove: 1, sospettiManuali: 2 },
+      }),
+    )
+
+    // Il gruppo dei sospetti parte tutto spento: si accende in blocco.
+    const sezione = screen.getByText(/Da controllare — forse già inserite a mano/).closest('div') as HTMLElement
+    await userEvent.click(within(sezione).getByRole('button', { name: 'Seleziona tutte' }))
+
+    await userEvent.click(screen.getByRole('button', { name: /Importa/i }))
+    await waitFor(() => expect(commit).toHaveBeenCalled())
+    const inviato = commit.mock.calls[0][0]
+    // Tutte e tre: la nuova era già spuntata, le due sospette lo sono diventate.
+    expect(inviato.rows.map((r) => r.description).sort()).toEqual(['Anche questa', 'Forse doppia', 'Spesa nuova'])
+  })
+})
+
+describe('le categorie create dalle categorie della banca', () => {
+  /**
+   * Il pulsante che crea in un colpo le categorie mancanti a partire da quelle
+   * della banca. Va provato che le mappature tornate dal backend <em>sostituiscano</em>
+   * quelle a schermo: sono loro a portare gli id nuovi, e senza la sostituzione
+   * il passo successivo manderebbe al commit delle categorie che non esistono.
+   */
+  it('sostituisce le mappature con quelle tornate dal backend', async () => {
+    const creaCategorie = vi.mocked(bankImportApi.createCategoriesFromBank)
+    creaCategorie.mockResolvedValue([mappatura({ categoryId: 'cat-nuova' })])
+    const avvisato = vi.fn()
+
+    analyze.mockResolvedValue(
+      anteprima({
+        unmappedCategories: [mappatura({ categoryId: null })],
+        summary: { ...anteprima().summary, categorieDaMappare: 1 },
+      }),
+    )
+    render(<BankImportFlow categories={categorie} onCategoriesChanged={avvisato} />)
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, new File(['x'], 'estratto.xlsx'))
+    await userEvent.click(screen.getByRole('button', { name: /Analizza/i }))
+    await waitFor(() => expect(analyze).toHaveBeenCalled())
+
+    await userEvent.click(await screen.findByRole('button', { name: /Crea le categorie/i }))
+
+    await waitFor(() => expect(creaCategorie).toHaveBeenCalled())
+    // La pagina che ospita il flusso viene avvisata: deve ricaricare il proprio
+    // elenco, altrimenti i selettori resterebbero senza le categorie appena create.
+    expect(avvisato).toHaveBeenCalled()
+  })
+
+  it('se la creazione fallisce lo dice invece di restare muto', async () => {
+    const creaCategorie = vi.mocked(bankImportApi.createCategoriesFromBank)
+    creaCategorie.mockRejectedValue(new Error('boom'))
+
+    analyze.mockResolvedValue(
+      anteprima({
+        unmappedCategories: [mappatura({ categoryId: null })],
+        summary: { ...anteprima().summary, categorieDaMappare: 1 },
+      }),
+    )
+    render(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />)
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, new File(['x'], 'estratto.xlsx'))
+    await userEvent.click(screen.getByRole('button', { name: /Analizza/i }))
+    await waitFor(() => expect(analyze).toHaveBeenCalled())
+
+    await userEvent.click(await screen.findByRole('button', { name: /Crea le categorie/i }))
+
+    expect(await screen.findByText(/Creazione delle categorie non riuscita/)).toBeInTheDocument()
   })
 })

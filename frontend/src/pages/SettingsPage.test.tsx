@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -68,6 +68,44 @@ describe('il cancello della parola digitata', () => {
     await utente.clear(campo)
     await utente.type(campo, 'ELIMINA')
     expect(conferma).toBeEnabled()
+  })
+
+  /**
+   * L'eliminazione per intervallo: sta accanto alla cancellazione totale, è
+   * altrettanto distruttiva, e non aveva un test. Le due date scelte devono
+   * arrivare nella richiesta — mandarne una sbagliata, o ometterle, cancella un
+   * periodo diverso da quello che si è appena letto a schermo.
+   */
+  it('l eliminazione per periodo manda le date scelte', async () => {
+    let inviate: URLSearchParams | null = null
+    server.use(
+      http.delete('*/api/data-cleanup', ({ request }) => {
+        inviate = new URL(request.url).searchParams
+        return HttpResponse.json({
+          transactionsDeleted: 4,
+          recurringTransactionsDeleted: 0,
+          balanceCheckpointsDeleted: 0,
+          expenseRemindersDeleted: 0,
+        })
+      }),
+    )
+    const utente = userEvent.setup()
+    mountPage(<SettingsPage />, { route: '/impostazioni' })
+    await vaiAllaScheda(utente)
+
+    // Senza date il pulsante è bloccato: è la sola difesa contro un clic che
+    // cancellerebbe tutto passando dalla porta di servizio.
+    const pulsante = screen.getByRole('button', { name: 'Elimina nel periodo' })
+    expect(pulsante).toBeDisabled()
+
+    await utente.type(screen.getByLabelText('Da'), '2026-01-01')
+    await utente.type(screen.getByLabelText('A'), '2026-03-31')
+    await utente.click(pulsante)
+
+    await waitFor(() => expect(inviate).not.toBeNull())
+    expect(inviate!.get('from')).toBe('2026-01-01')
+    expect(inviate!.get('to')).toBe('2026-03-31')
+    expect(await screen.findByText(/4/)).toBeInTheDocument()
   })
 
   it('scritta la parola, cancella e mostra il riepilogo', async () => {

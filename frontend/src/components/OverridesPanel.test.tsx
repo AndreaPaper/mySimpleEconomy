@@ -7,9 +7,13 @@ import { eccezione } from '../test/handlers'
 import { server, setupApiMocks } from '../test/server'
 
 // Le eccezioni di una regola ricorrente: "questo mese l'affitto è 830 invece
-// di 750". È l'unico componente con I/O proprio che non era mai stato montato
-// da un test — veniva importato e basta, quindi elenco, aggiunta e
-// cancellazione non erano mai stati eseguiti.
+// di 750".
+//
+// Quando ho creato questo file avevo scritto che il pannello non era «mai stato
+// montato da un test»: era falso, quattro di questi casi vivevano già dentro
+// shell.test.tsx, che parla del guscio di navigazione. Li ho portati qui, dove
+// stanno con gli altri tre — la nota vuota che diventa null e le due prove
+// sulla cancellazione — e tolti da lì.
 //
 // Non serve mountPage: il pannello non legge contesti né rotta, riceve solo
 // l'id della regola e parla da sé con l'API.

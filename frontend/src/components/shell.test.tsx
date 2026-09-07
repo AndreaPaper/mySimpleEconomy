@@ -11,75 +11,14 @@ import { mountPage } from '../test/mountPage'
 import { server, setupApiMocks } from '../test/server'
 import { enqueue } from '../offline/queue'
 
-// Il guscio di navigazione e il pannello delle eccezioni. Erano tutti e tre a
-// zero: il commento che avevo lasciato in mountPage.tsx diceva che Layout aveva
-// un proprio test, e non era vero. Ora lo è.
+// Il guscio di navigazione: Layout e BottomNav. Erano entrambi a zero, e il
+// commento che avevo lasciato in mountPage.tsx diceva che Layout aveva un
+// proprio test — non era vero. Ora lo è.
+//
+// Il pannello delle eccezioni stava qui insieme a loro, ma non c'entra col
+// guscio: sta in OverridesPanel.test.tsx, che è un soprainsieme di quei casi.
 
 setupApiMocks()
-
-// ------------------------------------------------------------------
-// OverridesPanel
-// ------------------------------------------------------------------
-
-describe('OverridesPanel', () => {
-  it('elenca le eccezioni della regola', async () => {
-    server.use(
-      http.get('*/api/recurring-transactions/:id/overrides', () =>
-        HttpResponse.json([eccezione({ id: 'o-1', overrideAmount: 230, note: 'conguaglio' })]),
-      ),
-    )
-    mountPage(<OverridesPanel recurringTransactionId="r-1" />)
-
-    expect(await screen.findByText(/conguaglio/)).toBeInTheDocument()
-  })
-
-  it('senza eccezioni lo dice invece di mostrare un elenco vuoto', async () => {
-    mountPage(<OverridesPanel recurringTransactionId="r-1" />)
-
-    expect(await screen.findByText(/Nessuna eccezione/)).toBeInTheDocument()
-  })
-
-  /**
-   * L'aggiunta ricarica l'elenco e ripulisce i campi: senza il ricaricamento
-   * l'eccezione appena creata non comparirebbe finché non si riapre il pannello, e
-   * l'utente proverebbe ad aggiungerla di nuovo — trovando l'errore del doppione.
-   */
-  it('aggiungere un eccezione ricarica l elenco e svuota i campi', async () => {
-    let creazioni = 0
-    server.use(
-      http.post('*/api/recurring-transactions/:id/overrides', () => {
-        creazioni++
-        return HttpResponse.json(eccezione(), { status: 201 })
-      }),
-      http.get('*/api/recurring-transactions/:id/overrides', () =>
-        creazioni === 0 ? HttpResponse.json([]) : HttpResponse.json([eccezione({ note: 'aggiunta' })]),
-      ),
-    )
-    const utente = userEvent.setup()
-    mountPage(<OverridesPanel recurringTransactionId="r-1" />)
-    await screen.findByText(/Nessuna eccezione/)
-
-    await utente.type(screen.getByLabelText('Importo eccezione'), '230')
-    await utente.click(screen.getByRole('button', { name: 'Aggiungi' }))
-
-    expect(await screen.findByText(/aggiunta/)).toBeInTheDocument()
-    expect((screen.getByLabelText('Importo eccezione') as HTMLInputElement).value).toBe('')
-  })
-
-  it('una data già usata lo dice invece di fallire in silenzio', async () => {
-    server.use(
-      http.post('*/api/recurring-transactions/:id/overrides', () => new HttpResponse(null, { status: 409 })),
-    )
-    const utente = userEvent.setup()
-    mountPage(<OverridesPanel recurringTransactionId="r-1" />)
-    await screen.findByText(/Nessuna eccezione/)
-
-    await utente.type(screen.getByLabelText('Importo eccezione'), '230')
-    await utente.click(screen.getByRole('button', { name: 'Aggiungi' }))
-
-    expect(await screen.findByText(/Esiste già un'eccezione per questa data/)).toBeInTheDocument()
-  })
-})
 
 // ------------------------------------------------------------------
 // BottomNav

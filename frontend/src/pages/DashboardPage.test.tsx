@@ -117,3 +117,71 @@ describe('sfoglio dei periodi nella card "Spese per categoria"', () => {
     expect(screen.getByRole('button', { name: 'Mese successivo' })).toBeDisabled()
   })
 })
+
+describe('aggiunta rapida', () => {
+  /**
+   * Il bottone tondo della Dashboard: è il gesto più frequente dell'app —
+   * registrare una spesa appena fatta — e `handleQuickAdd` non era coperto.
+   * Si verifica il corpo della richiesta, non che "non sia esploso": una
+   * transazione salvata con l'importo o la data sbagliata è peggio di una non
+   * salvata, perché nessuno va a ricontrollarla.
+   */
+  it('salva la transazione e ricarica la previsione', async () => {
+    const utente = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    let creata: Record<string, unknown> | null = null
+    // Un registro ordinato, non un contatore: la Dashboard chiede la previsione
+    // piu' volte gia' al montaggio, quindi "quante" non distingue il
+    // ricaricamento dopo il salvataggio. Conta che ce ne sia una *dopo* il POST.
+    const ordine: string[] = []
+    server.use(
+      http.get('*/api/categories', () =>
+        HttpResponse.json([{ id: 'c-1', name: 'Spesa', type: 'EXPENSE', color: null, icon: null, parentId: null, archived: false }]),
+      ),
+      http.get('*/api/forecast', () => {
+        ordine.push('previsione')
+        return HttpResponse.json(previsioneVuota)
+      }),
+      http.post('*/api/transactions', async ({ request }) => {
+        creata = (await request.json()) as Record<string, unknown>
+        ordine.push('creazione')
+        return HttpResponse.json(transazione(), { status: 201 })
+      }),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 }, viewport: 'mobile' })
+
+    await utente.click(await screen.findByRole('button', { name: 'Nuova transazione' }))
+    await utente.type(screen.getByLabelText(/Importo/), '18.5')
+    await utente.type(screen.getByLabelText(/Descrizione/), 'Pranzo')
+    await utente.click(screen.getByRole('button', { name: 'Salva' }))
+
+    await waitFor(() => expect(creata).not.toBeNull())
+    expect(creata).toMatchObject({ amount: 18.5, description: 'Pranzo', categoryId: 'c-1' })
+    // La previsione si ricarica dopo il salvataggio: senza, il saldo a schermo
+    // resterebbe quello di prima della spesa appena inserita.
+    await waitFor(() => expect(ordine.slice(ordine.indexOf('creazione'))).toContain('previsione'))
+  })
+
+  /**
+   * Senza rete la spesa va in coda invece di andare persa, esattamente come
+   * nella pagina Transazioni. Vale la pena provarlo anche qui perché il ramo è
+   * scritto due volte, in due file diversi: correggerne uno solo è facile.
+   */
+  it('senza backend finisce in coda invece di andare persa', async () => {
+    const utente = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    server.use(
+      http.get('*/api/categories', () =>
+        HttpResponse.json([{ id: 'c-1', name: 'Spesa', type: 'EXPENSE', color: null, icon: null, parentId: null, archived: false }]),
+      ),
+      http.post('*/api/transactions', () => HttpResponse.error()),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 }, viewport: 'mobile' })
+
+    await utente.click(await screen.findByRole('button', { name: 'Nuova transazione' }))
+    await utente.type(screen.getByLabelText(/Importo/), '7')
+    await utente.click(screen.getByRole('button', { name: 'Salva' }))
+
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('offline_pending_transactions') ?? '[]')).toHaveLength(1),
+    )
+  })
+})
