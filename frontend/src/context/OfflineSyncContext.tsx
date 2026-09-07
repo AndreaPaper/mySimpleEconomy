@@ -46,12 +46,15 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
           })
           dequeue(item.localId)
           setPendingCount(count())
-        } catch (err) {
-          // 401: existing client.ts interceptor already redirects to /login.
-          // Any other error: stop the run and leave the remainder queued
-          // rather than risk silently dropping data.
-          const status = (err as { response?: { status?: number } }).response?.status
-          if (status === 401) return
+        } catch {
+          // Qualunque errore ferma il giro e lascia in coda il resto, invece di
+          // proseguire e rischiare di perdere dati in silenzio. Vale anche per
+          // il 401: lì al reindirizzamento pensa già l'interceptor di client.ts,
+          // qui non serve fare nulla di diverso.
+          //
+          // Prima questo ramo leggeva lo stato e distingueva il 401 dal resto
+          // con due return identici: il commento prometteva una differenza che
+          // il codice non faceva.
           return
         }
       }

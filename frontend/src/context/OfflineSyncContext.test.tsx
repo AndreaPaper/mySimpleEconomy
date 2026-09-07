@@ -4,6 +4,7 @@ import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OfflineSyncProvider, useOfflineSync } from './OfflineSyncContext'
 import { enqueue, getQueue } from '../offline/queue'
+import { ricaricheRichieste } from '../test/location'
 
 // La sincronizzazione differita: quello che succede fra il momento in cui una
 // spesa viene registrata senza rete e quello in cui arriva davvero in archivio.
@@ -161,6 +162,56 @@ describe('il ricontrollo del backend', () => {
     })
 
     expect(sondaggi).toBe(1)
+  })
+
+  /**
+   * Il ritorno del backend, che è la ragione per cui il ricontrollo esiste:
+   * quando la sonda passa, il timer si ferma, la coda viene svuotata e la
+   * pagina si ricarica da sola per ripartire con dati freschi.
+   *
+   * <p>Non era provabile prima: in jsdom {@code location.reload()} non fa nulla
+   * di osservabile. Adesso la location finta installata in setup.ts registra la
+   * richiesta invece di ignorarla. Senza questo test, un ricontrollo che
+   * riparte ma non ricarica lascerebbe l'app in uno stato in cui il badge dice
+   * "collegato" e i dati sono quelli di prima del blackout.
+   */
+  it('quando il backend torna su, sincronizza e ricarica la pagina', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    enqueue(spesa('Spesa rimasta in coda'))
+    let backendSu = false
+    server.use(
+      http.get('*/api/categories', () =>
+        backendSu ? HttpResponse.json([]) : new HttpResponse(null, { status: 503 }),
+      ),
+      // Finché il backend è giù l'invio fallisce anche qui. Serve: altrimenti
+      // il tentativo che parte al montaggio svuoterebbe la coda da solo, e il
+      // test non distinguerebbe più chi l'ha svuotata — passava anche togliendo
+      // del tutto la sincronizzazione dal ricontrollo.
+      http.post('*/api/transactions', () =>
+        backendSu ? HttpResponse.json({ id: 't-1' }, { status: 201 }) : new HttpResponse(null, { status: 503 }),
+      ),
+    )
+    monta()
+
+    act(() => {
+      window.dispatchEvent(new Event('backend:unreachable'))
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+    expect(ricaricheRichieste()).toBe(0)
+    expect(getQueue()).toHaveLength(1)
+
+    backendSu = true
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+
+    expect(screen.getByTestId('backend')).toHaveTextContent('su')
+    // La coda viene svuotata dal ricontrollo stesso, prima del ricaricamento:
+    // al contrario la spesa rimasta in memoria se ne andrebbe con la pagina.
+    await waitFor(() => expect(getQueue()).toHaveLength(0))
+    await waitFor(() => expect(ricaricheRichieste()).toBe(1))
   })
 
   it('smontare il componente ferma il ricontrollo', async () => {

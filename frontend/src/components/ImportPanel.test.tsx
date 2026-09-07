@@ -194,7 +194,62 @@ describe('il pulsante di conferma', () => {
   })
 })
 
+describe('l esito dell importazione', () => {
+  /**
+   * Cosa vede l'utente dopo aver premuto "Importa". È l'unico momento in cui
+   * l'app dice quante cose sono davvero entrate in archivio: se i conteggi
+   * fossero sbagliati o la schermata non comparisse, l'unico modo di sapere
+   * com'è andata sarebbe andare a controllare a mano.
+   */
+  it('mostra quante cose sono entrate in archivio', async () => {
+    commit.mockResolvedValue({
+      categoriesCreated: 1,
+      recurringTransactionsCreated: 2,
+      transactionsCreated: 37,
+      checkpointsCreated: 1,
+    })
+    await analizza()
+
+    await userEvent.click(screen.getByRole('button', { name: /Importa/i }))
+
+    expect(await screen.findByText('Importazione completata')).toBeInTheDocument()
+    expect(screen.getByText(/Categorie create: 1/)).toBeInTheDocument()
+    expect(screen.getByText(/Transazioni create.*37/)).toBeInTheDocument()
+  })
+
+  /**
+   * "Importa un altro file" riporta allo stato iniziale. Senza il ripristino
+   * completo si ripartirebbe con l'anteprima del file precedente ancora in
+   * memoria, cioè si rischierebbe di importarlo due volte.
+   */
+  it('importa un altro file riporta alla scelta del file', async () => {
+    await analizza()
+    await userEvent.click(screen.getByRole('button', { name: /Importa/i }))
+    await screen.findByText('Importazione completata')
+
+    await userEvent.click(screen.getByRole('button', { name: /Importa un altro file/i }))
+
+    expect(screen.queryByText('Importazione completata')).not.toBeInTheDocument()
+    expect(document.querySelector('input[type="file"]')).toBeInTheDocument()
+  })
+})
+
 describe('errori', () => {
+  /**
+   * Il commit è il punto in cui un fallimento costa di più: l'analisi è già
+   * stata fatta, l'utente ha assegnato le categorie a mano, e un pulsante che
+   * non dice nulla lascia credere che sia andata.
+   */
+  it('un commit fallito lo dice e non mostra l esito', async () => {
+    commit.mockRejectedValue(new Error('boom'))
+    await analizza()
+
+    await userEvent.click(screen.getByRole('button', { name: /Importa/i }))
+
+    expect(await screen.findByText(/Importazione non riuscita/)).toBeInTheDocument()
+    expect(screen.queryByText('Importazione completata')).not.toBeInTheDocument()
+  })
+
   it('un file non analizzabile lo dice invece di restare muto', async () => {
     analyze.mockRejectedValue(new Error('boom'))
     render(<ImportPanel />)
