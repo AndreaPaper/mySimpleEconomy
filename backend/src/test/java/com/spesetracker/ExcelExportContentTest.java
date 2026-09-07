@@ -204,8 +204,137 @@ class ExcelExportContentTest extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------
+    // Il foglio "Ricorrenti e debiti"
+    // ------------------------------------------------------------------
+
+    /**
+     * Fino a qui questo foglio era stato provato solo <em>vuoto</em>: tutti i test esistenti
+     * producono le due note "Nessuna regola ricorrente attiva" e "Nessun debito registrato".
+     * Le righe vere — cioè tutto ciò che l'utente legge quando il foglio ha un contenuto —
+     * non erano mai state scritte da nessun test.
+     */
+    @Test
+    void ilFoglioRicorrentiElencaLeRegoleAttiveConCadenzaEScadenza() throws Exception {
+        String token = api.registerAndLogin();
+        String categoria = api.createExpenseCategory(token);
+        api.createRecurring(token, categoria, "Affitto", "750.00", MARZO);
+
+        Sheet foglio = esporta(token).getSheet("Ricorrenti e debiti");
+
+        Row riga = primaRigaDati(foglio, "Nome");
+        assertThat(riga.getCell(0).getStringCellValue()).isEqualTo("Affitto");
+        assertThat(riga.getCell(2).getNumericCellValue()).isEqualTo(750.00);
+        assertThat(riga.getCell(3).getStringCellValue()).isEqualTo("ogni 1 mese");
+    }
+
+    /**
+     * Il singolare della cadenza: "ogni 1 settimana", non "ogni 1 settimane". Gli arm WEEK e
+     * YEAR non erano mai stati eseguiti — ovunque nei test la cadenza è mensile — pur essendo
+     * entrambi scelte offerte dall'app.
+     */
+    @Test
+    void laCadenzaSettimanaleEQuellaAnnualeSonoScritteAlSingolare() throws Exception {
+        String token = api.registerAndLogin();
+        String categoria = api.createExpenseCategory(token);
+        creaRicorrente(token, categoria, "Spesa settimanale", "40.00", "WEEK", 1);
+        creaRicorrente(token, categoria, "Assicurazione", "480.00", "YEAR", 1);
+        creaRicorrente(token, categoria, "Manutenzione", "90.00", "YEAR", 2);
+
+        Sheet foglio = esporta(token).getSheet("Ricorrenti e debiti");
+
+        assertThat(cadenze(foglio))
+                .contains("ogni 1 settimana", "ogni 1 anno", "ogni 2 anni");
+    }
+
+    /**
+     * La rata mensile è facoltativa: un debito senza rata deve lasciare la cella
+     * <em>vuota</em>, non scriverci zero. Uno zero verrebbe letto come "rata di 0 €", cioè un
+     * debito che non si estingue mai, ed è la stessa distinzione che a schermo separa la data
+     * di estinzione stimata dal trattino.
+     */
+    @Test
+    void unDebitoSenzaRataLasciaLaCellaVuotaInveceDiScrivereZero() throws Exception {
+        String token = api.registerAndLogin();
+        String conRata = api.createExpenseCategory(token);
+        String senzaRata = api.createExpenseCategory(token);
+        creaDebito(token, conRata, "Prestito auto", "6000.00", "200.00");
+        creaDebito(token, senzaRata, "Debito con un amico", "300.00", null);
+
+        Sheet foglio = esporta(token).getSheet("Ricorrenti e debiti");
+
+        // Per nome e non per posizione: l'ordine delle righe non è quello di creazione.
+        assertThat(rigaChiamata(foglio, "Prestito auto").getCell(5).getNumericCellValue()).isEqualTo(200.00);
+        assertThat(rigaChiamata(foglio, "Debito con un amico").getCell(5)).isNull();
+    }
+
+    /**
+     * La nota di filtro nomina la categoria anche quando <em>nessuna</em> transazione è
+     * finita nel file: il nome va ripescato dal repository invece che dalla prima riga. È il
+     * solo caso in cui la nota rischia di mentire su cosa contiene il file — e succede
+     * proprio quando il file è vuoto e l'utente si chiede perché.
+     */
+    @Test
+    void laNotaDiFiltroNominaLaCategoriaAncheSeNonHaTransazioni() throws Exception {
+        String token = api.registerAndLogin();
+        String vuota = api.createCategory(token, "Categoria mai usata", "EXPENSE");
+
+        Sheet riepilogo = esporta(token, "categoryId=" + vuota).getSheet("Riepilogo");
+
+        assertThat(etichette(riepilogo))
+                .anyMatch(e -> e.contains("Contenuto filtrato") && e.contains("Categoria mai usata"));
+    }
+
+    // ------------------------------------------------------------------
     // Scorciatoie
     // ------------------------------------------------------------------
+
+    private void creaRicorrente(String token, String categoryId, String nome, String importo,
+                                String unita, int valore) throws Exception {
+        mockMvc.perform(post("/api/recurring-transactions")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":"%s","name":"%s","defaultAmount":%s,"intervalUnit":"%s",\
+                                "intervalValue":%d,"startDate":"%s","nextDueDate":"%s"}
+                                """.formatted(categoryId, nome, importo, unita, valore, MARZO, MARZO)))
+                .andExpect(status().isCreated());
+    }
+
+    private void creaDebito(String token, String categoryId, String nome, String totale, String rata)
+            throws Exception {
+        String rataJson = rata == null ? "" : ",\"monthlyPaymentAmount\":" + rata;
+        mockMvc.perform(post("/api/debts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"categoryId\":\"%s\",\"name\":\"%s\",\"totalAmount\":%s%s}"
+                                .formatted(categoryId, nome, totale, rataJson)))
+                .andExpect(status().isCreated());
+    }
+
+    /** La riga la cui prima colonna è il nome indicato. */
+    private Row rigaChiamata(Sheet sheet, String nome) {
+        for (int i = 0; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            Cell cell = row == null ? null : row.getCell(0);
+            if (cell != null && cell.getCellType() == CellType.STRING && nome.equals(cell.getStringCellValue())) {
+                return row;
+            }
+        }
+        throw new AssertionError("Riga \"" + nome + "\" non trovata nel foglio " + sheet.getSheetName());
+    }
+
+    /** La quarta colonna di ogni riga del blocco ricorrenti. */
+    private List<String> cadenze(Sheet sheet) {
+        List<String> valori = new ArrayList<>();
+        for (int i = 0; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            Cell cell = row == null ? null : row.getCell(3);
+            if (cell != null && cell.getCellType() == CellType.STRING) {
+                valori.add(cell.getStringCellValue());
+            }
+        }
+        return valori;
+    }
 
     private void impostaRisparmio(String token, int percentuale) throws Exception {
         mockMvc.perform(put("/api/profile")
