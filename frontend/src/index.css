@@ -435,6 +435,23 @@ html.dark[data-palette="vividkpi"] .dark\:text-slate-400,
 html.dark[data-palette="vividkpi"] .dark\:text-slate-500 {
   color: #C3A79E; /* 8,4:1 sulla pagina, 7,3:1 sulle card */
 }
+/* Le due card KPI tingono la propria etichetta invece di usare il grigio
+   tenue generico: calda sulla pesca, fredda sulla menta, come nel mock.
+   Non è vezzo — il tenue generico su questi due fondi dà 5,5:1, queste
+   danno 7:1. */
+html.dark[data-palette="vividkpi"] .bg-kpi-a .text-slate-500,
+html.dark[data-palette="vividkpi"] .bg-kpi-a .text-slate-400 {
+  color: #D9B8AA;
+}
+html.dark[data-palette="vividkpi"] .bg-kpi-b .text-slate-500,
+html.dark[data-palette="vividkpi"] .bg-kpi-b .text-slate-400 {
+  color: #A8CBB8;
+}
+html.dark[data-palette="vividkpi"] .bg-kpi-a .text-slate-900,
+html.dark[data-palette="vividkpi"] .bg-kpi-b .text-slate-900 {
+  color: #FFEFE7;
+}
+
 html.dark[data-palette="vividkpi"] .border-slate-200,
 html.dark[data-palette="vividkpi"] .border-slate-300,
 html.dark[data-palette="vividkpi"] .dark\:border-slate-700,
