@@ -192,6 +192,36 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
     }
 
     /**
+     * L'altra metà del conflitto ricorrente, e quella che conta di più: non una
+     * regola che <em>sta per</em> generare, ma la transazione che ha <em>già</em>
+     * generato. È il caso in cui il doppio conteggio è reale e non ipotetico —
+     * la spesa è in archivio due volte se la riga entra — ed era l'unico dei due
+     * rami senza test.
+     *
+     * <p>Serve una data nel passato — le altre prove di questo file usano una
+     * data futura — perché una regola genera l'occorrenza solo quando la
+     * scadenza è arrivata: alla creazione la regola recupera l'arretrato, e da
+     * lì in archivio c'è una transazione legata a una regola.
+     */
+    @Test
+    void unaSpesaGiaGenerataDaUnaRegolaRendeLaRigaSospetta() throws Exception {
+        String token = api.registerAndLogin();
+        String categoria = api.createExpenseCategory(token);
+        LocalDate passata = LocalDate.now().minusDays(5);
+        creaRicorrente(token, categoria, "Bolletta luce", "57.40", passata);
+
+        JsonNode preview = analyze(token, workbook(List.of(
+                new Movimento(passata, "Farmacia Economica", "FARMACIA ECONOMICA Carta n.5397",
+                        true, "Salute", -57.40))));
+
+        assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");
+        // Il messaggio distingue i due casi: "l'ha già generata" invece di "sta
+        // per generarla". Chi legge deve sapere se la spesa è già in archivio.
+        assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
+                .contains("gia' generata da una regola ricorrente");
+    }
+
+    /**
      * E il verso opposto, che è ciò che rende utile la tolleranza invece di dannosa: un importo
      * fuori dal 20% non è la stessa spesa, e la riga resta nuova. Senza questo, un bonifico da
      * 87 euro si accosterebbe alla "Bolletta luce" da 95.
@@ -248,6 +278,61 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         String token = api.registerAndLogin();
         JsonNode preview = analyze(token, workbook(List.of(spesa(57.40))));
         ArrayNode righe = righeDaImportare(preview, null);
+
+        ObjectNode request = objectMapper.createObjectNode();
+        request.put("source", "INTESA_SANPAOLO");
+        request.set("rows", righe);
+        request.set("mappings", objectMapper.createArrayNode());
+        request.set("exclusions", objectMapper.createArrayNode());
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/import/bank/commit")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * La terza guardia contro il doppio invio, l'unica che restava scoperta.
+     *
+     * <p>Una riga può chiedere di <em>riscrivere</em> una transazione già in
+     * archivio, ma solo se quella è ancora segnata come provvisoria. Se non lo è
+     * più — perché un invio precedente l'ha già resa definitiva — la riga viene
+     * saltata invece di riscriverla una seconda volta. Senza, un doppio clic
+     * sul pulsante di conferma sovrascriverebbe una transazione già sistemata,
+     * magari corretta a mano nel frattempo.
+     */
+    @Test
+    void unaRigaCheChiedeDiRiscrivereQualcosaDiGiaDefinitivoVieneSaltata() throws Exception {
+        String token = api.registerAndLogin();
+        String categoria = api.createExpenseCategory(token);
+        // Una transazione normale: non è provvisoria, quindi non è riscrivibile.
+        String definitiva = api.createTransaction(
+                token, categoria, LocalDate.of(2026, 3, 2), "57.40", "EXPENSE");
+
+        JsonNode preview = analyze(token, workbook(List.of(spesa(57.40))));
+        ArrayNode righe = righeDaImportare(preview, categoria);
+        ((ObjectNode) righe.get(0)).put("updateTransactionId", definitiva);
+
+        JsonNode esito = commit(token, righe, objectMapper.createArrayNode(), objectMapper.createArrayNode());
+
+        assertThat(esito.get("saltate").asInt()).isEqualTo(1);
+        assertThat(esito.get("importate").asInt()).isZero();
+        // E la transazione di partenza è rimasta com'era.
+        assertThat(api.listTransactions(token)).hasSize(1);
+    }
+
+    /**
+     * Una categoria che non esiste nel corpo del commit dà 400, non 500. Il
+     * frontend la manda sempre valida, quindi ci si arriva solo con un id
+     * rimasto in una scheda aperta da ore — cioè proprio quando serve un
+     * messaggio comprensibile invece di un errore imprevisto.
+     */
+    @Test
+    void unaCategoriaInesistenteNelCommitVieneRifiutata() throws Exception {
+        String token = api.registerAndLogin();
+        JsonNode preview = analyze(token, workbook(List.of(spesa(57.40))));
+        ArrayNode righe = righeDaImportare(preview, "00000000-0000-4000-8000-000000000000");
 
         ObjectNode request = objectMapper.createObjectNode();
         request.put("source", "INTESA_SANPAOLO");
