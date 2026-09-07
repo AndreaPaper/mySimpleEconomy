@@ -105,9 +105,9 @@ body,
    card KPI in alto e il grafico usano pesca/menta a saturazione media
    invece di tinte pastello, con testo bruno caldo per il contrasto. Il
    corallo pieno (#FF8080) resta l'accento riservato a voce di menu attiva
-   e azioni, mai sfondo di grandi aree — stessa filosofia di Canvas neutro,
-   pensata solo per il chiaro (stesso limite noto sulla combinazione con la
-   modalità scura). */
+   e azioni, mai sfondo di grandi aree — stessa filosofia di Canvas neutro.
+   Ha anche il suo tema scuro ("Cacao", nel blocco html.dark[data-palette]
+   più sotto): è l'unica delle tre palette vivaci ad averlo. */
 html[data-palette="vividkpi"] {
   --color-brand-100: #FFF4EF; /* sfondo pagina */
   --color-brand-500: #FFFFFF; /* sfondo sidebar */
@@ -248,10 +248,12 @@ html[data-palette="lavanda"] aside .profile-menu .border-slate-200 {
    invece di essere un tema qualunque. Pagina più scura della sidebar, sidebar
    più scura delle card: la stessa gerarchia del chiaro, traslata.
 
-   Vale solo per Canvas neutro: le altre tre palette hanno lo stesso problema al
-   buio ma una tinta diversa, e vanno progettate a parte. Il :not() le esclude e
-   copre sia il caso "data-palette=canvas" sia quello in cui l'attributo non è
-   ancora stato scritto da PaletteContext.
+   Vale solo per Canvas neutro: le altre palette hanno lo stesso problema al
+   buio ma una tinta diversa, e vanno progettate a parte. "KPI a tinte piene"
+   la sua l'ha avuta (blocco "Cacao" più sotto); Brezza e Lavanda no, e
+   restano il limite noto. Il :not() le esclude tutte e tre e copre sia il caso
+   "data-palette=canvas" sia quello in cui l'attributo non è ancora stato
+   scritto da PaletteContext.
 
    Come il resto del file, sta fuori da @layer: è l'unico modo di battere le
    utility dark: dei componenti senza riscriverli uno per uno. --------------- */
@@ -356,6 +358,125 @@ html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-
 html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:bg-slate-800,
 html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:bg-slate-700 {
   background-color: #22384A;
+}
+
+/* ---------------------------------------------------------------
+   MODALITÀ SCURA — "KPI a tinte piene" (variante "Cacao")
+
+   Fino a qui questa palette era esclusa dal tema scuro: il commento più
+   sopra la dava per "pensata solo per il chiaro". Al buio restava quindi
+   con le variabili del tema chiaro sotto le utility dark: dei componenti,
+   che è la combinazione che non era mai stata progettata.
+
+   La ricetta è la stessa di Canvas neutro — pagina più scura della
+   sidebar, sidebar più scura delle card — ma il bruno che nel tema chiaro
+   è il *testo* (#4A2A28) qui diventa il *fondo*: le superfici sono brune
+   invece che blu notte, così la palette resta riconoscibile anche spenta.
+
+   Il corallo pieno resta l'accento riservato a voce di menu attiva e
+   azioni, mai fondo di grandi aree: la stessa regola del chiaro.
+   --------------------------------------------------------------- */
+
+html.dark[data-palette="vividkpi"] {
+  --color-brand-100: #17100E; /* sfondo pagina */
+  --color-brand-500: #1F1614; /* sfondo sidebar */
+  --color-brand-300: #291D1A; /* sfondo card/liste generiche */
+  --color-brand-200: #7C3A33; /* voce di menu attiva: fondo pieno */
+  --color-brand-700: #FF8F80; /* accento: bottoni, link */
+  /* Hover dell'accento: al buio schiarisce, come fa Canvas neutro. Non
+     viene dal mock, che non mostra stati al passaggio del mouse. */
+  --color-brand-900: #FFB3A6;
+  --color-nav-active: #FFFFFF;
+
+  --color-kpi-a: #4A2718; /* "Saldo attuale": la pesca del chiaro, spenta */
+  --color-kpi-b: #1C3A2C; /* "Saldo previsto a fine mese": la menta, spenta */
+  --color-chart-card: #291D1A;
+  --color-chart-grad-start: #FF8F80;
+  --color-chart-grad-end: #291D1A;
+  --color-bar-track: #3B2B26;
+  --color-chart-grid: #3B2B26;
+
+  /* Risparmio e budget restano semantici — verde, blu, ambra, rosso — come
+     nel tema scuro di Canvas neutro: sono stati da leggere a colpo d'occhio,
+     e legarli alla tinta della palette li renderebbe indistinguibili. */
+  --color-save-card: #12332A;
+  --color-save-head: #3FD68A;
+  --color-save-ring: #3FD68A;
+
+  --color-budget-neutral-card: #12303F;
+  --color-budget-neutral-head: #4FBEFF;
+  --color-budget-neutral-ring: #4FBEFF;
+  /* Il mock mostra solo lo stato "in linea": ambra e rosso sono la stessa
+     ricetta applicata agli altri due stati, identici a Canvas neutro. */
+  --color-budget-warning-card: #33290F;
+  --color-budget-warning-head: #F5B849;
+  --color-budget-warning-ring: #F5B849;
+  --color-budget-danger-card: #3A1C21;
+  --color-budget-danger-head: #FF7A8A;
+  --color-budget-danger-ring: #FF7A8A;
+
+  --color-budget-badge-bg: rgba(255, 255, 255, 0.1);
+  --color-save-ring-track: rgba(255, 255, 255, 0.08);
+  --color-save-divider: rgba(255, 255, 255, 0.1);
+}
+
+/* Testo e bordi. */
+html.dark[data-palette="vividkpi"] body,
+html.dark[data-palette="vividkpi"] .text-slate-900,
+html.dark[data-palette="vividkpi"] .dark\:text-white {
+  color: #F7E9E3; /* 15,9:1 sulla pagina, 13,8:1 sulle card */
+}
+html.dark[data-palette="vividkpi"] .text-slate-600,
+html.dark[data-palette="vividkpi"] .text-slate-500,
+html.dark[data-palette="vividkpi"] .text-slate-400,
+html.dark[data-palette="vividkpi"] .dark\:text-slate-200,
+html.dark[data-palette="vividkpi"] .dark\:text-slate-300,
+html.dark[data-palette="vividkpi"] .dark\:text-slate-400,
+html.dark[data-palette="vividkpi"] .dark\:text-slate-500 {
+  color: #C3A79E; /* 8,4:1 sulla pagina, 7,3:1 sulle card */
+}
+html.dark[data-palette="vividkpi"] .border-slate-200,
+html.dark[data-palette="vividkpi"] .border-slate-300,
+html.dark[data-palette="vividkpi"] .dark\:border-slate-700,
+html.dark[data-palette="vividkpi"] .dark\:border-slate-800 {
+  border-color: #3B2B26;
+}
+html.dark[data-palette="vividkpi"] .dark\:divide-slate-800 > * + * {
+  border-color: #3B2B26;
+}
+html.dark[data-palette="vividkpi"] .text-emerald-600,
+html.dark[data-palette="vividkpi"] .dark\:text-emerald-400 {
+  color: #3FD68A;
+}
+html.dark[data-palette="vividkpi"] .text-red-600,
+html.dark[data-palette="vividkpi"] .dark\:text-red-400 {
+  color: #FF8A98;
+}
+
+/* Superfici: stessa distinzione per ruolo del tema scuro di Canvas neutro,
+   così dark:bg-black non collassa pagina, sidebar e card sullo stesso nero. */
+html.dark[data-palette="vividkpi"] .bg-brand-100.dark\:bg-black {
+  background-color: var(--color-brand-100);
+}
+html.dark[data-palette="vividkpi"] .bg-brand-500.dark\:bg-black {
+  background-color: var(--color-brand-500);
+}
+html.dark[data-palette="vividkpi"] .bg-brand-300.dark\:bg-black,
+html.dark[data-palette="vividkpi"] .bg-chart-card.dark\:bg-black,
+html.dark[data-palette="vividkpi"] .bg-white.dark\:bg-black {
+  background-color: var(--color-brand-300);
+}
+
+/* Superfici di appoggio: un gradino sopra la card (menu aperti, pastiglie,
+   stati premuti). Nel mock sono i riquadri annidati delle liste. */
+html.dark[data-palette="vividkpi"] .dark\:bg-zinc-900,
+html.dark[data-palette="vividkpi"] .dark\:hover\:bg-zinc-900:hover {
+  background-color: #201614;
+}
+html.dark[data-palette="vividkpi"] .dark\:bg-zinc-800,
+html.dark[data-palette="vividkpi"] .dark\:bg-slate-800,
+html.dark[data-palette="vividkpi"] .dark\:bg-slate-700 {
+  background-color: #3B2B26;
 }
 
 @font-face {
