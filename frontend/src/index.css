@@ -298,6 +298,15 @@ html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-
   --color-budget-badge-bg: rgba(255, 255, 255, 0.1);
   --color-save-ring-track: rgba(255, 255, 255, 0.08);
   --color-save-divider: rgba(255, 255, 255, 0.1);
+
+  /* Il campo editabile, un gradino sopra la card. Il difetto era lo stesso
+     qui e su "KPI a tinte piene": lasciarlo solo lì significherebbe due temi
+     scuri con due gerarchie diverse. Sul blu notte il nero puro si notava
+     meno, ma la gerarchia era rotta comunque. Valori derivati dagli altri
+     gradini di questo blocco (card #142430, appoggio #1B3040), non da un
+     mock: il disegno mostra la correzione solo sulla variante Cacao. */
+  --color-field: #1B3040;
+  --color-field-border: #2C4459;
 }
 
 /* Testo e bordi: il ramo scuro degli stessi override del chiaro. */
@@ -359,6 +368,24 @@ html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-
 html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) .dark\:bg-slate-700 {
   background-color: #22384A;
 }
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) input.dark\:bg-black,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) select.dark\:bg-black,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) textarea.dark\:bg-black {
+  background-color: var(--color-field);
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) input.dark\:border-slate-700,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) select.dark\:border-slate-700,
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]) textarea.dark\:border-slate-700 {
+  border-color: var(--color-field-border);
+}
+
+/* L'icona del selettore di data è disegnata nera dal browser: su un campo
+   scuro sparisce. Vale per qualunque tema scuro, quindi non è scoperta per
+   palette. */
+html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+html.dark input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.65);
+}
 
 /* ---------------------------------------------------------------
    MODALITÀ SCURA — "KPI a tinte piene" (variante "Cacao")
@@ -389,7 +416,15 @@ html.dark[data-palette="vividkpi"] {
   --color-nav-active: #FFFFFF;
 
   --color-kpi-a: #4A2718; /* "Saldo attuale": la pesca del chiaro, spenta */
+  --color-kpi-a-ink: #D9B8AA; /* etichetta sulla pesca — 7,1:1 */
   --color-kpi-b: #1C3A2C; /* "Saldo previsto a fine mese": la menta, spenta */
+  --color-kpi-b-ink: #A8CBB8; /* etichetta sulla menta — 7,1:1 */
+
+  /* Il campo editabile è l'unico ruolo che la separazione di dark:bg-black non
+     aveva ricevuto, e restava nero puro: sotto la pagina invece che sopra la
+     card. Sul bruno il nero neutro stacca e si vede subito. */
+  --color-field: #352522;
+  --color-field-border: #4A3630;
   --color-chart-card: #291D1A;
   --color-chart-grad-start: #FF8F80;
   --color-chart-grad-end: #291D1A;
@@ -436,20 +471,38 @@ html.dark[data-palette="vividkpi"] .dark\:text-slate-500 {
   color: #C3A79E; /* 8,4:1 sulla pagina, 7,3:1 sulle card */
 }
 /* Le due card KPI tingono la propria etichetta invece di usare il grigio
-   tenue generico: calda sulla pesca, fredda sulla menta, come nel mock.
-   Non è vezzo — il tenue generico su questi due fondi dà 5,5:1, queste
-   danno 7:1. */
+   tenue generico, che è tarato sul fondo card e non su queste due tinte:
+   così il contrasto sale da 5,5–5,8:1 a 7,1:1. Il valore sta nei token
+   --color-kpi-*-ink qui sopra, accanto al fondo a cui appartiene: è l'unico
+   posto da leggere per sapere di che colore è l'etichetta di una card.
+
+   Le altre palette non definiscono gli -ink e restano sul tenue generico:
+   nel chiaro le due tinte sono pastello e il problema non si pone. */
 html.dark[data-palette="vividkpi"] .bg-kpi-a .text-slate-500,
 html.dark[data-palette="vividkpi"] .bg-kpi-a .text-slate-400 {
-  color: #D9B8AA;
+  color: var(--color-kpi-a-ink);
 }
 html.dark[data-palette="vividkpi"] .bg-kpi-b .text-slate-500,
 html.dark[data-palette="vividkpi"] .bg-kpi-b .text-slate-400 {
-  color: #A8CBB8;
+  color: var(--color-kpi-b-ink);
 }
 html.dark[data-palette="vividkpi"] .bg-kpi-a .text-slate-900,
 html.dark[data-palette="vividkpi"] .bg-kpi-b .text-slate-900 {
   color: #FFEFE7;
+}
+
+/* Il campo editabile: un gradino SOPRA la card, non sotto la pagina.
+   Scoping obbligatorio — la utility di Tailwind è `.dark .dark\:bg-black`
+   (0,2,0), quindi `input.dark\:bg-black` da solo (0,1,1) perderebbe. */
+html.dark[data-palette="vividkpi"] input.dark\:bg-black,
+html.dark[data-palette="vividkpi"] select.dark\:bg-black,
+html.dark[data-palette="vividkpi"] textarea.dark\:bg-black {
+  background-color: var(--color-field);
+}
+html.dark[data-palette="vividkpi"] input.dark\:border-slate-700,
+html.dark[data-palette="vividkpi"] select.dark\:border-slate-700,
+html.dark[data-palette="vividkpi"] textarea.dark\:border-slate-700 {
+  border-color: var(--color-field-border);
 }
 
 html.dark[data-palette="vividkpi"] .border-slate-200,
