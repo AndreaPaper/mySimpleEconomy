@@ -85,6 +85,24 @@ export function toggleSection(
   return next
 }
 
+// Scegliere la categoria di una riga dall'anteprima può farle cambiare esito:
+// una riga esclusa solo perché la sua categoria della banca è "da non importare"
+// torna al suo esito originale appena riceve una categoria propria (vedi
+// applyDecisions). Con la selezione memorizzata come scostamento, quel cambio
+// la spegnerebbe anche — la si spunta, si sceglie la categoria, e la si vede
+// sparire deselezionata in un'altra sezione. Qui si ricalcola lo scostamento
+// perché resti spuntata dopo la scelta.
+export function keepSelectedAfterCategoryChange(
+  flipped: Set<number>,
+  originalRow: BankImportRowPreview,
+  mappings: BankCategoryMappingDto[],
+  exclusions: BankImportExclusionDto[],
+  rowCategories: Map<number, string>,
+): Set<number> {
+  const [decided] = applyDecisions([originalRow], mappings, exclusions, rowCategories)
+  return toggleSection(flipped, [decided], true)
+}
+
 // I movimenti che ricadono sotto una categoria della banca ancora da mappare.
 // Stesso filtro che il backend usa per contarli (rowCount), così l'elenco che si
 // apre e il numero scritto accanto dicono la stessa cosa.

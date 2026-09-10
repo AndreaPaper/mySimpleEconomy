@@ -7,6 +7,7 @@ import {
   applyDecisions,
   isMappingResolved,
   isSelected,
+  keepSelectedAfterCategoryChange,
   rowsOfMapping,
   toggleSection as toggleSectionOf,
 } from '../utils/bankImportRows'
@@ -183,6 +184,21 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
       else next.delete(rowNumber)
       return next
     })
+  }
+
+  // La categoria scelta dall'anteprima, per una riga spuntata che non ne ha
+  // una. Senza, una riga esclusa dalle regole si poteva spuntare ma non
+  // categorizzare — il selettore per riga della mappatura le filtra via — e il
+  // pulsante Importa restava bloccato su "movimenti senza categoria".
+  const setPreviewRowCategory = (rowNumber: number, categoryId: string | null) => {
+    const next = new Map(rowCategories)
+    if (categoryId) next.set(rowNumber, categoryId)
+    else next.delete(rowNumber)
+    setRowCategories(next)
+    const original = preview?.rows.find((r) => r.rowNumber === rowNumber)
+    if (original) {
+      setFlipped((prev) => keepSelectedAfterCategoryChange(prev, original, mappings, exclusions, next))
+    }
   }
 
   const toggleExpanded = (key: string) => {
@@ -544,6 +560,21 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                     </p>
                     {row.conflictDescription && (
                       <p className="text-xs text-amber-700 dark:text-amber-400">{row.conflictDescription}</p>
+                    )}
+                    {/* Il selettore compare solo dove serve: una riga spuntata
+                        senza categoria (tipicamente un'esclusa che si è deciso
+                        di far entrare), e resta finché la scelta è fatta qui,
+                        così la si può ancora cambiare. */}
+                    {selected(row) && (!row.categoryId || rowCategories.has(row.rowNumber)) && (
+                      <div className="mt-1.5 w-56">
+                        <CategoryCombobox
+                          categories={categories.filter((c) => c.type === row.type)}
+                          value={rowCategories.get(row.rowNumber) ?? ''}
+                          onChange={(value) => setPreviewRowCategory(row.rowNumber, value || null)}
+                          placeholder="Scegli una categoria"
+                          ariaLabel={`Categoria per ${row.description}`}
+                        />
+                      </div>
                     )}
                   </div>
                 </li>

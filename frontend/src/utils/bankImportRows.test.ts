@@ -4,6 +4,7 @@ import {
   applyDecisions,
   isMappingResolved,
   isSelected,
+  keepSelectedAfterCategoryChange,
   rowsOfMapping,
   selectedByDefault,
   toggleSection,
@@ -266,5 +267,46 @@ describe('completezza della mappatura', () => {
 
   it('non basta averne decise solo alcune', () => {
     expect(isMappingResolved(mappatura(), righe, new Map([[1, 'cat-salute']]))).toBe(false)
+  })
+})
+
+describe('keepSelectedAfterCategoryChange', () => {
+  /**
+   * Il caso che ha reso necessaria la funzione. Una riga esclusa solo perché la
+   * sua categoria della banca è "da non importare" esce da ESCLUSA appena riceve
+   * una categoria propria, e torna al suo esito d'origine (NUOVA). Siccome la
+   * selezione è uno scostamento dalla proposta, lo stesso scostamento che la
+   * accendeva da esclusa la spegne da nuova: spuntata, categorizzata, sparita
+   * deselezionata in un'altra sezione.
+   */
+  it('una riga che cambia sezione dopo la scelta resta spuntata', () => {
+    const originale = riga(1, { outcome: 'NUOVA' })
+    const mappature = [mappatura({ doNotImport: true })]
+    // Spuntata mentre era esclusa: scostamento registrato.
+    const spuntata = new Set([1])
+    const scelte = new Map([[1, 'cat-salute']])
+
+    const [dopo] = applyDecisions([originale], mappature, [], scelte)
+    expect(dopo.outcome).toBe('NUOVA') // ha davvero cambiato sezione
+    // Senza la correzione, lo scostamento la spegnerebbe.
+    expect(isSelected(dopo, spuntata)).toBe(false)
+
+    const corretto = keepSelectedAfterCategoryChange(spuntata, originale, mappature, [], scelte)
+    expect(isSelected(dopo, corretto)).toBe(true)
+  })
+
+  it('una riga che resta esclusa resta spuntata senza toccare nulla', () => {
+    // Esclusa da una regola di testo: la categoria per riga non la fa uscire
+    // da ESCLUSA, quindi lo scostamento di prima va già bene.
+    const originale = riga(1, { outcome: 'ESCLUSA', rawDetails: 'PRELIEVO BANCOMAT' })
+    const scelte = new Map([[1, 'cat-varie']])
+
+    const corretto = keepSelectedAfterCategoryChange(
+      new Set([1]), originale, [], [esclusione('PRELIEVO')], scelte,
+    )
+
+    const [dopo] = applyDecisions([originale], [], [esclusione('PRELIEVO')], scelte)
+    expect(dopo.outcome).toBe('ESCLUSA')
+    expect(isSelected(dopo, corretto)).toBe(true)
   })
 })

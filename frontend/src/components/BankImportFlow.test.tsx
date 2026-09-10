@@ -325,3 +325,58 @@ describe('le categorie create dalle categorie della banca', () => {
     expect(await screen.findByText(/Creazione delle categorie non riuscita/)).toBeInTheDocument()
   })
 })
+
+describe('le escluse che si decide di far entrare', () => {
+  /**
+   * Il difetto segnalato usando l'app. Una riga esclusa dalle regole si poteva
+   * spuntare, ma non c'era dove sceglierle la categoria: il selettore per riga
+   * della mappatura filtra via le escluse, e l'anteprima mostrava la categoria
+   * solo come testo. Il pulsante Importa restava quindi bloccato su "movimenti
+   * senza categoria", senza via d'uscita.
+   */
+  it('spuntata una esclusa senza categoria, la si può categorizzare e importare', async () => {
+    const utente = userEvent.setup()
+    await analizza(
+      anteprima({
+        rows: [
+          riga({ rowNumber: 1, description: 'Spesa nuova', outcome: 'NUOVA' }),
+          riga({
+            rowNumber: 2,
+            description: 'Prelievo contanti',
+            outcome: 'ESCLUSA',
+            categoryId: null,
+            selectedByDefault: false,
+          }),
+        ],
+        summary: { ...anteprima().summary, rowsInFile: 2, nuove: 1, escluse: 1 },
+      }),
+    )
+
+    // Finché non è spuntata, niente selettore: non serve.
+    expect(screen.queryByLabelText('Categoria per Prelievo contanti')).not.toBeInTheDocument()
+
+    const riga2 = screen.getByText('Prelievo contanti').closest('li') as HTMLElement
+    await utente.click(within(riga2).getByRole('checkbox'))
+
+    // Spuntata senza categoria: il blocco c'è ancora, ma adesso ha una via d'uscita.
+    const importa = screen.getByRole('button', { name: /Importa 2 movimenti/i })
+    expect(importa).toBeDisabled()
+    await utente.click(screen.getByLabelText('Categoria per Prelievo contanti'))
+    await utente.click(screen.getByRole('option', { name: /Casa/ }))
+
+    await waitFor(() => expect(importa).toBeEnabled())
+    await utente.click(importa)
+
+    await waitFor(() => expect(commit).toHaveBeenCalled())
+    const inviate = commit.mock.calls[0][0].rows
+    expect(inviate.find((r: { description: string }) => r.description === 'Prelievo contanti'))
+      .toMatchObject({ categoryId: 'cat-casa' })
+  })
+
+  it('una riga che ha già la sua categoria non mostra il selettore', async () => {
+    await analizza(anteprima())
+
+    // La riga nuova arriva con la categoria della mappatura: niente da scegliere.
+    expect(screen.queryByLabelText(/Categoria per/)).not.toBeInTheDocument()
+  })
+})
