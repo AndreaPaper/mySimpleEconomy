@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Pencil, Plus, Trash2, type LucideIcon } from 'lucide-react'
-import { categoriesApi, debtsApi } from '../api/endpoints'
-import type { Category, Debt } from '../api/types'
+import { useQuery } from '@tanstack/react-query'
+import { debtsApi } from '../api/endpoints'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
+import type { Debt } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
@@ -67,17 +69,18 @@ function DebtIconButton({ icon: Icon, label, tone, onClick }: { icon: LucideIcon
 
 export default function DebtsPage() {
   const isMobile = useIsMobile()
-  const [debts, setDebts] = useState<Debt[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const debtsQuery = useQuery(queries.debts())
+  const categoriesQuery = useCategories()
+  const debts = debtsQuery.data ?? []
+  const categories = categoriesQuery.data ?? []
+  // isPending, non isFetching: lo scheletro solo quando non c'è ancora nessun
+  // dato. Tornando sulla pagina i debiti in cache si vedono subito, e
+  // l'aggiornamento in sottofondo non deve farli sparire.
+  const loading = debtsQuery.isPending || categoriesQuery.isPending
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Debt | null>(null)
 
-  const reload = () => debtsApi.list().then(setDebts)
-
-  useEffect(() => {
-    Promise.all([reload(), categoriesApi.list().then(setCategories)]).finally(() => setLoading(false))
-  }, [])
+  const reload = useInvalidateAll()
 
   const openCreate = () => {
     setEditing(null)

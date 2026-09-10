@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
-import type { Category, Transaction, TransactionType } from '../api/types'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
+import type { Transaction, TransactionType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import ConfirmDialog from '../components/ConfirmDialog'
 import DateRangePicker from '../components/DateRangePicker'
@@ -14,11 +16,9 @@ import { TransactionsPageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useOfflineSync } from '../context/OfflineSyncContext'
-import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { getQueue, type QueuedTransaction } from '../offline/queue'
 import { groupByMonth, toDisplayTransaction, type DisplayTransaction } from '../utils/transactionRows'
 
-const PAGE_SIZE = 30
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 
@@ -32,10 +32,10 @@ export default function TransactionsPage() {
   const isMobile = useIsMobile()
   const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
   const offlineLike = !isOnline || !backendReachable
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const invalidateAll = useInvalidateAll()
+  const categoriesQuery = useCategories()
+  const categories = categoriesQuery.data ?? []
   const [pendingItems, setPendingItems] = useState<QueuedTransaction[]>(() => getQueue())
-  const [loading, setLoading] = useState(true)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -45,10 +45,6 @@ export default function TransactionsPage() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [page, setPage] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const prevPendingCount = useRef(pendingCount)
   // Su mobile i filtri stanno dietro l'icona nell'intestazione invece che in
   // riga sotto il titolo, e ogni riga apre un foglio di scelta invece dei due
   // pulsanti "Modifica"/"Elimina" affiancati all'importo.
@@ -81,64 +77,34 @@ export default function TransactionsPage() {
     setTypeFilter('')
   }
 
-  // Ogni richiesta prende un numero progressivo e solo l'ultima può scrivere
-  // nello stato. Cambiando le date partono più chiamate ravvicinate (il campo
-  // data emette un evento per ogni pezzo che si compila) e senza questo
-  // controllo la risposta di un filtro intermedio, se arriva per ultima,
-  // sovrascrive quella del filtro davvero impostato.
-  const latestRequest = useRef(0)
+  // L'elenco, a pagine da 30, con i filtri nella chiave di cache.
+  //
+  // Cambiando le date partono più richieste ravvicinate (il campo data emette
+  // un evento per ogni pezzo che si compila): prima un numero progressivo
+  // scartava le risposte arrivate in ritardo, perché quella di un filtro
+  // intermedio non sovrascrivesse quella del filtro davvero impostato. Ora non
+  // serve: ogni combinazione di filtri ha la sua chiave, e una risposta in
+  // ritardo finisce sotto la chiave vecchia, che nessuno sta guardando.
+  //
+  // keepPreviousData tiene a schermo l'elenco precedente mentre arriva quello
+  // del filtro nuovo, com'era prima. Senza, una chiave nuova parte vuota e lo
+  // scheletro comparirebbe a ogni carattere digitato in una data.
+  const transactionsQuery = useInfiniteQuery({
+    ...queries.transactionsPaged(activeFilters),
+    placeholderData: keepPreviousData,
+  })
+  const transactions = transactionsQuery.data?.pages.flatMap((p) => p.content) ?? []
+  const hasMore = transactionsQuery.hasNextPage
+  const loadingMore = transactionsQuery.isFetchingNextPage
+  const loadMore = () => transactionsQuery.fetchNextPage()
+  // Scheletro solo senza dati: vedi DebtsPage per il perché di isPending.
+  const loading = transactionsQuery.isPending || categoriesQuery.isPending
 
-  const reloadTransactions = () => {
-    const requestId = ++latestRequest.current
-    return transactionsApi
-      .list({ ...activeFilters, page: 0, size: PAGE_SIZE })
-      .then((res) => {
-        if (requestId !== latestRequest.current) return
-        setTransactions(res.content)
-        setPage(0)
-        setHasMore(res.hasNext)
-      })
-      .catch(() => {})
-  }
-
-  const loadMore = async () => {
-    const requestId = ++latestRequest.current
-    setLoadingMore(true)
-    try {
-      const res = await transactionsApi.list({ ...activeFilters, page: page + 1, size: PAGE_SIZE })
-      if (requestId !== latestRequest.current) return
-      setTransactions((prev) => [...prev, ...res.content])
-      setPage((p) => p + 1)
-      setHasMore(res.hasNext)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  useEffect(() => {
-    Promise.all([
-      reloadTransactions(),
-      categoriesApi
-        .list()
-        .then((cats) => {
-          cacheCategories(cats)
-          setCategories(cats)
-        })
-        .catch(() => setCategories(loadCachedCategories())),
-    ]).finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (loading) return
-    reloadTransactions()
-  }, [categoryFilter, dateFrom, dateTo])
-
+  // La coda offline si rilegge a ogni cambio del contatore. Il ricaricamento
+  // dell'elenco a sincronizzazione finita non sta più qui: lo fa
+  // OfflineSyncContext invalidando la cache, per tutte le pagine insieme.
   useEffect(() => {
     setPendingItems(getQueue())
-    if (prevPendingCount.current > 0 && pendingCount === 0) {
-      reloadTransactions()
-    }
-    prevPendingCount.current = pendingCount
   }, [pendingCount])
 
   const openCreate = () => {
@@ -162,7 +128,7 @@ export default function TransactionsPage() {
   }) => {
     if (modalMode === 'edit' && editing) {
       await transactionsApi.update(editing.id, data)
-      await reloadTransactions()
+      await invalidateAll()
       closeModal()
       return
     }
@@ -183,15 +149,15 @@ export default function TransactionsPage() {
       }
       throw err
     }
-    await reloadTransactions()
+    await invalidateAll()
     closeModal()
   }
 
   const handleCreateCategory = async (data: { name: string; type: TransactionType; color: string | null; icon: string | null }) => {
     const category = await categoriesApi.create(data)
-    const updated = await categoriesApi.list()
-    cacheCategories(updated)
-    setCategories(updated)
+    // Aspettare l'invalidazione vuol dire aspettare che l'elenco delle categorie
+    // contenga la nuova: il modulo la adotta subito, e deve poterla mostrare.
+    await invalidateAll()
     return category
   }
 
@@ -210,7 +176,7 @@ export default function TransactionsPage() {
     try {
       await transactionsApi.delete(pendingDelete.id)
       setPendingDelete(null)
-      await reloadTransactions()
+      await invalidateAll()
     } catch {
       setDeleteError('Eliminazione non riuscita. Riprova.')
     } finally {

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { recurringApi } from '../api/endpoints'
+import { useInvalidateAll } from '../api/queries'
 import type { RecurringOverride } from '../api/types'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -20,7 +21,15 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  const invalidateAll = useInvalidateAll()
   const reload = () => recurringApi.listOverrides(recurringTransactionId).then(setOverrides)
+
+  // Dopo una scrittura non basta ricaricare l'elenco qui: un'eccezione cambia
+  // l'importo di una scadenza, quindi la previsione e la Dashboard in cache.
+  const afterWrite = async () => {
+    await reload()
+    void invalidateAll()
+  }
 
   useEffect(() => {
     reload().finally(() => setLoading(false))
@@ -37,7 +46,7 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
       })
       setOverrideAmount('')
       setNote('')
-      await reload()
+      await afterWrite()
     } catch {
       setError('Esiste già un\'eccezione per questa data, o i dati non sono validi')
     }
@@ -55,7 +64,7 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
     try {
       await recurringApi.deleteOverride(recurringTransactionId, pendingDelete.id)
       setPendingDelete(null)
-      await reload()
+      await afterWrite()
     } catch {
       setDeleteError('Eliminazione non riuscita. Riprova.')
     } finally {

@@ -122,11 +122,18 @@ describe('le spese in coda', () => {
           { id: 'c-1', name: 'Alimentari', type: 'EXPENSE', color: '#F6C9C0', icon: null, parentId: null, archived: false },
         ]),
       ),
+      // Senza questo la sincronizzazione al montaggio manda la spesa al server
+      // (il gestore predefinito risponde 201) e la riga smette di essere "in
+      // coda" a metà test. Prima passava lo stesso per fortuna di tempi; il
+      // passaggio alla cache li ha spostati e l'ha fatto vedere. Un invio che
+      // fallisce è comunque la situazione vera in cui la spesa resta in coda.
+      http.post('*/api/transactions', () => new HttpResponse(null, { status: 503 })),
     )
     mountPage(<TransactionsPage />, { profile: { salaryDay: 27 } })
 
     expect(await screen.findByText('In coda')).toBeInTheDocument()
-    expect(screen.getByText('Salvata')).toBeInTheDocument()
+    expect(await screen.findByText('Salvata')).toBeInTheDocument()
+    expect(screen.getByText('In coda')).toBeInTheDocument()
   })
 })
 

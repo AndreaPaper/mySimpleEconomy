@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, Clock, Pencil } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { checkpointsApi, profileApi } from '../api/endpoints'
-import type { BalanceCheckpoint } from '../api/types'
+import { queries, useInvalidateAll } from '../api/queries'
+import type { BalanceCheckpoint, Profile } from '../api/types'
 import { useAuth } from '../context/AuthContext'
 import { ProfilePageSkeleton } from '../components/Skeleton'
 import { AVATAR_OPTIONS, getAvatarIcon } from '../constants/avatars'
@@ -30,6 +32,19 @@ interface ProfileFields {
   savingsPercent: string
 }
 
+// Da profilo del backend a valori dei campi. Era scritto due volte, identico,
+// al caricamento e dopo il salvataggio.
+function fieldsOf(profile: Profile): ProfileFields {
+  return {
+    nickname: profile.nickname ?? '',
+    defaultSalaryAmount: profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '',
+    salaryDay: profile.salaryDay != null ? String(profile.salaryDay) : '',
+    avatarKey: profile.avatarKey,
+    savingsEnabled: profile.savingsEnabled,
+    savingsPercent: profile.savingsPercent != null ? String(profile.savingsPercent) : DEFAULT_SAVINGS_PERCENT,
+  }
+}
+
 const inputClass =
   'w-full rounded-xl border border-slate-300 bg-brand-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-700 focus:ring-[3px] focus:ring-brand-200/20 dark:border-slate-700 dark:bg-black dark:text-white'
 const cardClass = 'rounded-[18px] border border-slate-200 bg-brand-300 p-5 dark:border-slate-800 dark:bg-black'
@@ -43,7 +58,10 @@ export default function ProfilePage() {
     setSavings: setGlobalSavings,
     logout,
   } = useAuth()
-  const [loading, setLoading] = useState(true)
+  const profileQuery = useQuery(queries.profile())
+  const checkpointsQuery = useQuery(queries.checkpoints())
+  const invalidateAll = useInvalidateAll()
+  const loading = profileQuery.isPending || checkpointsQuery.isPending
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -60,38 +78,35 @@ export default function ProfilePage() {
   const [savedSnapshot, setSavedSnapshot] = useState<ProfileFields | null>(null)
 
   const today = new Date().toISOString().slice(0, 10)
-  const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
+  const checkpoints: BalanceCheckpoint[] = checkpointsQuery.data ?? []
   const [checkpointDate, setCheckpointDate] = useState(today)
   const [checkpointBalance, setCheckpointBalance] = useState('')
   const [checkpointSaving, setCheckpointSaving] = useState(false)
   const [checkpointError, setCheckpointError] = useState<string | null>(null)
   const [checkpointSaved, setCheckpointSaved] = useState(false)
 
-  const reloadCheckpoints = () => checkpointsApi.list().then(setCheckpoints)
+  const applyFields = (fields: ProfileFields) => {
+    setNickname(fields.nickname)
+    setDefaultSalaryAmount(fields.defaultSalaryAmount)
+    setSalaryDay(fields.salaryDay)
+    setAvatarKey(fields.avatarKey)
+    setSavingsEnabled(fields.savingsEnabled)
+    setSavingsPercent(fields.savingsPercent)
+    setSavedSnapshot(fields)
+  }
 
+  // I campi del modulo si riempiono dal profilo UNA volta sola, al primo
+  // arrivo dei dati. Il profilo in cache si aggiorna anche in sottofondo (al
+  // rientro sulla scheda, dopo un salvataggio altrove): ricopiarlo nei campi a
+  // ogni aggiornamento cancellerebbe quello che si sta scrivendo.
+  const seeded = useRef(false)
   useEffect(() => {
-    Promise.all([
-      profileApi.get().then((profile) => {
-        const fields: ProfileFields = {
-          nickname: profile.nickname ?? '',
-          defaultSalaryAmount: profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '',
-          salaryDay: profile.salaryDay != null ? String(profile.salaryDay) : '',
-          avatarKey: profile.avatarKey,
-          savingsEnabled: profile.savingsEnabled,
-          savingsPercent: profile.savingsPercent != null ? String(profile.savingsPercent) : DEFAULT_SAVINGS_PERCENT,
-        }
-        setEmail(profile.email)
-        setNickname(fields.nickname)
-        setDefaultSalaryAmount(fields.defaultSalaryAmount)
-        setSalaryDay(fields.salaryDay)
-        setAvatarKey(fields.avatarKey)
-        setSavingsEnabled(fields.savingsEnabled)
-        setSavingsPercent(fields.savingsPercent)
-        setSavedSnapshot(fields)
-      }),
-      reloadCheckpoints(),
-    ]).finally(() => setLoading(false))
-  }, [])
+    const profile = profileQuery.data
+    if (!profile || seeded.current) return
+    seeded.current = true
+    setEmail(profile.email)
+    applyFields(fieldsOf(profile))
+  }, [profileQuery.data])
 
   const latestCheckpoint = checkpoints[0] ?? null
 
@@ -112,7 +127,10 @@ export default function ProfilePage() {
     setCheckpointSaving(true)
     try {
       await checkpointsApi.upsert({ checkpointDate, balance: Number(checkpointBalance) })
-      await reloadCheckpoints()
+      // Tutto, non solo l'elenco dei saldi: un saldo di partenza sposta il
+      // saldo attuale e la previsione della Dashboard, che in cache
+      // resterebbero quelli di prima.
+      await invalidateAll()
       setCheckpointBalance('')
       setCheckpointSaved(true)
     } catch {
@@ -140,21 +158,7 @@ export default function ProfilePage() {
         savingsEnabled,
         savingsPercent: Number(savingsPercent),
       })
-      const fields: ProfileFields = {
-        nickname: profile.nickname ?? '',
-        defaultSalaryAmount: profile.defaultSalaryAmount != null ? String(profile.defaultSalaryAmount) : '',
-        salaryDay: profile.salaryDay != null ? String(profile.salaryDay) : '',
-        avatarKey: profile.avatarKey,
-        savingsEnabled: profile.savingsEnabled,
-        savingsPercent: profile.savingsPercent != null ? String(profile.savingsPercent) : DEFAULT_SAVINGS_PERCENT,
-      }
-      setNickname(fields.nickname)
-      setDefaultSalaryAmount(fields.defaultSalaryAmount)
-      setSalaryDay(fields.salaryDay)
-      setAvatarKey(fields.avatarKey)
-      setSavingsEnabled(fields.savingsEnabled)
-      setSavingsPercent(fields.savingsPercent)
-      setSavedSnapshot(fields)
+      applyFields(fieldsOf(profile))
       setGlobalNickname(profile.nickname)
       setGlobalAvatarKey(profile.avatarKey)
       // salaryDay definisce i confini del periodo in Dashboard e lo stipendio
@@ -167,6 +171,10 @@ export default function ProfilePage() {
         defaultSalaryAmount: profile.defaultSalaryAmount,
         salaryCategoryId: profile.salaryCategoryId,
       })
+      // Il giorno e l'importo dello stipendio fanno generare (o spostare) le
+      // transazioni dello stipendio sul backend: previsione, elenchi e
+      // risparmio in cache sono vecchi da questo momento.
+      await invalidateAll()
       setSaved(true)
     } catch {
       setError('Salvataggio non riuscito. Controlla i valori inseriti.')

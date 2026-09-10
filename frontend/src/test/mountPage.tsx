@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from 'react'
 import { render, type RenderResult } from '@testing-library/react'
+import type { QueryClient } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { vi } from 'vitest'
 import { AppRoutes } from '../App'
@@ -10,6 +11,7 @@ import { OfflineSyncProvider } from '../context/OfflineSyncContext'
 import { PaletteProvider } from '../context/PaletteContext'
 import { ThemeProvider } from '../context/ThemeContext'
 import { profileHandler } from './handlers'
+import { QueryWrapper, createTestQueryClient } from './queryClient'
 import { setViewport } from './matchMedia'
 import { server } from './server'
 
@@ -45,6 +47,8 @@ export interface MountPageOptions {
 export interface MountPageResult extends RenderResult {
   /** Dove si trova il router adesso: per verificare che si sia navigato. */
   currentPath: () => string
+  /** La cache di questo montaggio, nuova ogni volta: per ispezionarla. */
+  queryClient: QueryClient
 }
 
 function Providers({ children }: { children: ReactNode }) {
@@ -90,20 +94,24 @@ export function mountPage(ui: ReactElement, options: MountPageOptions = {}): Mou
     return null
   }
 
+  // Nuovo a ogni montaggio: vedi test/queryClient.tsx per il perché.
+  const queryClient = createTestQueryClient()
   const utils = render(
-    <Providers>
-      <MemoryRouter initialEntries={[route]}>
-        <Sonda />
-        <Routes>
-          <Route path={path} element={ui} />
-          {extraRoutes}
-          <Route path="*" element={<div data-testid="altrove" />} />
-        </Routes>
-      </MemoryRouter>
-    </Providers>,
+    <QueryWrapper client={queryClient}>
+      <Providers>
+        <MemoryRouter initialEntries={[route]}>
+          <Sonda />
+          <Routes>
+            <Route path={path} element={ui} />
+            {extraRoutes}
+            <Route path="*" element={<div data-testid="altrove" />} />
+          </Routes>
+        </MemoryRouter>
+      </Providers>
+    </QueryWrapper>,
   )
 
-  return Object.assign(utils, { currentPath: () => posizione.current })
+  return Object.assign(utils, { currentPath: () => posizione.current, queryClient })
 }
 
 /**

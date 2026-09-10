@@ -1,4 +1,6 @@
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createQueryClient } from './api/queryClient'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { CaseStyleProvider } from './context/CaseStyleContext'
@@ -50,21 +52,30 @@ export function AppRoutes() {
   )
 }
 
+// Uno solo per tutta la vita dell'app: è lui che tiene la cache fra una pagina
+// e l'altra. Sta fuori dal componente, altrimenti un nuovo render ne creerebbe
+// un altro vuoto.
+const queryClient = createQueryClient()
+
 function App() {
   return (
-    <ThemeProvider>
-      <CaseStyleProvider>
-        <PaletteProvider>
-          <OfflineSyncProvider>
-            <AuthProvider>
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </AuthProvider>
-          </OfflineSyncProvider>
-        </PaletteProvider>
-      </CaseStyleProvider>
-    </ThemeProvider>
+    // Il più esterno: OfflineSyncProvider e AuthProvider lo usano (invalidare
+    // a fine sincronizzazione, svuotare all'uscita), quindi deve stare sopra.
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <CaseStyleProvider>
+          <PaletteProvider>
+            <OfflineSyncProvider>
+              <AuthProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </AuthProvider>
+            </OfflineSyncProvider>
+          </PaletteProvider>
+        </CaseStyleProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }
 

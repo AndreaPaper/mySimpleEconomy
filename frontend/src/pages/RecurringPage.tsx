@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Pencil, Plus, Trash2, CalendarCog, type LucideIcon } from 'lucide-react'
-import { categoriesApi, recurringApi } from '../api/endpoints'
-import type { Category, IntervalUnit, RecurringTransaction } from '../api/types'
+import { useQuery } from '@tanstack/react-query'
+import { recurringApi } from '../api/endpoints'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
+import type { IntervalUnit, RecurringTransaction } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
@@ -49,9 +51,12 @@ function RowIconButton({
 
 export default function RecurringPage() {
   const isMobile = useIsMobile()
-  const [items, setItems] = useState<RecurringTransaction[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const itemsQuery = useQuery(queries.recurring())
+  const categoriesQuery = useCategories()
+  const items = itemsQuery.data ?? []
+  const categories = categoriesQuery.data ?? []
+  // Scheletro solo senza dati: vedi DebtsPage per il perché di isPending.
+  const loading = itemsQuery.isPending || categoriesQuery.isPending
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<RecurringTransaction | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -60,11 +65,7 @@ export default function RecurringPage() {
   const [overridesFor, setOverridesFor] = useState<RecurringTransaction | null>(null)
   const [actionSheetItem, setActionSheetItem] = useState<RecurringTransaction | null>(null)
 
-  const reload = () => recurringApi.list().then(setItems)
-
-  useEffect(() => {
-    Promise.all([reload(), categoriesApi.list().then(setCategories)]).finally(() => setLoading(false))
-  }, [])
+  const reload = useInvalidateAll()
 
   const openCreate = () => {
     setEditing(null)

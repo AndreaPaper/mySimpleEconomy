@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ImportPanel from './ImportPanel'
 import { categoriesApi, excelImportApi } from '../api/endpoints'
 import type { Category, ExcelImportPreviewResponse } from '../api/types'
+import { withQueryClient } from '../test/queryClient'
 
 // L'import del diario spese. Il punto delicato non e' l'analisi del file — quella
 // sta nel backend, ed e' coperta li' — ma la scrittura *per indice su due elenchi
@@ -64,7 +65,7 @@ beforeEach(() => {
 
 async function analizza(risposta = anteprima()) {
   analyze.mockResolvedValue(risposta)
-  render(<ImportPanel />)
+  render(withQueryClient(<ImportPanel />))
   await waitFor(() => expect(categoriesApi.list).toHaveBeenCalled())
 
   const input = document.querySelector('input[type="file"]') as HTMLInputElement
@@ -252,7 +253,7 @@ describe('errori', () => {
 
   it('un file non analizzabile lo dice invece di restare muto', async () => {
     analyze.mockRejectedValue(new Error('boom'))
-    render(<ImportPanel />)
+    render(withQueryClient(<ImportPanel />))
     await waitFor(() => expect(categoriesApi.list).toHaveBeenCalled())
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement

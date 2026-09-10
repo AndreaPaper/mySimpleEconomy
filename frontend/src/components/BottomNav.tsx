@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import { usePrefetchRoute } from '../api/prefetch'
 import {
   LayoutDashboard,
   LayoutGrid,
@@ -44,6 +45,7 @@ const SECTION_ROUTES = [
 
 export default function BottomNav() {
   const { pathname } = useLocation()
+  const prefetchProps = usePrefetchRoute()
   const inSection = SECTION_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
   const { isOnline, backendReachable, pendingCount } = useOfflineSync()
@@ -68,6 +70,7 @@ export default function BottomNav() {
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            {...prefetchProps(item.to)}
             aria-label={item.label}
             title={item.label}
             className={({ isActive }) =>

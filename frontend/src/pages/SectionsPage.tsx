@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePrefetchRoute } from '../api/prefetch'
 
 interface Tile {
   to: string
@@ -64,6 +65,7 @@ const GROUPS: Group[] = [
 
 export default function SectionsPage() {
   const { logout } = useAuth()
+  const prefetchProps = usePrefetchRoute()
 
   return (
     <div className="mx-auto max-w-md space-y-3.5">
@@ -79,6 +81,7 @@ export default function SectionsPage() {
               <Link
                 key={tile.to}
                 to={tile.to}
+                {...prefetchProps(tile.to)}
                 // La tinta passa da variabili e non dall'attributo style: così
                 // il tema scuro può scavalcarla con una classe, cosa che uno
                 // style inline non lascerebbe fare.

@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ChevronRight, Pencil, Plus, Archive, RotateCcw, Trash2, Sparkles } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { categoriesApi } from '../api/endpoints'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
 import type { Category, CategoryType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -51,17 +53,20 @@ function ActionPill({
 
 export default function CategoriesPage() {
   const isMobile = useIsMobile()
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const categoriesQuery = useCategories()
+  // Le archiviate arrivano da un endpoint separato: la lista normale le esclude
+  // a monte, quindi non è filtrabile lato client.
+  const archivedQuery = useQuery(queries.archivedCategories())
+  const categories = categoriesQuery.data ?? []
+  const archivedCategories = archivedQuery.data ?? []
+  // Scheletro solo senza dati: vedi DebtsPage per il perché di isPending.
+  const loading = categoriesQuery.isPending || archivedQuery.isPending
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Category | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generateFeedback, setGenerateFeedback] = useState<string | null>(null)
   // Su mobile Modifica/Archivia/Elimina stanno dietro il tocco sulla riga.
   const [actionSheetCat, setActionSheetCat] = useState<Category | null>(null)
-  // Le archiviate arrivano da un endpoint separato: la lista normale le esclude
-  // a monte, quindi non è filtrabile lato client.
-  const [archivedCategories, setArchivedCategories] = useState<Category[]>([])
   const [archivedOpen, setArchivedOpen] = useState(false)
   // Su desktop le sottocategorie sono chiuse finché non si apre il genitore:
   // l'insieme tiene gli id aperti in questo momento.
@@ -74,18 +79,10 @@ export default function CategoriesPage() {
       return next
     })
 
-  // Le due liste si ricaricano insieme: archiviare o riattivare sposta una
-  // categoria dall'una all'altra, e aggiornarne una sola la farebbe sparire da
-  // entrambe o comparire in tutte e due.
-  const reload = () =>
-    Promise.all([categoriesApi.list(), categoriesApi.listArchived()]).then(([active, archived]) => {
-      setCategories(active)
-      setArchivedCategories(archived)
-    })
-
-  useEffect(() => {
-    reload().finally(() => setLoading(false))
-  }, [])
+  // Le due liste si ricaricano insieme — l'invalidazione le prende entrambe:
+  // archiviare o riattivare sposta una categoria dall'una all'altra, e
+  // aggiornarne una sola la farebbe sparire da entrambe o comparire in tutte e due.
+  const reload = useInvalidateAll()
 
   const openCreate = () => {
     setEditing(null)

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { bankImportApi } from '../api/endpoints'
+import { useInvalidateAll } from '../api/queries'
 import FilePicker from './FilePicker'
 import CategoryCombobox from './CategoryCombobox'
 import {
@@ -88,6 +89,7 @@ interface BankImportFlowProps {
 
 export default function BankImportFlow({ categories, onCategoriesChanged }: BankImportFlowProps) {
   const source: BankSource = 'INTESA_SANPAOLO'
+  const invalidateAll = useInvalidateAll()
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<BankImportPreviewResponse | null>(null)
   const [mappings, setMappings] = useState<BankCategoryMappingDto[]>([])
@@ -247,6 +249,9 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
           exclusions,
         }),
       )
+      // Movimenti nuovi, provvisori riscritti, mappature ed esclusioni salvate:
+      // la cache è vecchia da qui, e la Dashboard mostrerebbe i conti di prima.
+      await invalidateAll()
     } catch (e) {
       const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
       setError(message || 'Importazione non riuscita.')

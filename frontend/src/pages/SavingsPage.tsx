@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TrendingDown, TrendingUp } from 'lucide-react'
 import {
@@ -13,13 +13,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { transactionsApi } from '../api/endpoints'
-import type { Transaction } from '../api/types'
+import { useQuery } from '@tanstack/react-query'
+import { queries } from '../api/queries'
 import { ListPageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { useIsMobile } from '../hooks/useIsMobile'
-import { periodKeyOf, periodRangeOf } from '../utils/period'
-import { lastPeriodKeys } from '../utils/savingsPeriods'
+import { periodKeyOf } from '../utils/period'
+import { savingsWindow } from '../utils/dataWindows'
 import { buildPeriodSavings } from '../utils/savings'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
@@ -29,10 +29,7 @@ const plainAmount = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, m
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short', year: '2-digit' })
 const monthLabelFullFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 
-// Quanti periodi mostrare nello storico.
-const PERIODS_SHOWN = 12
-
-// Quante righe del dettaglio si vedono su telefono prima del pulsante: quattro
+/// Quante righe del dettaglio si vedono su telefono prima del pulsante: quattro
 // riempiono lo schermo senza che la pagina diventi un elenco lungo dodici.
 const MOBILE_PERIOD_ROWS = 4
 
@@ -49,26 +46,16 @@ function labelOf(periodKey: string, formatter: Intl.DateTimeFormat): string {
 export default function SavingsPage() {
   const { salaryDay, savings } = useAuth()
   const isMobile = useIsMobile()
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
   const [allPeriodsShown, setAllPeriodsShown] = useState(false)
 
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const currentPeriodKey = periodKeyOf(todayStr, salaryDay)
-
-  const periodKeys = lastPeriodKeys(currentPeriodKey, PERIODS_SHOWN)
-
-  useEffect(() => {
-    // Si scarica l'intervallo coperto dai periodi mostrati: il primo giorno del
-    // periodo più vecchio, l'ultimo di quello corrente.
-    const from = periodRangeOf(periodKeys[0], salaryDay).start
-    const to = periodRangeOf(currentPeriodKey, salaryDay).end
-    transactionsApi
-      .list({ from, to })
-      .then((res) => setTransactions(res.content))
-      .catch(() => setTransactions([]))
-      .finally(() => setLoading(false))
-  }, [salaryDay])
+  // L'intervallo coperto dai periodi mostrati. Il calcolo sta in
+  // utils/dataWindows.ts perché il menu lo usa uguale per il prefetch; è nella
+  // chiave, quindi cambiando il giorno dello stipendio si chiede quello nuovo.
+  const { from, to, periodKeys, currentPeriodKey } = savingsWindow(new Date(), salaryDay)
+  const transactionsQuery = useQuery(queries.transactionsInRange(from, to))
+  const transactions = transactionsQuery.data?.content ?? []
+  // Scheletro solo senza dati: vedi DebtsPage per il perché di isPending.
+  const loading = transactionsQuery.isPending
 
   if (loading) return <ListPageSkeleton />
 

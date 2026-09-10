@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import OverridesPanel from './OverridesPanel'
 import { eccezione } from '../test/handlers'
 import { server, setupApiMocks } from '../test/server'
+import { withQueryClient } from '../test/queryClient'
 
 // Le eccezioni di una regola ricorrente: "questo mese l'affitto è 830 invece
 // di 750".
@@ -20,7 +21,7 @@ import { server, setupApiMocks } from '../test/server'
 
 setupApiMocks()
 
-const monta = () => render(<OverridesPanel recurringTransactionId="r-1" />)
+const monta = () => render(withQueryClient(<OverridesPanel recurringTransactionId="r-1" />))
 
 describe('elenco', () => {
   it('mostra le eccezioni con data, importo e nota', async () => {

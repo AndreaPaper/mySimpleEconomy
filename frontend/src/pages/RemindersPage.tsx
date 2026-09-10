@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Pencil, Plus } from 'lucide-react'
-import { categoriesApi, remindersApi } from '../api/endpoints'
-import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
+import { useQuery } from '@tanstack/react-query'
+import { remindersApi } from '../api/endpoints'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
+import type { ExpenseReminder, IntervalUnit } from '../api/types'
 import Modal from '../components/Modal'
 import ExpenseReminderForm from '../components/ExpenseReminderForm'
 import { ListPageSkeleton } from '../components/Skeleton'
@@ -13,17 +15,16 @@ const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: '
 
 export default function RemindersPage() {
   const isMobile = useIsMobile()
-  const [items, setItems] = useState<ExpenseReminder[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const itemsQuery = useQuery(queries.reminders())
+  const categoriesQuery = useCategories()
+  const items = itemsQuery.data ?? []
+  const categories = categoriesQuery.data ?? []
+  // Scheletro solo senza dati: vedi DebtsPage per il perché di isPending.
+  const loading = itemsQuery.isPending || categoriesQuery.isPending
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<ExpenseReminder | null>(null)
 
-  const reload = () => remindersApi.list().then(setItems)
-
-  useEffect(() => {
-    Promise.all([reload(), categoriesApi.list().then(setCategories)]).finally(() => setLoading(false))
-  }, [])
+  const reload = useInvalidateAll()
 
   const openCreate = () => {
     setEditing(null)

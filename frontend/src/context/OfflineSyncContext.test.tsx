@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { OfflineSyncProvider, useOfflineSync } from './OfflineSyncContext'
 import { enqueue, getQueue } from '../offline/queue'
 import { ricaricheRichieste } from '../test/location'
+import { createTestQueryClient, withQueryClient } from '../test/queryClient'
 
 // La sincronizzazione differita: quello che succede fra il momento in cui una
 // spesa viene registrata senza rete e quello in cui arriva davvero in archivio.
@@ -33,7 +34,9 @@ function Spia() {
   )
 }
 
-const monta = () => render(<OfflineSyncProvider><Spia /></OfflineSyncProvider>)
+// Il provider invalida la cache a fine sincronizzazione: gli serve un
+// QueryClient sopra di sé, nuovo per ogni test.
+const monta = () => render(withQueryClient(<OfflineSyncProvider><Spia /></OfflineSyncProvider>))
 
 const spesa = (description: string) => ({
   categoryId: 'cat-1',
@@ -250,5 +253,59 @@ describe('il ricontrollo del backend', () => {
       window.dispatchEvent(new Event('auth:login-success'))
       window.dispatchEvent(new Event('backend:unreachable'))
     })
+  })
+})
+
+describe('la cache dopo la sincronizzazione', () => {
+  /**
+   * Quello che era in coda ora è in archivio: saldo, previsione ed elenchi in
+   * cache sono diventati vecchi, e vanno invalidati. Prima ci pensavano
+   * Dashboard e Transazioni con un effetto ciascuna, e solo a coda vuota.
+   */
+  it('invalida la cache quando qualcosa arriva in archivio', async () => {
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(['transactions', 'recent'], { content: [], hasNext: false })
+    enqueue(spesa('Farmacia'))
+    server.use(http.post('*/api/transactions', () => HttpResponse.json({ id: 't' }, { status: 201 })))
+
+    render(withQueryClient(<OfflineSyncProvider><Spia /></OfflineSyncProvider>, queryClient))
+
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['transactions', 'recent'])?.isInvalidated).toBe(true),
+    )
+  })
+
+  /**
+   * E il caso che il vecchio controllo mancava: una sincronizzazione
+   * interrotta a metà ha comunque mandato in archivio le prime spese, quindi i
+   * dati a schermo sono vecchi anche se la coda non è vuota.
+   */
+  it('invalida anche se la sincronizzazione si ferma a metà', async () => {
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(['transactions', 'recent'], { content: [], hasNext: false })
+    enqueue(spesa('Prima'))
+    enqueue(spesa('Seconda'))
+    let inviate = 0
+    server.use(
+      http.post('*/api/transactions', () => {
+        inviate++
+        return inviate === 1 ? HttpResponse.json({ id: 't' }, { status: 201 }) : new HttpResponse(null, { status: 500 })
+      }),
+    )
+
+    render(withQueryClient(<OfflineSyncProvider><Spia /></OfflineSyncProvider>, queryClient))
+
+    await waitFor(() => expect(getQueue()).toHaveLength(1))
+    expect(queryClient.getQueryState(['transactions', 'recent'])?.isInvalidated).toBe(true)
+  })
+
+  it('senza nulla da mandare non tocca la cache', async () => {
+    const queryClient = createTestQueryClient()
+    queryClient.setQueryData(['transactions', 'recent'], { content: [], hasNext: false })
+
+    render(withQueryClient(<OfflineSyncProvider><Spia /></OfflineSyncProvider>, queryClient))
+
+    await waitFor(() => expect(screen.getByTestId('in-coda')).toHaveTextContent('0'))
+    expect(queryClient.getQueryState(['transactions', 'recent'])?.isInvalidated).toBe(false)
   })
 })

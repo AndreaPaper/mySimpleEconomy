@@ -4,6 +4,7 @@ import { HttpResponse, http } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider, useAuth } from './AuthContext'
 import { server, setupApiMocks } from '../test/server'
+import { createTestQueryClient, withQueryClient } from '../test/queryClient'
 
 // La sessione. Due cose meritano un test, e nessuna delle due si vede a schermo:
 // dove finiscono le credenziali, e il fatto che l'accesso emetta un evento di
@@ -43,7 +44,13 @@ function Spia() {
   )
 }
 
-const monta = () => render(<AuthProvider><Spia /></AuthProvider>)
+// AuthProvider svuota la cache all'uscita, quindi ha bisogno di un QueryClient
+// sopra di sé. Si restituisce, per poter guardare dentro la cache.
+const monta = () => {
+  const queryClient = createTestQueryClient()
+  const utils = render(withQueryClient(<AuthProvider><Spia /></AuthProvider>, queryClient))
+  return { ...utils, queryClient }
+}
 
 const rispondiAccesso = () => {
   server.use(
@@ -166,6 +173,24 @@ describe('il profilo', () => {
 })
 
 describe('uscita', () => {
+  /**
+   * L'uscita è una navigazione interna, non ricarica la pagina: la cache dei
+   * dati sopravviverebbe. Chi entra dopo sullo stesso telefono vedrebbe per un
+   * attimo i conti di chi è uscito, prima che le sue richieste arrivino.
+   */
+  it('svuota la cache dei dati', async () => {
+    localStorage.setItem('token', 'tok-esistente')
+    server.use(http.get('*/api/profile', () => HttpResponse.json(profiloVuoto)))
+    const { queryClient } = monta()
+    // Dati di chi sta per uscire, già in cache.
+    queryClient.setQueryData(['debts'], [{ id: 'd-1', name: 'Prestito auto' }])
+    queryClient.setQueryData(['forecast', 7], { currentBalance: 2148.6 })
+
+    await userEvent.click(screen.getByText('Esci'))
+
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+  })
+
   // Non basta togliere il token: le impostazioni del profilo restano in memoria
   // e il prossimo utente della stessa postazione vedrebbe lo stipendio altrui.
   it('ripulisce credenziali e impostazioni del profilo', async () => {

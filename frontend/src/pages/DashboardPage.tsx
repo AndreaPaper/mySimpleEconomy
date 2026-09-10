@@ -15,14 +15,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import {
-  categoriesApi,
-  checkpointsApi,
-  forecastApi,
-  recurringApi,
-  remindersApi,
-  transactionsApi,
-} from '../api/endpoints'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { categoriesApi, transactionsApi } from '../api/endpoints'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
 import { categoryData, categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { DashboardPageSkeleton } from '../components/Skeleton'
@@ -32,22 +27,30 @@ import MobileCategoryChart from '../components/MobileCategoryChart'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { useIsMobile } from '../hooks/useIsMobile'
-import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { buildCategoryBreakdown } from '../utils/categoryBreakdown'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
+import {
+  chartRangeStart,
+  defaultRangeEnd,
+  forecastWindow,
+  historyWindow,
+  initialRangeStart,
+  UPCOMING_REMINDER_MONTHS,
+} from '../utils/dataWindows'
 import { buildBalanceSeries, buildHistoricalPoints, type ChartPoint } from '../utils/balanceSeries'
 import { buildPeriodSavings, computeBudget } from '../utils/savings'
-import type {
-  BalanceCheckpoint,
-  Category,
-  CategoryAmountNode,
-  ForecastResponse,
-  RecurringTransaction,
-  Transaction,
-  UpcomingRemindersResponse,
-} from '../api/types'
+import type { CategoryAmountNode } from '../api/types'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+
+// Le sette query della Dashboard sono indipendenti: una che fallisce non ferma
+// le altre. Va però detto in console, come faceva il ramo "rejected" del
+// Promise.allSettled che c'era prima.
+function useLogQueryError(error: unknown, message: string) {
+  useEffect(() => {
+    if (error) console.error(message, error)
+  }, [error, message])
+}
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short', year: '2-digit' })
 const monthLabelFullFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 const dayBadgeMonthFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short' })
@@ -69,31 +72,13 @@ function monthNameCapitalized(yearMonth: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
-function defaultRangeStart(): string {
-  return `${new Date().getFullYear()}-01-01`
-}
-
 // Le durate offerte dai chip del grafico su mobile, al posto dei due campi data.
-const DEFAULT_MOBILE_RANGE_MONTHS = 6
-
 const CHART_RANGES = [
   { label: '1M', months: 1 },
   { label: '3M', months: 3 },
   { label: '6M', months: 6 },
   { label: '1A', months: 12 },
 ]
-
-function chartRangeStart(months: number): string {
-  const d = new Date()
-  d.setMonth(d.getMonth() - months)
-  return d.toISOString().slice(0, 10)
-}
-
-function defaultRangeEnd(): string {
-  const d = new Date()
-  d.setMonth(d.getMonth() + 6)
-  return d.toISOString().slice(0, 10)
-}
 
 function fullDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
@@ -110,16 +95,8 @@ function dayBadge(dateStr: string): { day: string; month: string } {
 
 export default function DashboardPage() {
   const { salaryDay, savings } = useAuth()
-  const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
+  const { isOnline, backendReachable, addOfflineTransaction } = useOfflineSync()
   const isMobile = useIsMobile()
-  const [forecast, setForecast] = useState<ForecastResponse | null>(null)
-  const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
-  const [historicalTransactions, setHistoricalTransactions] = useState<Transaction[]>([])
-  const [recurring, setRecurring] = useState<RecurringTransaction[]>([])
-  const [upcomingReminders, setUpcomingReminders] = useState<UpcomingRemindersResponse | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
   const [monthCursor, setMonthCursor] = useState(0)
   // Categorie padre attualmente espanse nella card "Spese per categoria".
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -130,7 +107,7 @@ export default function DashboardPage() {
   // ha. Sul desktop resta l'anno in corso, che è quello che i campi data
   // mostravano da sempre.
   const [rangeStart, setRangeStart] = useState(() =>
-    isMobile ? chartRangeStart(DEFAULT_MOBILE_RANGE_MONTHS) : defaultRangeStart(),
+    initialRangeStart(isMobile),
   )
   const [rangeEnd, setRangeEnd] = useState(defaultRangeEnd())
 
@@ -154,77 +131,55 @@ export default function DashboardPage() {
   const [brokenHusky, setBrokenHusky] = useState<string | null>(null)
 
   const today = new Date()
-  // Quanti mesi di forecast servono per coprire rangeEnd, partendo dal mese
-  // corrente (il forecast engine parte sempre da oggi, mai da rangeStart).
-  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const rangeEndDate = new Date(rangeEnd)
-  const endMonthStart = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth(), 1)
-  const monthsDiff =
-    (endMonthStart.getFullYear() - currentMonthStart.getFullYear()) * 12 +
-    (endMonthStart.getMonth() - currentMonthStart.getMonth())
-  const monthsParam = Math.min(24, Math.max(1, monthsDiff + 1))
+  // Mesi di previsione e storico da scaricare: i calcoli stanno in
+  // utils/dataWindows.ts perché il menu li usa uguali per il prefetch.
+  const { monthsDiff, months: monthsParam } = forecastWindow(rangeEnd, today)
+  const history = historyWindow(rangeStart, today, salaryDay)
   const startMonthKey = rangeStart.slice(0, 7)
   const endMonthKey = rangeEnd.slice(0, 7)
 
-  const reload = () => {
-    // Finestra ampia (2 anni) per lo storico di default: copre praticamente
-    // qualsiasi utente senza dover sapere in anticipo da quando ha dati
-    // reali, per la card "Spese per categoria" che permette di sfogliare
-    // periodi passati indipendentemente dal range scelto per il grafico.
-    // Si allarga oltre i 2 anni solo se l'utente sceglie un rangeStart
-    // ancora più indietro per il grafico "Andamento saldo".
-    const defaultHistoryStart = new Date(today.getFullYear() - 2, today.getMonth(), 1)
-    const chartHistoryStart = new Date(rangeStart)
-    const historyStart = chartHistoryStart < defaultHistoryStart ? chartHistoryStart : defaultHistoryStart
-    const iso = (d: Date) => d.toISOString().slice(0, 10)
-    const todayStr = iso(today)
-    // Il limite superiore arriva fino alla fine del periodo personalizzato
-    // corrente (stipendio-to-stipendio, o mese di calendario se non
-    // configurato), non solo fino a oggi: così una spesa già registrata con
-    // data futura ma ancora dentro il periodo corrente non viene esclusa.
-    const currentPeriodEnd = periodRangeOf(periodKeyOf(todayStr, salaryDay), salaryDay).end
 
-    // Promise.allSettled invece di Promise.all: un singolo fallimento (es.
-    // promemoria o ricorrenti) non deve impedire l'aggiornamento del saldo
-    // attuale e della previsione, che dipendono solo da forecastRes.
-    return Promise.allSettled([
-      forecastApi.get(monthsParam),
-      checkpointsApi.list(),
-      transactionsApi.list(),
-      transactionsApi.list({ from: iso(historyStart), to: currentPeriodEnd }),
-      recurringApi.list(),
-      remindersApi.upcoming(6),
-      categoriesApi
-        .list()
-        .then((cats) => {
-          cacheCategories(cats)
-          setCategories(cats)
-        })
-        .catch(() => setCategories(loadCachedCategories())),
-    ]).then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
-      if (forecastRes.status === 'fulfilled') setForecast(forecastRes.value)
-      else console.error('Aggiornamento previsione non riuscito', forecastRes.reason)
+  // Sette query indipendenti, al posto del Promise.allSettled di prima. Il
+  // fallimento parziale che allSettled garantiva (se i promemoria non
+  // arrivano, saldo e previsione si vedono lo stesso) qui è il comportamento
+  // naturale: ogni query ha il suo esito.
+  //
+  // keepPreviousData su previsione e storico: la loro chiave cambia con
+  // l'intervallo del grafico, e senza, spostare le date farebbe ricomparire lo
+  // scheletro di tutta la pagina. Prima i dati restavano a schermo mentre
+  // arrivavano i nuovi, e così resta.
+  const forecastQuery = useQuery({ ...queries.forecast(monthsParam), placeholderData: keepPreviousData })
+  const checkpointsQuery = useQuery(queries.checkpoints())
+  const recentQuery = useQuery(queries.recentTransactions())
+  const historicalQuery = useQuery({
+    ...queries.transactionsInRange(history.from, history.to),
+    placeholderData: keepPreviousData,
+  })
+  const recurringQuery = useQuery(queries.recurring())
+  const remindersQuery = useQuery(queries.upcomingReminders(UPCOMING_REMINDER_MONTHS))
+  const categoriesQuery = useCategories()
+  const invalidateAll = useInvalidateAll()
 
-      if (checkpointsRes.status === 'fulfilled') setCheckpoints(checkpointsRes.value)
-      else console.error('Aggiornamento saldi di partenza non riuscito', checkpointsRes.reason)
+  const forecast = forecastQuery.data ?? null
+  const checkpoints = checkpointsQuery.data ?? []
+  const recentTransactions = recentQuery.data?.content ?? []
+  const historicalTransactions = historicalQuery.data?.content ?? []
+  const recurring = recurringQuery.data ?? []
+  const upcomingReminders = remindersQuery.data ?? null
+  const categories = categoriesQuery.data ?? []
 
-      if (recentRes.status === 'fulfilled') setRecentTransactions(recentRes.value.content)
-      else console.error('Aggiornamento transazioni recenti non riuscito', recentRes.reason)
+  // Lo scheletro finché manca anche una sola delle sette, come quando si
+  // aspettava l'allSettled — ma su isPending: tornando sulla Dashboard i dati
+  // in cache si vedono subito, e l'aggiornamento in sottofondo non li nasconde.
+  const loading = [forecastQuery, checkpointsQuery, recentQuery, historicalQuery, recurringQuery, remindersQuery, categoriesQuery]
+    .some((q) => q.isPending)
 
-      if (historicalRes.status === 'fulfilled') setHistoricalTransactions(historicalRes.value.content)
-      else console.error('Aggiornamento storico transazioni non riuscito', historicalRes.reason)
-
-      if (recurringRes.status === 'fulfilled') setRecurring(recurringRes.value)
-      else console.error('Aggiornamento ricorrenti non riuscito', recurringRes.reason)
-
-      if (remindersRes.status === 'fulfilled') setUpcomingReminders(remindersRes.value)
-      else console.error('Aggiornamento promemoria non riuscito', remindersRes.reason)
-    })
-  }
-
-  useEffect(() => {
-    reload().finally(() => setLoading(false))
-  }, [salaryDay, rangeStart, rangeEnd])
+  useLogQueryError(forecastQuery.error, 'Aggiornamento previsione non riuscito')
+  useLogQueryError(checkpointsQuery.error, 'Aggiornamento saldi di partenza non riuscito')
+  useLogQueryError(recentQuery.error, 'Aggiornamento transazioni recenti non riuscito')
+  useLogQueryError(historicalQuery.error, 'Aggiornamento storico transazioni non riuscito')
+  useLogQueryError(recurringQuery.error, 'Aggiornamento ricorrenti non riuscito')
+  useLogQueryError(remindersQuery.error, 'Aggiornamento promemoria non riuscito')
 
   useEffect(() => {
     const badge = badgeRef.current
@@ -235,18 +190,6 @@ export default function DashboardPage() {
     observer.observe(badge)
     return () => observer.disconnect()
   }, [loading, savings.enabled])
-
-  // Una transazione aggiunta offline viene sincronizzata in background da
-  // OfflineSyncContext: se l'utente resta sul Dashboard, senza questo
-  // effetto il saldo attuale e la previsione non si aggiornerebbero mai
-  // finché non si naviga altrove e si torna (che rimonta la pagina).
-  const prevPendingCount = useRef(pendingCount)
-  useEffect(() => {
-    if (prevPendingCount.current > 0 && pendingCount === 0) {
-      reload()
-    }
-    prevPendingCount.current = pendingCount
-  }, [pendingCount])
 
   const closeQuickAdd = () => setQuickAddOpen(false)
 
@@ -274,14 +217,14 @@ export default function DashboardPage() {
       throw err
     }
     closeQuickAdd()
-    await reload()
+    await invalidateAll()
   }
 
   const handleCreateCategory = async (data: { name: string; type: 'INCOME' | 'EXPENSE'; color: string | null; icon: string | null }) => {
     const category = await categoriesApi.create(data)
-    const updated = await categoriesApi.list()
-    cacheCategories(updated)
-    setCategories(updated)
+    // Aspettare l'invalidazione vuol dire aspettare che l'elenco delle categorie
+    // contenga la nuova: il modulo la adotta subito, e deve poterla mostrare.
+    await invalidateAll()
     return category
   }
 

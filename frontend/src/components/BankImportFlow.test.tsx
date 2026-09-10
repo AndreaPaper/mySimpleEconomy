@@ -9,6 +9,7 @@ import type {
   BankImportRowPreview,
   Category,
 } from '../api/types'
+import { withQueryClient } from '../test/queryClient'
 
 // Il flusso dell'import bancario. La logica derivata — precedenze, selezione,
 // completezza della mappatura — e' gia' coperta in utils/bankImportRows: qui si
@@ -92,7 +93,7 @@ beforeEach(() => {
 /** Carica un file e attende l'anteprima. */
 async function analizza(risposta: BankImportPreviewResponse) {
   analyze.mockResolvedValue(risposta)
-  render(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />)
+  render(withQueryClient(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />))
 
   const input = document.querySelector('input[type="file"]') as HTMLInputElement
   await userEvent.upload(input, new File(['x'], 'estratto.xlsx'))
@@ -220,7 +221,7 @@ describe('errori', () => {
     analyze.mockRejectedValue({
       response: { data: { message: 'Non ho trovato la tabella dei movimenti.' } },
     })
-    render(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />)
+    render(withQueryClient(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />))
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(input, new File(['x'], 'estratto.xlsx'))
@@ -231,7 +232,7 @@ describe('errori', () => {
 
   it('senza messaggio dal backend ne mostra uno comprensibile', async () => {
     analyze.mockRejectedValue(new Error('boom'))
-    render(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />)
+    render(withQueryClient(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />))
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(input, new File(['x'], 'estratto.xlsx'))
@@ -290,7 +291,7 @@ describe('le categorie create dalle categorie della banca', () => {
         summary: { ...anteprima().summary, categorieDaMappare: 1 },
       }),
     )
-    render(<BankImportFlow categories={categorie} onCategoriesChanged={avvisato} />)
+    render(withQueryClient(<BankImportFlow categories={categorie} onCategoriesChanged={avvisato} />))
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(input, new File(['x'], 'estratto.xlsx'))
     await userEvent.click(screen.getByRole('button', { name: /Analizza/i }))
@@ -314,7 +315,7 @@ describe('le categorie create dalle categorie della banca', () => {
         summary: { ...anteprima().summary, categorieDaMappare: 1 },
       }),
     )
-    render(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />)
+    render(withQueryClient(<BankImportFlow categories={categorie} onCategoriesChanged={vi.fn()} />))
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(input, new File(['x'], 'estratto.xlsx'))
     await userEvent.click(screen.getByRole('button', { name: /Analizza/i }))

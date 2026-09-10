@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Landmark, NotebookText, type LucideIcon } from 'lucide-react'
-import { categoriesApi, excelImportApi } from '../api/endpoints'
+import { excelImportApi } from '../api/endpoints'
+import { useCategories, useInvalidateAll } from '../api/queries'
 import type {
-  Category,
   CategorySuggestion,
   ExcelImportPreviewResponse,
   ExcelImportResult,
@@ -30,7 +30,9 @@ const FORMATS: { key: ImportFormat; label: string; hint: string; Icon: LucideIco
 
 export default function ImportPanel() {
   const [format, setFormat] = useState<ImportFormat>('diary')
-  const [existingCategories, setExistingCategories] = useState<Category[]>([])
+  const categoriesQuery = useCategories()
+  const existingCategories = categoriesQuery.data ?? []
+  const invalidateAll = useInvalidateAll()
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<ExcelImportPreviewResponse | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
@@ -46,11 +48,9 @@ export default function ImportPanel() {
     null,
   )
 
-  const reloadCategories = () => {
-    categoriesApi.list().then(setExistingCategories)
-  }
-
-  useEffect(reloadCategories, [])
+  // Le categorie create dal flusso bancario vanno ricaricate: invalidando
+  // tutto si ricaricano loro e tutto ciò che le mostra.
+  const reloadCategories = () => void invalidateAll()
 
   const handleAnalyze = async () => {
     if (!file) return
@@ -113,6 +113,10 @@ export default function ImportPanel() {
     setCommitting(true)
     try {
       const commitResult = await excelImportApi.commit(preview)
+      // L'import crea categorie, transazioni, regole e saldi di partenza: tutta
+      // la cache è vecchia da qui. Senza, dopo un import la Dashboard in cache
+      // mostrerebbe ancora i conti di prima.
+      await invalidateAll()
       setResult(commitResult)
     } catch {
       setError('Importazione non riuscita.')
