@@ -473,7 +473,13 @@ export default function DashboardPage() {
   // Su mobile le due card perdono il bordo e si stringono: la tinta piena le
   // separa già dallo sfondo, e nel carosello un bordo per card faceva sembrare
   // il tutto una lista dentro una lista.
-  const cardChrome = isMobile ? 'rounded-xl p-4' : 'rounded-lg border border-slate-200 p-[18px]'
+  //
+  // h-full solo su mobile: nel carosello ogni card sta dentro un contenitore
+  // che flex allunga all'altezza della più alta, ma la card dentro restava
+  // alta quanto il suo contenuto — e Risparmio, con la riga della media in
+  // fondo, era più alta di Budget. Sul desktop non serve: lì le card sono
+  // direttamente celle della griglia, che si allungano da sole.
+  const cardChrome = isMobile ? 'h-full rounded-xl p-4' : 'rounded-lg border border-slate-200 p-[18px]'
   const cardHeader = isMobile ? 'mb-3 flex items-center justify-between gap-2' : 'mb-3.5 flex items-center justify-between gap-2'
   const cardBody = isMobile ? 'flex items-center gap-3.5' : 'flex items-center gap-4'
   const cardAmount = isMobile ? 'text-xl' : 'text-2xl'
