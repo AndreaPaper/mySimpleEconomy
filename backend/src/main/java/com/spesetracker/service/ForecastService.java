@@ -2,13 +2,14 @@ package com.spesetracker.service;
 
 import com.spesetracker.dto.forecast.CategoryAmount;
 import com.spesetracker.dto.forecast.ForecastResponse;
-import com.spesetracker.dto.forecast.MonthlyForecast;
+import com.spesetracker.dto.forecast.PeriodForecast;
 import com.spesetracker.model.BalanceCheckpoint;
 import com.spesetracker.model.Category;
 import com.spesetracker.model.ExpenseReminder;
 import com.spesetracker.model.RecurringOverride;
 import com.spesetracker.model.RecurringTransaction;
 import com.spesetracker.model.Transaction;
+import com.spesetracker.model.User;
 import com.spesetracker.model.enums.CategoryType;
 import com.spesetracker.model.enums.TransactionType;
 import com.spesetracker.repository.BalanceCheckpointRepository;
@@ -16,6 +17,7 @@ import com.spesetracker.repository.ExpenseReminderRepository;
 import com.spesetracker.repository.RecurringOverrideRepository;
 import com.spesetracker.repository.RecurringTransactionRepository;
 import com.spesetracker.repository.TransactionRepository;
+import com.spesetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,9 +39,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ForecastService {
 
-    // Ampiezza della finestra storica (mesi pieni precedenti al mese corrente) usata
-    // per la media mobile delle spese/entrate variabili (non ricorrenti).
-    private static final int VARIABLE_AVERAGE_WINDOW_MONTHS = 6;
+    // Ampiezza della finestra storica (periodi conclusi precedenti a quello corrente)
+    // usata per la media mobile delle spese/entrate variabili (non ricorrenti).
+    private static final int VARIABLE_AVERAGE_WINDOW_PERIODS = 6;
 
     // Sentinella per "nessun checkpoint mai registrato": LocalDate.MIN eccede il range
     // di date rappresentabile da Postgres (causa un overflow lato driver JDBC), quindi
@@ -51,15 +53,23 @@ public class ForecastService {
     private final RecurringTransactionRepository recurringTransactionRepository;
     private final RecurringOverrideRepository recurringOverrideRepository;
     private final ExpenseReminderRepository expenseReminderRepository;
+    private final UserRepository userRepository;
 
     private record Occurrence(Category category, BigDecimal amount) {
     }
 
     @Transactional(readOnly = true)
-    public ForecastResponse forecast(UUID userId, int months) {
+    public ForecastResponse forecast(UUID userId, int periods) {
         LocalDate today = LocalDate.now();
-        YearMonth currentMonth = YearMonth.from(today);
-        LocalDate horizonEndDate = currentMonth.plusMonths(months - 1L).atEndOfMonth();
+        // Tutta la previsione ragiona per periodi da stipendio a stipendio, come il
+        // resto dell'app. Senza giorno di stipendio configurato (o col giorno 1)
+        // SalaryPeriods fa coincidere periodo e mese di calendario, quindi per quella
+        // configurazione ogni numero qui sotto resta identico a prima.
+        User user = userRepository.getReferenceById(userId);
+        Integer salaryDay = SalaryPeriods.of(user.getSalaryDay());
+        YearMonth currentPeriod = SalaryPeriods.periodOf(today, salaryDay);
+        LocalDate currentPeriodStart = SalaryPeriods.periodStart(currentPeriod, salaryDay);
+        LocalDate horizonEndDate = SalaryPeriods.periodEnd(currentPeriod.plusMonths(periods - 1L), salaryDay);
 
         Optional<BalanceCheckpoint> checkpoint = balanceCheckpointRepository
                 .findFirstByUserIdAndCheckpointDateLessThanEqualOrderByCheckpointDateDesc(userId, today);
@@ -91,13 +101,13 @@ public class ForecastService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
 
         BigDecimal preHorizonDelta = actualSinceCheckpoint.stream()
-                .filter(t -> t.getOccurredOn().isBefore(currentMonth.atDay(1)))
+                .filter(t -> t.getOccurredOn().isBefore(currentPeriodStart))
                 .map(this::signedAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        Map<YearMonth, List<Transaction>> actualByMonth = actualSinceCheckpoint.stream()
-                .filter(t -> !t.getOccurredOn().isBefore(currentMonth.atDay(1)))
-                .collect(Collectors.groupingBy(t -> YearMonth.from(t.getOccurredOn())));
+        Map<YearMonth, List<Transaction>> actualByPeriod = actualSinceCheckpoint.stream()
+                .filter(t -> !t.getOccurredOn().isBefore(currentPeriodStart))
+                .collect(Collectors.groupingBy(t -> SalaryPeriods.periodOf(t.getOccurredOn(), salaryDay)));
 
         // Nota: una transazione inserita a mano con data futura non viene mai interpretata
         // come l'occorrenza di una regola ricorrente, nemmeno se cade nella stessa
@@ -117,7 +127,7 @@ public class ForecastService {
                 .stream()
                 .collect(Collectors.groupingBy(o -> o.getRecurringTransaction().getId()));
 
-        Map<YearMonth, List<Occurrence>> projectedByMonth = new HashMap<>();
+        Map<YearMonth, List<Occurrence>> projectedByPeriod = new HashMap<>();
         for (RecurringTransaction rule : activeRules) {
             Map<LocalDate, BigDecimal> overrideByDate = overridesByRule
                     .getOrDefault(rule.getId(), List.of()).stream()
@@ -127,7 +137,7 @@ public class ForecastService {
             while (!cursor.isAfter(horizonEndDate) && rule.isCurrentlyActive(cursor)) {
                 if (cursor.isAfter(today)) {
                     BigDecimal amount = overrideByDate.getOrDefault(cursor, rule.getDefaultAmount());
-                    projectedByMonth.computeIfAbsent(YearMonth.from(cursor), k -> new ArrayList<>())
+                    projectedByPeriod.computeIfAbsent(SalaryPeriods.periodOf(cursor, salaryDay), k -> new ArrayList<>())
                             .add(new Occurrence(rule.getCategory(), amount));
                 }
                 cursor = rule.addInterval(cursor);
@@ -139,7 +149,7 @@ public class ForecastService {
         // l'importo va comunque previsto, altrimenti il saldo di fine mese ignora spese
         // già pianificate dall'utente. Il controllo di esistenza è lo stesso usato dal
         // job (ExpenseReminderGenerationService), quindi non si conta due volte.
-        Map<YearMonth, List<Occurrence>> reminderByMonth = new HashMap<>();
+        Map<YearMonth, List<Occurrence>> reminderByPeriod = new HashMap<>();
         for (ExpenseReminder reminder : expenseReminderRepository.findByUserIdAndActiveTrue(userId)) {
             if (reminder.getCategory() == null) {
                 continue;
@@ -152,11 +162,15 @@ public class ForecastService {
 
             LocalDate cursor = reminder.getNextDueDate();
             while (!cursor.isAfter(horizonEndDate) && reminder.isCurrentlyActive(cursor)) {
-                YearMonth ym = YearMonth.from(cursor);
+                // Il controllo "il job l'ha gia' trasformata in transazione?" resta per
+                // MESE di calendario, perche' mensile e' il job che le genera. E' il
+                // bucket della previsione a ragionare per periodi: confondere i due
+                // conterebbe la stessa spesa due volte, o la perderebbe.
+                YearMonth calendarMonth = YearMonth.from(cursor);
                 boolean alreadyMaterialised = transactionRepository.existsByExpenseReminderIdAndOccurredOnBetween(
-                        reminder.getId(), ym.atDay(1), ym.atEndOfMonth());
+                        reminder.getId(), calendarMonth.atDay(1), calendarMonth.atEndOfMonth());
                 if (!alreadyMaterialised) {
-                    reminderByMonth.computeIfAbsent(ym, k -> new ArrayList<>())
+                    reminderByPeriod.computeIfAbsent(SalaryPeriods.periodOf(cursor, salaryDay), k -> new ArrayList<>())
                             .add(new Occurrence(reminder.getCategory(), amount));
                 }
                 cursor = reminder.addInterval(cursor);
@@ -164,10 +178,11 @@ public class ForecastService {
         }
 
         // Componente statistica: media mobile per categoria sulle spese/entrate non ricorrenti
-        // negli ultimi N mesi pieni precedenti al mese corrente. Si applica solo ai mesi futuri
-        // interi (non al mese corrente, già coperto dall'effettivo parziale sopra).
-        LocalDate windowStart = currentMonth.minusMonths(VARIABLE_AVERAGE_WINDOW_MONTHS).atDay(1);
-        LocalDate windowEnd = currentMonth.atDay(1).minusDays(1);
+        // negli ultimi N periodi conclusi precedenti a quello corrente. Si applica solo ai
+        // periodi futuri interi (non a quello corrente, già coperto dall'effettivo parziale).
+        LocalDate windowStart = SalaryPeriods.periodStart(
+                currentPeriod.minusMonths(VARIABLE_AVERAGE_WINDOW_PERIODS), salaryDay);
+        LocalDate windowEnd = currentPeriodStart.minusDays(1);
         // Si escludono sia le occorrenze delle regole ricorrenti sia quelle generate dai
         // promemoria: entrambe sono già previste esplicitamente sopra, quindi lasciarle
         // anche nella media le conterebbe due volte.
@@ -186,14 +201,14 @@ public class ForecastService {
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         e -> e.getValue().divide(
-                                BigDecimal.valueOf(VARIABLE_AVERAGE_WINDOW_MONTHS), 2, RoundingMode.HALF_UP)));
+                                BigDecimal.valueOf(VARIABLE_AVERAGE_WINDOW_PERIODS), 2, RoundingMode.HALF_UP)));
 
-        List<MonthlyForecast> monthlyForecasts = new ArrayList<>();
+        List<PeriodForecast> periodForecasts = new ArrayList<>();
         BigDecimal runningBalance = checkpointBalance.add(preHorizonDelta);
 
-        for (int i = 0; i < months; i++) {
-            YearMonth ym = currentMonth.plusMonths(i);
-            boolean isCurrentMonth = ym.equals(currentMonth);
+        for (int i = 0; i < periods; i++) {
+            YearMonth period = currentPeriod.plusMonths(i);
+            boolean isCurrentPeriod = period.equals(currentPeriod);
 
             Map<UUID, BigDecimal> breakdown = new LinkedHashMap<>();
             BigDecimal income = BigDecimal.ZERO;
@@ -201,7 +216,7 @@ public class ForecastService {
 
             // Transazioni già registrate che cadono in questo mese: nel mese corrente sono
             // quelle passate, nei mesi successivi quelle inserite con data futura.
-            for (Transaction t : actualByMonth.getOrDefault(ym, List.of())) {
+            for (Transaction t : actualByPeriod.getOrDefault(period, List.of())) {
                 breakdown.merge(t.getCategory().getId(), t.getAmount(), BigDecimal::add);
                 if (t.getType() == TransactionType.INCOME) {
                     income = income.add(t.getAmount());
@@ -210,7 +225,7 @@ public class ForecastService {
                 }
             }
 
-            for (Occurrence occurrence : reminderByMonth.getOrDefault(ym, List.of())) {
+            for (Occurrence occurrence : reminderByPeriod.getOrDefault(period, List.of())) {
                 breakdown.merge(occurrence.category().getId(), occurrence.amount(), BigDecimal::add);
                 if (occurrence.category().getType() == CategoryType.INCOME) {
                     income = income.add(occurrence.amount());
@@ -219,7 +234,7 @@ public class ForecastService {
                 }
             }
 
-            for (Occurrence occurrence : projectedByMonth.getOrDefault(ym, List.of())) {
+            for (Occurrence occurrence : projectedByPeriod.getOrDefault(period, List.of())) {
                 breakdown.merge(occurrence.category().getId(), occurrence.amount(), BigDecimal::add);
                 if (occurrence.category().getType() == CategoryType.INCOME) {
                     income = income.add(occurrence.amount());
@@ -228,7 +243,7 @@ public class ForecastService {
                 }
             }
 
-            if (!isCurrentMonth) {
+            if (!isCurrentPeriod) {
                 for (Map.Entry<UUID, BigDecimal> entry : variableAverageByCategory.entrySet()) {
                     Category category = categoryLookup.get(entry.getKey());
                     if (category == null) {
@@ -253,14 +268,18 @@ public class ForecastService {
                     })
                     .toList();
 
-            monthlyForecasts.add(new MonthlyForecast(ym, income, expense, netBalance, runningBalance, categoryAmounts));
+            periodForecasts.add(new PeriodForecast(
+                    period,
+                    SalaryPeriods.periodStart(period, salaryDay),
+                    SalaryPeriods.periodEnd(period, salaryDay),
+                    income, expense, netBalance, runningBalance, categoryAmounts));
         }
 
         return new ForecastResponse(
                 checkpoint.map(BalanceCheckpoint::getCheckpointDate).orElse(null),
                 checkpointBalance,
                 currentBalance,
-                monthlyForecasts
+                periodForecasts
         );
     }
 

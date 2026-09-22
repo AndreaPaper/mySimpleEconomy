@@ -93,11 +93,11 @@ class SmokeApiTest extends AbstractIntegrationTest {
                                 """.formatted(LocalDate.now())))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/forecast").param("months", "3")
+        mockMvc.perform(get("/api/forecast").param("periods", "3")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.months.length()").value(3))
-                .andExpect(jsonPath("$.months[1].projectedIncome").value(2500.00))
+                .andExpect(jsonPath("$.periods.length()").value(3))
+                .andExpect(jsonPath("$.periods[1].projectedIncome").value(2500.00))
                 // La spesa da 42.50 è datata oggi come il checkpoint, ma è stata
                 // registrata prima: un saldo scritto a mano fotografa il conto in
                 // quel momento, quindi quei 42.50 sono già dentro i 1000 e non si
@@ -123,10 +123,10 @@ class SmokeApiTest extends AbstractIntegrationTest {
                 .andReturn();
         String token = readJson(registerResult).get("token").asText();
 
-        mockMvc.perform(get("/api/forecast").param("months", "4")
+        mockMvc.perform(get("/api/forecast").param("periods", "4")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.months.length()").value(4))
+                .andExpect(jsonPath("$.periods.length()").value(4))
                 .andExpect(jsonPath("$.startingBalance").value(0));
     }
 

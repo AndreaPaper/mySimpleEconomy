@@ -59,8 +59,8 @@ export const queries = {
 
   profile: () => queryOptions({ queryKey: ['profile'], queryFn: profileApi.get }),
 
-  forecast: (months: number) =>
-    queryOptions({ queryKey: ['forecast', months], queryFn: () => forecastApi.get(months) }),
+  forecast: (periods: number) =>
+    queryOptions({ queryKey: ['forecast', periods], queryFn: () => forecastApi.get(periods) }),
 
   // Le ultime transazioni, senza filtri: quelle della card in Dashboard.
   recentTransactions: () =>

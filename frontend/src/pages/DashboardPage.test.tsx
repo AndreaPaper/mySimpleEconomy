@@ -61,24 +61,24 @@ describe('saldo e previsione', () => {
   })
 
   /**
-   * La finestra di previsione: il motore parte sempre da oggi, quindi i mesi
-   * richiesti coprono da questo mese fino alla fine dell'intervallo del grafico.
-   * Con l'intervallo predefinito (che arriva a fine anno) sono i mesi da marzo a
-   * dicembre. Un errore qui dà un grafico troncato o troppo lungo, non un errore.
+   * La finestra di previsione: il motore parte sempre da oggi, quindi i periodi
+   * richiesti coprono da quello in corso fino alla fine dell'intervallo del
+   * grafico. Un errore qui dà un grafico troncato o troppo lungo, non un errore.
    */
-  it('chiede alla previsione i mesi che coprono l intervallo', async () => {
-    let mesiRichiesti: string | null = null
+  it('chiede alla previsione i periodi che coprono l intervallo', async () => {
+    let periodiRichiesti: string | null = null
     server.use(
       http.get('*/api/forecast', ({ request }) => {
-        mesiRichiesti = new URL(request.url).searchParams.get('months')
+        periodiRichiesti = new URL(request.url).searchParams.get('periods')
         return HttpResponse.json(previsioneVuota)
       }),
     )
     mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
 
-    // L'intervallo predefinito arriva a oggi + 6 mesi (set 2026): da marzo a
-    // settembre sono 7 mesi, mese corrente compreso.
-    await waitFor(() => expect(mesiRichiesti).toBe('7'))
+    // Oggi è il 15 marzo e l'accredito è il 27: il periodo in corso è quello
+    // che finisce a marzo. L'intervallo predefinito arriva a oggi + 6 mesi
+    // (15 settembre, ancora nel periodo di settembre): sette periodi in tutto.
+    await waitFor(() => expect(periodiRichiesti).toBe('7'))
   })
 })
 
@@ -183,5 +183,123 @@ describe('aggiunta rapida', () => {
     await waitFor(() =>
       expect(JSON.parse(localStorage.getItem('offline_pending_transactions') ?? '[]')).toHaveLength(1),
     )
+  })
+})
+
+describe('la card del saldo previsto', () => {
+  const previsione = (over: Record<string, unknown> = {}) => ({
+    ...previsioneVuota,
+    currentBalance: 1000,
+    periods: [
+      {
+        period: '2026-04',
+        periodStart: '2026-03-27',
+        periodEnd: '2026-04-26',
+        projectedIncome: 1800,
+        projectedExpense: 650,
+        netBalance: 1150,
+        runningBalance: 2150,
+        categoryBreakdown: [],
+      },
+    ],
+    ...over,
+  })
+
+  /**
+   * La card mostra il PRIMO periodo della previsione, che è quello in corso, ed
+   * è lo stesso numero che il grafico disegna come primo punto previsto (vedi
+   * balanceSeries.test.ts). Prima card e grafico partivano da due periodi
+   * diversi e non combaciavano mai.
+   */
+  it('mostra il saldo di fine periodo in corso', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText(/2\.?150,00\s*€/)).toBeInTheDocument()
+  })
+
+  /**
+   * Con un accredito configurato "fine mese" sarebbe falso: il periodo finisce
+   * il giorno prima del prossimo stipendio. La data lo dice per esteso, così il
+   * numero sopra non resta senza una data a cui riferirsi.
+   */
+  it('con l accredito configurato parla di periodo e ne mostra la fine', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('Saldo previsto a fine periodo')).toBeInTheDocument()
+    expect(screen.getByText('al 26/04/2026')).toBeInTheDocument()
+  })
+
+  // Senza accredito il periodo È il mese di calendario, e "fine mese" è la
+  // parola che chi legge si aspetta.
+  it('senza accredito resta "fine mese"', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: null } })
+
+    expect(await screen.findByText('Saldo previsto a fine mese')).toBeInTheDocument()
+  })
+
+  /**
+   * Le tre card dei totali, il sottotitolo del grafico e il vuoto della card
+   * "Spese per categoria" contavano gia' per periodo ma dicevano "mese": con
+   * l'accredito il 27, "Uscite (mese corrente)" somma anche le spese dei primi
+   * giorni del mese successivo, che di quel mese non sono. La parola ora segue
+   * il numero.
+   */
+  it('anche le card dei totali e il grafico dicono periodo', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('Uscite (periodo corrente)')).toBeInTheDocument()
+    expect(screen.getByText('Entrate (periodo corrente)')).toBeInTheDocument()
+    expect(screen.getByText('Saldo netto (periodo corrente)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Clicca un periodo per vederne le spese per categoria'),
+    ).toBeInTheDocument()
+  })
+
+  // Senza accredito il periodo e' il mese di calendario, e li' "mese" e' esatto.
+  it('senza accredito le stesse card restano al mese', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: null } })
+
+    expect(await screen.findByText('Uscite (mese corrente)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Clicca un mese per vederne le spese per categoria'),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('il grafico "Andamento saldo"', () => {
+  /**
+   * La segnalazione da cui è nato questo lavoro: il primo punto previsto della
+   * curva era il periodo <em>successivo</em> a quello in corso, quindi il
+   * numero della card non compariva da nessuna parte sul grafico e la
+   * previsione cominciava con un periodo di ritardo.
+   *
+   * Oggi è il 15 marzo con accredito il 27: il periodo in corso è quello che
+   * finisce a marzo, e la sua etichetta sull'asse è "mar 26". Sull'asse non può
+   * arrivarci da nessun'altra parte — i punti storici sono periodi conclusi,
+   * cioè precedenti — quindi trovarla è la prova che il grafico parte dal
+   * periodo in corso.
+   */
+  it('il primo punto previsto è il periodo in corso, quello della card', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json({
+          ...previsioneVuota,
+          currentBalance: 1000,
+          periods: [
+            { period: '2026-03', periodStart: '2026-02-27', periodEnd: '2026-03-26', projectedIncome: 0, projectedExpense: 0, netBalance: 0, runningBalance: 1150, categoryBreakdown: [] },
+            { period: '2026-04', periodStart: '2026-03-27', periodEnd: '2026-04-26', projectedIncome: 0, projectedExpense: 0, netBalance: 0, runningBalance: 1300, categoryBreakdown: [] },
+          ],
+        }),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('mar 26')).toBeInTheDocument()
+    expect(screen.getByText('apr 26')).toBeInTheDocument()
   })
 })

@@ -31,7 +31,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
 
         assertThat(forecast.get("startingBalance").decimalValue()).isEqualByComparingTo("0");
         assertThat(forecast.get("currentBalance").decimalValue()).isEqualByComparingTo("0");
-        assertThat(forecast.get("months")).hasSize(3);
+        assertThat(forecast.get("periods")).hasSize(3);
     }
 
     @Test
@@ -131,7 +131,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         LocalDate futureThisMonth = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
         api.createTransaction(token, expense, futureThisMonth, "250.00", "EXPENSE");
 
-        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        JsonNode currentMonth = api.forecast(token, 1).get("periods").get(0);
         assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("250.00");
         assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("750.00");
     }
@@ -153,7 +153,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
                                 """.formatted(category, due, due)))
                 .andExpect(status().isCreated());
 
-        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        JsonNode currentMonth = api.forecast(token, 1).get("periods").get(0);
         assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("400.00");
         assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("600.00");
     }
@@ -181,7 +181,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         reminderGenerationService.generateForMonth(
                 java.util.UUID.fromString(reminderId), java.time.YearMonth.now());
 
-        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        JsonNode currentMonth = api.forecast(token, 1).get("periods").get(0);
         assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("400.00");
         assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("600.00");
     }
@@ -195,7 +195,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         api.createReminder(token, category, "Importo ignoto",
                 LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()));
 
-        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        JsonNode currentMonth = api.forecast(token, 1).get("periods").get(0);
         assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("0");
         assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("1000.00");
     }
@@ -223,7 +223,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         api.createRecurring(token, income, "Stipendio", "2000.00", LocalDate.now().plusMonths(1));
 
         JsonNode forecast = api.forecast(token, 3);
-        JsonNode nextMonth = forecast.get("months").get(1);
+        JsonNode nextMonth = forecast.get("periods").get(1);
 
         assertThat(nextMonth.get("projectedIncome").decimalValue()).isEqualByComparingTo("2000.00");
         assertThat(nextMonth.get("runningBalance").decimalValue())
@@ -238,7 +238,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
 
         api.createTransaction(token, expense, LocalDate.now(), "150.00", "EXPENSE");
 
-        JsonNode currentMonth = api.forecast(token, 2).get("months").get(0);
+        JsonNode currentMonth = api.forecast(token, 2).get("periods").get(0);
         assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("150.00");
         assertThat(currentMonth.get("runningBalance").decimalValue()).isEqualByComparingTo("850.00");
     }
@@ -258,7 +258,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         api.createRecurring(token, category, "Netflix", "9.99", nextMonthDue);
         api.createTransaction(token, category, nextMonthDue, "9.99", "EXPENSE");
 
-        JsonNode nextMonth = api.forecast(token, 2).get("months").get(1);
+        JsonNode nextMonth = api.forecast(token, 2).get("periods").get(1);
         assertThat(nextMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("19.98");
     }
 
@@ -273,7 +273,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         // Scadenza già passata: il recupero crea subito la transazione reale.
         api.createRecurring(token, category, "Abbonamento", "20.00", LocalDate.now().minusDays(1));
 
-        JsonNode currentMonth = api.forecast(token, 1).get("months").get(0);
+        JsonNode currentMonth = api.forecast(token, 1).get("periods").get(0);
         assertThat(currentMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("20.00");
     }
 
@@ -291,7 +291,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         api.createRecurring(token, farmaci, "Farmaci mensili", "30.00", ruleDue);
         api.createTransaction(token, farmaci, oneOff, "15.00", "EXPENSE");
 
-        JsonNode nextMonth = api.forecast(token, 2).get("months").get(1);
+        JsonNode nextMonth = api.forecast(token, 2).get("periods").get(1);
         assertThat(nextMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("45.00");
     }
 
@@ -310,7 +310,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
         api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
         api.createTransaction(token, svago, LocalDate.now().minusMonths(1).withDayOfMonth(15), "60.00", "EXPENSE");
 
-        JsonNode mesi = api.forecast(token, 2).get("months");
+        JsonNode mesi = api.forecast(token, 2).get("periods");
 
         // Il mese corrente non ha spese proprie: la media non lo tocca.
         assertThat(mesi.get(0).get("projectedExpense").decimalValue()).isEqualByComparingTo("0.00");

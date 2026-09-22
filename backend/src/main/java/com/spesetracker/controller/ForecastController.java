@@ -24,8 +24,10 @@ public class ForecastController {
     @GetMapping
     public ForecastResponse forecast(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(defaultValue = "6") @Min(1) @Max(24) int months
+            // Periodi da stipendio a stipendio, non mesi di calendario: con il giorno
+            // di stipendio configurato i due non coincidono. Si chiamava months.
+            @RequestParam(defaultValue = "6") @Min(1) @Max(24) int periods
     ) {
-        return forecastService.forecast(principal.getId(), months);
+        return forecastService.forecast(principal.getId(), periods);
     }
 }

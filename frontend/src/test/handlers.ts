@@ -44,7 +44,7 @@ export const previsioneVuota: ForecastResponse = {
   startingBalanceDate: null,
   startingBalance: 0,
   currentBalance: 0,
-  months: [],
+  periods: [],
 }
 
 export const paginaVuota: TransactionPage = { content: [], hasNext: false }

@@ -131,12 +131,15 @@ export default function DashboardPage() {
   const [brokenHusky, setBrokenHusky] = useState<string | null>(null)
 
   const today = new Date()
-  // Mesi di previsione e storico da scaricare: i calcoli stanno in
+  // Periodi di previsione e storico da scaricare: i calcoli stanno in
   // utils/dataWindows.ts perché il menu li usa uguali per il prefetch.
-  const { monthsDiff, months: monthsParam } = forecastWindow(rangeEnd, today)
+  const { periodsDiff, periods: periodsParam } = forecastWindow(rangeEnd, today, salaryDay)
   const history = historyWindow(rangeStart, today, salaryDay)
-  const startMonthKey = rangeStart.slice(0, 7)
-  const endMonthKey = rangeEnd.slice(0, 7)
+  // Gli estremi dell'asse sono chiavi di periodo, non di mese: con l'accredito
+  // a metà mese un periodo può cominciare nel mese precedente, e tagliare per
+  // mese lascerebbe fuori punti che l'intervallo scelto contiene.
+  const startKey = periodKeyOf(rangeStart, salaryDay)
+  const endKey = periodKeyOf(rangeEnd, salaryDay)
 
 
   // Sette query indipendenti, al posto del Promise.allSettled di prima. Il
@@ -148,7 +151,7 @@ export default function DashboardPage() {
   // l'intervallo del grafico, e senza, spostare le date farebbe ricomparire lo
   // scheletro di tutta la pagina. Prima i dati restavano a schermo mentre
   // arrivavano i nuovi, e così resta.
-  const forecastQuery = useQuery({ ...queries.forecast(monthsParam), placeholderData: keepPreviousData })
+  const forecastQuery = useQuery({ ...queries.forecast(periodsParam), placeholderData: keepPreviousData })
   const checkpointsQuery = useQuery(queries.checkpoints())
   const recentQuery = useQuery(queries.recentTransactions())
   const historicalQuery = useQuery({
@@ -231,22 +234,25 @@ export default function DashboardPage() {
   if (loading) return <DashboardPageSkeleton />
 
   const latestCheckpoint = checkpoints[0] ?? null
-  const currentMonth = forecast?.months[0] ?? null
-  const futureMonths = monthsDiff >= 0 ? forecast?.months.slice(1, monthsParam) ?? [] : []
+  // Il periodo in corso: è il numero grande della card "Saldo previsto a fine
+  // periodo", ed è anche il primo punto previsto del grafico — gli stessi dati,
+  // non due calcoli diversi.
+  const currentPeriod = forecast?.periods[0] ?? null
+  const forecastPeriods = periodsDiff >= 0 ? forecast?.periods.slice(0, periodsParam) ?? [] : []
   const currentBalance = forecast?.currentBalance ?? latestCheckpoint?.balance ?? 0
 
   const todayStr = new Date().toISOString().slice(0, 10)
-  const currentCalendarKey = todayStr.slice(0, 7)
+  const currentPeriodKeyOfToday = periodKeyOf(todayStr, salaryDay)
 
-  // Il grafico "Andamento saldo" resta a mese di calendario (fuori
-  // dall'ambito del periodo personalizzato) ed esclude il mese corrente:
+  // Il grafico "Andamento saldo" conta per periodi da stipendio a stipendio,
+  // come il resto della pagina, ed esclude quello in corso perché incompleto:
   // l'aritmetica sta in utils/balanceSeries.ts, dove si puo' provare.
   const historicalPoints = buildHistoricalPoints(
     historicalTransactions,
     currentBalance,
-    currentCalendarKey,
-    startMonthKey,
-    endMonthKey,
+    currentPeriodKeyOfToday,
+    startKey,
+    endKey,
     salaryDay,
     monthLabel,
   )
@@ -255,7 +261,7 @@ export default function DashboardPage() {
     historicalPoints,
     currentBalance,
     todayStr,
-    futureMonths,
+    forecastPeriods,
     salaryDay,
     monthLabel,
   )
@@ -357,6 +363,19 @@ export default function DashboardPage() {
   // Su mobile i due KPI stanno affiancati in una card sola invece che impilati:
   // erano due schermate di altezza per due numeri, e il primo scroll partiva
   // già senza aver visto niente. Le due tinte restano e fanno da divisorio.
+  // Con un accredito configurato "fine mese" sarebbe falso: il periodo finisce
+  // il giorno prima del prossimo stipendio, che quasi mai è l'ultimo del mese.
+  // Senza accredito periodo e mese coincidono, e "fine mese" è la parola che
+  // chi legge si aspetta.
+  const usaPeriodi = salaryDay != null && salaryDay !== 1
+  const previstoLabel = usaPeriodi ? 'Previsto a fine periodo' : 'Previsto a fine mese'
+  // Stessa ragione per le card dei totali, il sottotitolo del grafico e il suo
+  // vuoto: i numeri che mostrano sono sempre stati quelli del periodo (li
+  // calcola currentPeriodKey), ma la parola diceva "mese". Con l'accredito a
+  // metà mese l'etichetta e la cifra non parlavano della stessa cosa.
+  const periodoParola = usaPeriodi ? 'periodo' : 'mese'
+  const fineLabel = currentPeriod ? `al ${fullDate(currentPeriod.periodEnd)}` : ''
+
   const summaryCards = isMobile ? (
     <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
       <div className="flex-1 bg-kpi-a p-3">
@@ -364,9 +383,9 @@ export default function DashboardPage() {
         <p className="text-lg font-semibold text-slate-900">{currency.format(currentBalance)}</p>
       </div>
       <div className="flex-1 bg-kpi-b p-3">
-        <p className="text-xs text-slate-500">Previsto a fine mese</p>
+        <p className="text-xs text-slate-500">{previstoLabel}</p>
         <p className="text-lg font-semibold text-slate-900">
-          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
+          {currentPeriod ? currency.format(currentPeriod.runningBalance) : '-'}
         </p>
       </div>
     </div>
@@ -377,10 +396,13 @@ export default function DashboardPage() {
         <p className="text-2xl font-semibold text-slate-900">{currency.format(currentBalance)}</p>
       </div>
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-kpi-b p-4">
-        <p className="text-sm text-slate-500">Saldo previsto a fine mese</p>
+        <p className="text-sm text-slate-500">Saldo {previstoLabel.toLowerCase()}</p>
         <p className="text-2xl font-semibold text-slate-900">
-          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
+          {currentPeriod ? currency.format(currentPeriod.runningBalance) : '-'}
         </p>
+        {/* La data vera, presa dalla previsione: senza, "fine periodo" resta un
+            concetto e non si sa a quale giorno si riferisca il numero sopra. */}
+        {currentPeriod && <p className="mt-0.5 text-xs text-slate-500">{fineLabel}</p>}
       </div>
     </div>
   )
@@ -667,7 +689,7 @@ export default function DashboardPage() {
         <div>
           <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Andamento saldo</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            Clicca un mese per vederne le spese per categoria
+            {`Clicca un ${periodoParola} per vederne le spese per categoria`}
           </p>
         </div>
         {/* Su mobile due campi data uno accanto all'altro non ci stanno, e
@@ -779,15 +801,15 @@ export default function DashboardPage() {
   ) : (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Entrate (mese corrente)</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{`Entrate (${periodoParola} corrente)`}</p>
         <p className="text-xl font-semibold text-emerald-600">{currency.format(currentPeriodIncome)}</p>
       </div>
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Uscite (mese corrente)</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{`Uscite (${periodoParola} corrente)`}</p>
         <p className="text-xl font-semibold text-red-600">{currency.format(currentPeriodExpense)}</p>
       </div>
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Saldo netto (mese corrente)</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{`Saldo netto (${periodoParola} corrente)`}</p>
         <p className="text-xl font-semibold">{currency.format(currentPeriodNet)}</p>
       </div>
     </div>
@@ -823,7 +845,7 @@ export default function DashboardPage() {
         </div>
       </div>
       {categoryBreakdown.length === 0 ? (
-        <p className="text-sm text-slate-400 dark:text-slate-500">Nessuna spesa registrata in questo mese.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500">{`Nessuna spesa registrata in questo ${periodoParola}.`}</p>
       ) : isMobile ? (
         // Su mobile la lista del desktop chiedeva troppa altezza per dire poco:
         // il grafico porta le proporzioni e i chip fanno da legenda toccabile.

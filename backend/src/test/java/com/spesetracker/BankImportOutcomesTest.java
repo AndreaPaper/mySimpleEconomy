@@ -202,16 +202,32 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
      * data futura — perché una regola genera l'occorrenza solo quando la
      * scadenza è arrivata: alla creazione la regola recupera l'arretrato, e da
      * lì in archivio c'è una transazione legata a una regola.
+     *
+     * <p>E serve saperla mettere nel punto giusto del mese, che è il dettaglio
+     * su cui questo test è già caduto una volta. L'occorrenza generata non viene
+     * datata al giorno di scadenza ma al <strong>primo del mese</strong>
+     * (RecurringTransactionGenerationService: è prenotata a inizio mese per dare
+     * subito una stima del saldo residuo). La riga bancaria deve quindi cadere
+     * entro cinque giorni dal primo del mese, ma non esattamente su di esso:
+     * a distanza zero scatterebbe prima il controllo del doppione scritto a
+     * mano, che pretende la data identica, e l'esito sarebbe un altro.
+     *
+     * <p>Scritto com'era prima — la riga a "oggi meno cinque giorni" — il test
+     * passava solo se lo si eseguiva nei primi giorni del mese. Passò il 7
+     * settembre e fallì il 22: non per una modifica, ma per il calendario.
      */
     @Test
     void unaSpesaGiaGenerataDaUnaRegolaRendeLaRigaSospetta() throws Exception {
         String token = api.registerAndLogin();
         String categoria = api.createExpenseCategory(token);
-        LocalDate passata = LocalDate.now().minusDays(5);
-        creaRicorrente(token, categoria, "Bolletta luce", "57.40", passata);
+        LocalDate primoDelMese = LocalDate.now().withDayOfMonth(1);
+        creaRicorrente(token, categoria, "Bolletta luce", "57.40", primoDelMese);
 
+        // Due giorni dopo l'occorrenza generata: dentro la tolleranza di cinque
+        // giorni del confronto con le ricorrenti, fuori dall'uguaglianza esatta
+        // che cerca il doppione scritto a mano.
         JsonNode preview = analyze(token, workbook(List.of(
-                new Movimento(passata, "Farmacia Economica", "FARMACIA ECONOMICA Carta n.5397",
+                new Movimento(primoDelMese.plusDays(2), "Farmacia Economica", "FARMACIA ECONOMICA Carta n.5397",
                         true, "Salute", -57.40))));
 
         assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");

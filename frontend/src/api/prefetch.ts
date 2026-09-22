@@ -40,7 +40,7 @@ export function prefetchRoute(queryClient: QueryClient, path: string, { salaryDa
   switch (path) {
     case '/': {
       const history = historyWindow(initialRangeStart(isMobile), today, salaryDay)
-      void queryClient.prefetchQuery(queries.forecast(forecastWindow(defaultRangeEnd(), today).months))
+      void queryClient.prefetchQuery(queries.forecast(forecastWindow(defaultRangeEnd(), today, salaryDay).periods))
       void queryClient.prefetchQuery(queries.transactionsInRange(history.from, history.to))
       void queryClient.prefetchQuery(queries.checkpoints())
       void queryClient.prefetchQuery(queries.recentTransactions())

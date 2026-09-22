@@ -144,9 +144,9 @@ public class ApiTestClient {
     }
 
     /** Previsione dell'utente, già deserializzata. */
-    public JsonNode forecast(String token, int months) throws Exception {
+    public JsonNode forecast(String token, int periods) throws Exception {
         MvcResult result = mockMvc.perform(get("/api/forecast")
-                        .param("months", String.valueOf(months))
+                        .param("periods", String.valueOf(periods))
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andReturn();

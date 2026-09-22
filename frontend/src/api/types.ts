@@ -72,8 +72,15 @@ export interface CategoryAmountNode extends CategoryAmount {
   children: CategoryAmount[]
 }
 
-export interface MonthlyForecast {
-  yearMonth: string
+// Un periodo da stipendio a stipendio, non un mese di calendario: con il
+// giorno di accredito configurato i due non coincidono, e tutto il resto
+// dell'app (budget, risparmio, export) contava già per periodi.
+// periodStart/periodEnd arrivano dal backend per non ricalcolare qui dei
+// confini che là sono già stati decisi.
+export interface PeriodForecast {
+  period: string
+  periodStart: string
+  periodEnd: string
   projectedIncome: number
   projectedExpense: number
   netBalance: number
@@ -85,7 +92,7 @@ export interface ForecastResponse {
   startingBalanceDate: string | null
   startingBalance: number
   currentBalance: number
-  months: MonthlyForecast[]
+  periods: PeriodForecast[]
 }
 
 export interface BalanceCheckpoint {
