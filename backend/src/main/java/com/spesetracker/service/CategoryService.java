@@ -157,6 +157,12 @@ public class CategoryService {
         return created;
     }
 
+    public List<CategoryResponse> listArchived(UUID userId) {
+        return categoryRepository.findByUserIdAndArchivedTrue(userId).stream()
+                .map(CategoryResponse::from)
+                .toList();
+    }
+
     @Transactional
     public void archive(UUID userId, UUID categoryId) {
         Category category = findOwned(userId, categoryId);
@@ -167,6 +173,23 @@ public class CategoryService {
         // contesto che li spiegava.
         for (Category child : categoryRepository.findByParentId(categoryId)) {
             child.setArchived(true);
+        }
+    }
+
+    // Speculare ad archive, ma la propagazione va nel verso opposto: archive
+    // scende ai figli, unarchive risale al padre. Riattivare una sola
+    // sottocategoria lasciando archiviata la principale la renderebbe
+    // irraggiungibile — comparirebbe nei menu staccata dal contesto che la
+    // spiega, esattamente il caso che archive() evita scendendo. I fratelli
+    // restano archiviati: si riattiva quello che serve, non il ramo intero.
+    @Transactional
+    public void unarchive(UUID userId, UUID categoryId) {
+        Category category = findOwned(userId, categoryId);
+        category.setArchived(false);
+
+        Category parent = category.getParent();
+        if (parent != null && Boolean.TRUE.equals(parent.getArchived())) {
+            parent.setArchived(false);
         }
     }
 

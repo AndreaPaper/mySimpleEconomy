@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { transactionsApi } from '../api/endpoints'
 import type { TransactionType } from '../api/types'
@@ -25,6 +26,7 @@ interface OfflineSyncContextValue {
 const OfflineSyncContext = createContext<OfflineSyncContextValue | undefined>(undefined)
 
 export function OfflineSyncProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [backendReachable, setBackendReachable] = useState(true)
   const [pendingCount, setPendingCount] = useState(count())
@@ -34,6 +36,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const syncPending = async () => {
     if (isSyncing.current) return
     isSyncing.current = true
+    let synced = 0
     try {
       for (const item of getQueue()) {
         try {
@@ -46,17 +49,27 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
           })
           dequeue(item.localId)
           setPendingCount(count())
-        } catch (err) {
-          // 401: existing client.ts interceptor already redirects to /login.
-          // Any other error: stop the run and leave the remainder queued
-          // rather than risk silently dropping data.
-          const status = (err as { response?: { status?: number } }).response?.status
-          if (status === 401) return
+          synced++
+        } catch {
+          // Qualunque errore ferma il giro e lascia in coda il resto, invece di
+          // proseguire e rischiare di perdere dati in silenzio. Vale anche per
+          // il 401: lì al reindirizzamento pensa già l'interceptor di client.ts,
+          // qui non serve fare nulla di diverso.
+          //
+          // Prima questo ramo leggeva lo stato e distingueva il 401 dal resto
+          // con due return identici: il commento prometteva una differenza che
+          // il codice non faceva.
           return
         }
       }
     } finally {
       isSyncing.current = false
+      // Quello che era in coda ora è in archivio: saldo, previsione ed elenchi
+      // in cache sono vecchi. Prima lo facevano Dashboard e Transazioni, ognuna
+      // con un proprio effetto su pendingCount, e solo a coda vuota: una
+      // sincronizzazione interrotta a metà lasciava a schermo i dati di prima
+      // anche per le spese già arrivate.
+      if (synced > 0) void queryClient.invalidateQueries()
     }
   }
 

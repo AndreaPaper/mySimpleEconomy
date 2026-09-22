@@ -1,9 +1,19 @@
 import { useMemo, useState } from 'react'
 import { bankImportApi } from '../api/endpoints'
+import { useInvalidateAll } from '../api/queries'
 import FilePicker from './FilePicker'
+import CategoryCombobox from './CategoryCombobox'
+import {
+  activeExclusions,
+  applyDecisions,
+  isMappingResolved,
+  isSelected,
+  keepSelectedAfterCategoryChange,
+  rowsOfMapping,
+  toggleSection as toggleSectionOf,
+} from '../utils/bankImportRows'
 import type {
   BankCategoryMappingDto,
-  BankImportExclusionDto,
   BankImportOutcome,
   BankImportPreviewResponse,
   BankImportResult,
@@ -79,6 +89,7 @@ interface BankImportFlowProps {
 
 export default function BankImportFlow({ categories, onCategoriesChanged }: BankImportFlowProps) {
   const source: BankSource = 'INTESA_SANPAOLO'
+  const invalidateAll = useInvalidateAll()
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<BankImportPreviewResponse | null>(null)
   const [mappings, setMappings] = useState<BankCategoryMappingDto[]>([])
@@ -88,6 +99,14 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
   // un'esclusione o cambiare una mappatura aggiorni da sé cosa entra, senza
   // cancellare le scelte fatte a mano.
   const [flipped, setFlipped] = useState<Set<number>>(new Set())
+  // Categorie scelte sulla singola riga, che scavalcano quella della categoria
+  // della banca. Servono perché certe categorie della banca sono contenitori e
+  // basta ("Bonifici in uscita" tiene insieme la psicologa e i soldi di un
+  // regalo): senza, l'unica scelta è metterci tutto nella stessa categoria.
+  // Valgono solo per questo import e non diventano una mappatura salvata: la
+  // regola per il futuro resta quella della categoria della banca.
+  const [rowCategories, setRowCategories] = useState<Map<number, string>>(new Map())
+  const [expandedMappings, setExpandedMappings] = useState<Set<string>>(new Set())
   const [mappingDone, setMappingDone] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [committing, setCommitting] = useState(false)
@@ -108,6 +127,8 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
       // gonfierebbero le spese, e chi non le vuole le toglie con un click.
       setAcceptedSuggestions(new Set(response.suggestedExclusions.map((e) => e.pattern)))
       setFlipped(new Set())
+      setRowCategories(new Map())
+      setExpandedMappings(new Set())
     } catch (e) {
       // Il backend spiega cosa non va nel file (formato sbagliato, tabella non
       // trovata): il suo messaggio è più utile di uno generico.
@@ -119,47 +140,26 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
   }
 
   // Le esclusioni in vigore: quelle già salvate più le proposte accettate.
-  const activeExclusions: BankImportExclusionDto[] = useMemo(() => {
-    if (!preview) return []
-    return [
-      ...preview.exclusions,
-      ...preview.suggestedExclusions.filter((e) => acceptedSuggestions.has(e.pattern)),
-    ]
-  }, [preview, acceptedSuggestions])
+  const exclusions = useMemo(
+    () => (preview ? activeExclusions(preview.exclusions, preview.suggestedExclusions, acceptedSuggestions) : []),
+    [preview, acceptedSuggestions],
+  )
 
-  // Le righe con mappature ed esclusioni applicate. Si fa qui invece di
-  // rianalizzare: il file è già stato letto e il risultato non cambierebbe.
-  const rows: BankImportRowPreview[] = useMemo(() => {
-    if (!preview) return []
-    return preview.rows.map((row) => {
-      const mapping = mappings.find(
-        (m) => m.bankCategory === row.bankCategory && m.transactionType === row.type,
-      )
-      const text = `${row.rawOperation ?? ''} ${row.rawDetails ?? ''}`.toUpperCase()
-      const excludedByRule = activeExclusions.some((e) => text.includes(e.pattern.toUpperCase()))
-
-      if (row.outcome === 'GIA_IMPORTATA') return row
-      // La categoria si assegna anche alle righe escluse: se l'utente decide di
-      // includerne una, deve poter entrare senza tornare alla mappatura.
-      const withCategory = { ...row, categoryId: mapping?.categoryId ?? row.categoryId }
-      return mapping?.doNotImport || excludedByRule
-        ? { ...withCategory, outcome: 'ESCLUSA' as BankImportOutcome }
-        : withCategory
-    })
-  }, [preview, mappings, activeExclusions])
+  const rows: BankImportRowPreview[] = useMemo(
+    () => (preview ? applyDecisions(preview.rows, mappings, exclusions, rowCategories) : []),
+    [preview, mappings, exclusions, rowCategories],
+  )
 
   const alreadyImported = rows.filter((r) => r.outcome === 'GIA_IMPORTATA')
+  const selected = (row: BankImportRowPreview) => isSelected(row, flipped)
 
-  // Entrano di default solo le righe nuove e quelle da aggiornare: quello che va
-  // deciso o è stato escluso parte spento.
-  const selectedByDefault = (row: BankImportRowPreview) =>
-    row.outcome === 'NUOVA' || row.outcome === 'AGGIORNA_PROVVISORIA'
-  const isSelected = (row: BankImportRowPreview) =>
-    selectedByDefault(row) !== flipped.has(row.rowNumber)
-
-  const toImport = rows.filter((r) => r.outcome !== 'GIA_IMPORTATA' && isSelected(r))
+  const toImport = rows.filter((r) => r.outcome !== 'GIA_IMPORTATA' && selected(r))
   const missingCategory = toImport.filter((r) => !r.categoryId)
-  const mappingsResolved = mappings.every((m) => m.doNotImport || m.categoryId)
+
+  const mappingRowsOf = (m: BankCategoryMappingDto) => rowsOfMapping(preview?.rows ?? [], m)
+  const mappingResolved = (m: BankCategoryMappingDto) =>
+    isMappingResolved(m, preview?.rows ?? [], rowCategories)
+  const mappingsResolved = mappings.every(mappingResolved)
 
   const toggleRow = (rowNumber: number) => {
     setFlipped((prev) => {
@@ -172,20 +172,44 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
 
   const toggleSection = (outcome: BankImportOutcome, on: boolean) => {
     const section = rows.filter((r) => r.outcome === outcome)
-    setFlipped((prev) => {
-      const next = new Set(prev)
-      section.forEach((row) => {
-        // Uno scostamento serve solo quando lo stato voluto differisce dalla
-        // proposta: altrimenti si toglie e la riga torna a seguirla.
-        if (selectedByDefault(row) === on) next.delete(row.rowNumber)
-        else next.add(row.rowNumber)
-      })
-      return next
-    })
+    setFlipped((prev) => toggleSectionOf(prev, section, on))
   }
 
   const setMapping = (index: number, value: Partial<BankCategoryMappingDto>) => {
     setMappings((prev) => prev.map((m, i) => (i === index ? { ...m, ...value } : m)))
+  }
+
+  const setRowCategory = (rowNumber: number, categoryId: string | null) => {
+    setRowCategories((prev) => {
+      const next = new Map(prev)
+      if (categoryId) next.set(rowNumber, categoryId)
+      else next.delete(rowNumber)
+      return next
+    })
+  }
+
+  // La categoria scelta dall'anteprima, per una riga spuntata che non ne ha
+  // una. Senza, una riga esclusa dalle regole si poteva spuntare ma non
+  // categorizzare — il selettore per riga della mappatura le filtra via — e il
+  // pulsante Importa restava bloccato su "movimenti senza categoria".
+  const setPreviewRowCategory = (rowNumber: number, categoryId: string | null) => {
+    const next = new Map(rowCategories)
+    if (categoryId) next.set(rowNumber, categoryId)
+    else next.delete(rowNumber)
+    setRowCategories(next)
+    const original = preview?.rows.find((r) => r.rowNumber === rowNumber)
+    if (original) {
+      setFlipped((prev) => keepSelectedAfterCategoryChange(prev, original, mappings, exclusions, next))
+    }
+  }
+
+  const toggleExpanded = (key: string) => {
+    setExpandedMappings((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
   const handleCreateBankCategories = async () => {
@@ -222,9 +246,12 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
             updateTransactionId: r.matchedTransactionId,
           })),
           mappings,
-          exclusions: activeExclusions,
+          exclusions,
         }),
       )
+      // Movimenti nuovi, provvisori riscritti, mappature ed esclusioni salvate:
+      // la cache è vecchia da qui, e la Dashboard mostrerebbe i conti di prima.
+      await invalidateAll()
     } catch (e) {
       const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
       setError(message || 'Importazione non riuscita.')
@@ -301,7 +328,8 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
           <h2 className="font-medium dark:text-white">A quali tue categorie corrispondono?</h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            La banca usa categorie sue. Scegli una volta sola: dagli import successivi non te lo chiederò più.
+            La banca usa categorie sue. Scegli una volta sola: dagli import successivi non te lo chiederò più. Se una
+            categoria della banca mette insieme spese diverse, aprila e assegna una categoria ai singoli movimenti.
           </p>
           <button
             type="button"
@@ -316,42 +344,105 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <ul className="space-y-2">
-          {mappings.map((m, i) => (
-            <li
-              key={`${m.bankCategory}-${m.transactionType}`}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="font-medium dark:text-white">{m.bankCategory}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {m.transactionType === 'INCOME' ? 'Entrata' : 'Uscita'} · {m.rowCount}{' '}
-                  {m.rowCount === 1 ? 'movimento' : 'movimenti'}
-                  {m.sampleDescription ? ` · es. ${m.sampleDescription}` : ''}
-                </p>
-              </div>
-              <select
-                value={m.doNotImport ? 'skip' : (m.categoryId ?? '')}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setMapping(i, {
-                    doNotImport: value === 'skip',
-                    categoryId: value === 'skip' || value === '' ? null : value,
-                  })
-                }}
-                className="rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
+          {mappings.map((m, i) => {
+            const key = `${m.bankCategory}-${m.transactionType}`
+            const categoryOptions = categories.filter((c) =>
+              m.transactionType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE',
+            )
+            const mappingRows = mappingRowsOf(m)
+            const isExpanded = expandedMappings.has(key)
+            const decidedByRow = mappingRows.filter((r) => rowCategories.has(r.rowNumber)).length
+
+            return (
+              <li
+                key={key}
+                className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black px-4 py-3"
               >
-                <option value="">Scegli...</option>
-                {categories
-                  .filter((c) => (m.transactionType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE'))
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                <option value="skip">Non importare</option>
-              </select>
-            </li>
-          ))}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium dark:text-white">{m.bankCategory}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {m.transactionType === 'INCOME' ? 'Entrata' : 'Uscita'} · {m.rowCount}{' '}
+                      {m.rowCount === 1 ? 'movimento' : 'movimenti'}
+                      {decidedByRow > 0 && ` · ${decidedByRow} decisi singolarmente`}
+                    </p>
+                  </div>
+                  <div className="w-56 shrink-0">
+                    <CategoryCombobox
+                      categories={categoryOptions}
+                      value={m.doNotImport ? 'skip' : (m.categoryId ?? '')}
+                      onChange={(value) =>
+                        setMapping(i, {
+                          doNotImport: value === 'skip',
+                          categoryId: value === 'skip' || value === '' ? null : value,
+                        })
+                      }
+                      placeholder="Scegli..."
+                      extraOptions={[{ value: 'skip', label: 'Non importare' }]}
+                    />
+                  </div>
+                </div>
+
+                {mappingRows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(key)}
+                    className="mt-2 text-xs text-brand-700 hover:underline"
+                  >
+                    {isExpanded
+                      ? 'Nascondi i movimenti'
+                      : `Vedi i ${mappingRows.length} ${mappingRows.length === 1 ? 'movimento' : 'movimenti'}`}
+                  </button>
+                )}
+
+                {isExpanded && (
+                  <div className="mt-2 border-t border-slate-200 dark:border-slate-800 pt-2">
+                    <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                      Ogni movimento segue la categoria scelta qui sopra, a meno che tu non gliene dia una sua. Le
+                      scelte singole valgono solo per questo import.
+                    </p>
+                    <ul className="max-h-80 space-y-2 overflow-y-auto">
+                      {mappingRows.map((row) => (
+                        <li key={row.rowNumber} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate dark:text-white">{row.description}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {row.occurredOn} · {row.type === 'INCOME' ? '+' : '-'}
+                              {currency.format(row.amount)}
+                            </p>
+                            {/* La descrizione viene dalla colonna Operazione, che sui
+                                bonifici è spesso solo "Bonifico": senza i dettagli
+                                grezzi le righe da distinguere sarebbero identiche, e
+                                sceglierne la categoria una per una diventa un indovinello. */}
+                            {row.rawDetails && row.rawDetails.trim() !== row.description.trim() && (
+                              <p className="truncate text-xs text-slate-400 dark:text-slate-500">{row.rawDetails}</p>
+                            )}
+                          </div>
+                          <div className="w-52 shrink-0">
+                            <CategoryCombobox
+                              categories={categoryOptions}
+                              value={rowCategories.get(row.rowNumber) ?? ''}
+                              onChange={(value) => setRowCategory(row.rowNumber, value || null)}
+                              extraOptions={[
+                                {
+                                  value: '',
+                                  label: m.doNotImport
+                                    ? 'Come sopra (non importare)'
+                                    : m.categoryId
+                                      ? `Come sopra (${categoryName(m.categoryId)})`
+                                      : 'Come sopra (da scegliere)',
+                                },
+                              ]}
+                            />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
 
         <div className="flex gap-2">
@@ -369,7 +460,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
         </div>
         {!mappingsResolved && (
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Manca ancora una scelta per {mappings.filter((m) => !m.doNotImport && !m.categoryId).length} categorie.
+            Manca ancora una scelta per {mappings.filter((m) => !mappingResolved(m)).length} categorie.
           </p>
         )}
       </div>
@@ -429,7 +520,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
       {SECTIONS.map((section) => {
         const sectionRows = rows.filter((r) => r.outcome === section.outcome)
         if (sectionRows.length === 0) return null
-        const allOn = sectionRows.every(isSelected)
+        const allOn = sectionRows.every(selected)
         return (
           <div key={section.outcome} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -457,7 +548,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                   <input
                     type="checkbox"
                     className="mt-1 shrink-0"
-                    checked={isSelected(row)}
+                    checked={selected(row)}
                     onChange={() => toggleRow(row.rowNumber)}
                   />
                   <div className="min-w-0 flex-1">
@@ -474,6 +565,21 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                     </p>
                     {row.conflictDescription && (
                       <p className="text-xs text-amber-700 dark:text-amber-400">{row.conflictDescription}</p>
+                    )}
+                    {/* Il selettore compare solo dove serve: una riga spuntata
+                        senza categoria (tipicamente un'esclusa che si è deciso
+                        di far entrare), e resta finché la scelta è fatta qui,
+                        così la si può ancora cambiare. */}
+                    {selected(row) && (!row.categoryId || rowCategories.has(row.rowNumber)) && (
+                      <div className="mt-1.5 w-56">
+                        <CategoryCombobox
+                          categories={categories.filter((c) => c.type === row.type)}
+                          value={rowCategories.get(row.rowNumber) ?? ''}
+                          onChange={(value) => setPreviewRowCategory(row.rowNumber, value || null)}
+                          placeholder="Scegli una categoria"
+                          ariaLabel={`Categoria per ${row.description}`}
+                        />
+                      </div>
                     )}
                   </div>
                 </li>

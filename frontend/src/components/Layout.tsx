@@ -17,8 +17,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
-import { categoriesApi } from '../api/endpoints'
-import { cacheCategories } from '../offline/categoriesCache'
+import { useCategories } from '../api/queries'
+import { usePrefetchRoute } from '../api/prefetch'
 import { getAvatarIcon } from '../constants/avatars'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 import BottomNav from './BottomNav'
@@ -42,14 +42,14 @@ export default function Layout() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
 
-  // Tiene la cache delle categorie sempre aggiornata quando si è online, non
-  // solo quando si visita la pagina Transazioni: così il form "Nuova
-  // transazione" funziona offline anche se l'ultima pagina visitata online
-  // era la Dashboard o un'altra sezione.
-  useEffect(() => {
-    if (!isOnline) return
-    categoriesApi.list().then(cacheCategories).catch(() => {})
-  }, [isOnline])
+  // Tiene la copia locale delle categorie aggiornata qualunque sia la pagina
+  // aperta, non solo Transazioni: così il modulo "Nuova transazione" funziona
+  // offline anche se l'ultima pagina visitata online era la Dashboard. La query
+  // salva la copia a ogni risposta riuscita, ed è la stessa delle pagine: una
+  // sola richiesta, non una per il guscio e una per la pagina. Al ritorno della
+  // rete la libreria la ricarica da sé se è scaduta (refetchOnReconnect).
+  useCategories()
+  const prefetchProps = usePrefetchRoute()
 
   useEffect(() => {
     if (!profileMenuOpen) return
@@ -83,6 +83,7 @@ export default function Layout() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              {...prefetchProps(item.to)}
               className={({ isActive }) =>
                 // rounded-full e non rounded: la voce attiva è una pillola
                 // piena, non un rettangolo con gli angoli smussati. L'hover
@@ -115,6 +116,7 @@ export default function Layout() {
             <div className="profile-menu absolute inset-x-4 bottom-full mb-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-zinc-900">
               <Link
                 to="/profilo"
+                {...prefetchProps('/profilo')}
                 onClick={() => setProfileMenuOpen(false)}
                 className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-black"
               >

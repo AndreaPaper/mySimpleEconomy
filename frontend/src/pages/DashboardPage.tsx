@@ -15,14 +15,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import {
-  categoriesApi,
-  checkpointsApi,
-  forecastApi,
-  recurringApi,
-  remindersApi,
-  transactionsApi,
-} from '../api/endpoints'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { categoriesApi, transactionsApi } from '../api/endpoints'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
+import { categoryData, categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { DashboardPageSkeleton } from '../components/Skeleton'
 import Modal from '../components/Modal'
@@ -31,42 +27,34 @@ import MobileCategoryChart from '../components/MobileCategoryChart'
 import { useAuth } from '../context/AuthContext'
 import { useOfflineSync } from '../context/OfflineSyncContext'
 import { useIsMobile } from '../hooks/useIsMobile'
-import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
+import { buildCategoryBreakdown } from '../utils/categoryBreakdown'
 import { periodKeyOf, periodRangeOf } from '../utils/period'
+import {
+  chartRangeStart,
+  defaultRangeEnd,
+  forecastWindow,
+  historyWindow,
+  initialRangeStart,
+  UPCOMING_REMINDER_MONTHS,
+} from '../utils/dataWindows'
+import { buildBalanceSeries, buildHistoricalPoints, type ChartPoint } from '../utils/balanceSeries'
 import { buildPeriodSavings, computeBudget } from '../utils/savings'
-import type {
-  BalanceCheckpoint,
-  Category,
-  CategoryAmount,
-  CategoryAmountNode,
-  ForecastResponse,
-  RecurringTransaction,
-  Transaction,
-  UpcomingRemindersResponse,
-} from '../api/types'
+import type { CategoryAmountNode } from '../api/types'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+
+// Le sette query della Dashboard sono indipendenti: una che fallisce non ferma
+// le altre. Va però detto in console, come faceva il ramo "rejected" del
+// Promise.allSettled che c'era prima.
+function useLogQueryError(error: unknown, message: string) {
+  useEffect(() => {
+    if (error) console.error(message, error)
+  }, [error, message])
+}
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short', year: '2-digit' })
 const monthLabelFullFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 const dayBadgeMonthFormatter = new Intl.DateTimeFormat('it-IT', { month: 'short' })
 const fullDateFormatter = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-
-interface ChartPoint {
-  label: string
-  actual: number | null
-  projected: number | null
-  /**
-   * Periodo della card "Spese per categoria" a cui questo punto rimanda al
-   * click. Il grafico ragiona per mese di calendario, la card per periodo
-   * stipendio-to-stipendio: null sui mesi futuri, che non hanno spese
-   * registrate da mostrare.
-   */
-  periodKey: string | null
-}
-
-function monthKey(dateStr: string): string {
-  return dateStr.slice(0, 7)
-}
 
 function monthLabel(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number)
@@ -84,31 +72,13 @@ function monthNameCapitalized(yearMonth: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
-function defaultRangeStart(): string {
-  return `${new Date().getFullYear()}-01-01`
-}
-
 // Le durate offerte dai chip del grafico su mobile, al posto dei due campi data.
-const DEFAULT_MOBILE_RANGE_MONTHS = 6
-
 const CHART_RANGES = [
   { label: '1M', months: 1 },
   { label: '3M', months: 3 },
   { label: '6M', months: 6 },
   { label: '1A', months: 12 },
 ]
-
-function chartRangeStart(months: number): string {
-  const d = new Date()
-  d.setMonth(d.getMonth() - months)
-  return d.toISOString().slice(0, 10)
-}
-
-function defaultRangeEnd(): string {
-  const d = new Date()
-  d.setMonth(d.getMonth() + 6)
-  return d.toISOString().slice(0, 10)
-}
 
 function fullDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
@@ -123,84 +93,10 @@ function dayBadge(dateStr: string): { day: string; month: string } {
   }
 }
 
-// Aggrega le transazioni di spesa di un mese per categoria, per i mesi passati
-// dove non abbiamo un forecast.categoryBreakdown già pronto dal backend.
-//
-// Le sottocategorie confluiscono nella riga del padre: `amount` della riga
-// padre è il totale complessivo (sue spese dirette + tutti i figli), mentre
-// `children` contiene il dettaglio da mostrare quando la riga viene espansa.
-// Le spese registrate direttamente sul padre restano nel totale ma non
-// generano una riga figlia. Se il padre non è tra le categorie note (es.
-// archiviato, che `categoriesApi.list()` non restituisce) la riga resta al
-// livello principale, cioè il comportamento precedente a questa feature.
-function buildCategoryBreakdown(transactions: Transaction[], categories: Category[]): CategoryAmountNode[] {
-  const byCategory = new Map<string, CategoryAmount>()
-  for (const t of transactions) {
-    if (t.type !== 'EXPENSE') continue
-    const existing = byCategory.get(t.categoryId)
-    if (existing) {
-      byCategory.set(t.categoryId, { ...existing, amount: existing.amount + t.amount })
-    } else {
-      byCategory.set(t.categoryId, {
-        categoryId: t.categoryId,
-        categoryName: t.categoryName,
-        categoryIcon: t.categoryIcon,
-        categoryColor: t.categoryColor,
-        type: 'EXPENSE',
-        amount: t.amount,
-      })
-    }
-  }
-
-  const parentOf = new Map(categories.map((c) => [c.id, c.parentId]))
-  const knownIds = new Set(categories.map((c) => c.id))
-  const roots = new Map<string, CategoryAmountNode>()
-
-  const rootFor = (row: CategoryAmount): CategoryAmountNode => {
-    const existing = roots.get(row.categoryId)
-    if (existing) return existing
-    const created: CategoryAmountNode = { ...row, amount: 0, children: [] }
-    roots.set(row.categoryId, created)
-    return created
-  }
-
-  for (const row of byCategory.values()) {
-    const parentId = parentOf.get(row.categoryId)
-    if (parentId && knownIds.has(parentId)) {
-      const parentCategory = categories.find((c) => c.id === parentId)!
-      const parentRow = rootFor({
-        categoryId: parentCategory.id,
-        categoryName: parentCategory.name,
-        categoryIcon: parentCategory.icon,
-        categoryColor: parentCategory.color,
-        type: 'EXPENSE',
-        amount: 0,
-      })
-      parentRow.amount += row.amount
-      parentRow.children.push(row)
-    } else {
-      rootFor(row).amount += row.amount
-    }
-  }
-
-  const byAmountDesc = (a: CategoryAmount, b: CategoryAmount) => b.amount - a.amount
-  return Array.from(roots.values())
-    .map((node) => ({ ...node, children: node.children.sort(byAmountDesc) }))
-    .sort(byAmountDesc)
-}
-
 export default function DashboardPage() {
   const { salaryDay, savings } = useAuth()
-  const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
+  const { isOnline, backendReachable, addOfflineTransaction } = useOfflineSync()
   const isMobile = useIsMobile()
-  const [forecast, setForecast] = useState<ForecastResponse | null>(null)
-  const [checkpoints, setCheckpoints] = useState<BalanceCheckpoint[]>([])
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
-  const [historicalTransactions, setHistoricalTransactions] = useState<Transaction[]>([])
-  const [recurring, setRecurring] = useState<RecurringTransaction[]>([])
-  const [upcomingReminders, setUpcomingReminders] = useState<UpcomingRemindersResponse | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
   const [monthCursor, setMonthCursor] = useState(0)
   // Categorie padre attualmente espanse nella card "Spese per categoria".
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -211,7 +107,7 @@ export default function DashboardPage() {
   // ha. Sul desktop resta l'anno in corso, che è quello che i campi data
   // mostravano da sempre.
   const [rangeStart, setRangeStart] = useState(() =>
-    isMobile ? chartRangeStart(DEFAULT_MOBILE_RANGE_MONTHS) : defaultRangeStart(),
+    initialRangeStart(isMobile),
   )
   const [rangeEnd, setRangeEnd] = useState(defaultRangeEnd())
 
@@ -235,77 +131,55 @@ export default function DashboardPage() {
   const [brokenHusky, setBrokenHusky] = useState<string | null>(null)
 
   const today = new Date()
-  // Quanti mesi di forecast servono per coprire rangeEnd, partendo dal mese
-  // corrente (il forecast engine parte sempre da oggi, mai da rangeStart).
-  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const rangeEndDate = new Date(rangeEnd)
-  const endMonthStart = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth(), 1)
-  const monthsDiff =
-    (endMonthStart.getFullYear() - currentMonthStart.getFullYear()) * 12 +
-    (endMonthStart.getMonth() - currentMonthStart.getMonth())
-  const monthsParam = Math.min(24, Math.max(1, monthsDiff + 1))
+  // Mesi di previsione e storico da scaricare: i calcoli stanno in
+  // utils/dataWindows.ts perché il menu li usa uguali per il prefetch.
+  const { monthsDiff, months: monthsParam } = forecastWindow(rangeEnd, today)
+  const history = historyWindow(rangeStart, today, salaryDay)
   const startMonthKey = rangeStart.slice(0, 7)
   const endMonthKey = rangeEnd.slice(0, 7)
 
-  const reload = () => {
-    // Finestra ampia (2 anni) per lo storico di default: copre praticamente
-    // qualsiasi utente senza dover sapere in anticipo da quando ha dati
-    // reali, per la card "Spese per categoria" che permette di sfogliare
-    // periodi passati indipendentemente dal range scelto per il grafico.
-    // Si allarga oltre i 2 anni solo se l'utente sceglie un rangeStart
-    // ancora più indietro per il grafico "Andamento saldo".
-    const defaultHistoryStart = new Date(today.getFullYear() - 2, today.getMonth(), 1)
-    const chartHistoryStart = new Date(rangeStart)
-    const historyStart = chartHistoryStart < defaultHistoryStart ? chartHistoryStart : defaultHistoryStart
-    const iso = (d: Date) => d.toISOString().slice(0, 10)
-    const todayStr = iso(today)
-    // Il limite superiore arriva fino alla fine del periodo personalizzato
-    // corrente (stipendio-to-stipendio, o mese di calendario se non
-    // configurato), non solo fino a oggi: così una spesa già registrata con
-    // data futura ma ancora dentro il periodo corrente non viene esclusa.
-    const currentPeriodEnd = periodRangeOf(periodKeyOf(todayStr, salaryDay), salaryDay).end
 
-    // Promise.allSettled invece di Promise.all: un singolo fallimento (es.
-    // promemoria o ricorrenti) non deve impedire l'aggiornamento del saldo
-    // attuale e della previsione, che dipendono solo da forecastRes.
-    return Promise.allSettled([
-      forecastApi.get(monthsParam),
-      checkpointsApi.list(),
-      transactionsApi.list(),
-      transactionsApi.list({ from: iso(historyStart), to: currentPeriodEnd }),
-      recurringApi.list(),
-      remindersApi.upcoming(6),
-      categoriesApi
-        .list()
-        .then((cats) => {
-          cacheCategories(cats)
-          setCategories(cats)
-        })
-        .catch(() => setCategories(loadCachedCategories())),
-    ]).then(([forecastRes, checkpointsRes, recentRes, historicalRes, recurringRes, remindersRes]) => {
-      if (forecastRes.status === 'fulfilled') setForecast(forecastRes.value)
-      else console.error('Aggiornamento previsione non riuscito', forecastRes.reason)
+  // Sette query indipendenti, al posto del Promise.allSettled di prima. Il
+  // fallimento parziale che allSettled garantiva (se i promemoria non
+  // arrivano, saldo e previsione si vedono lo stesso) qui è il comportamento
+  // naturale: ogni query ha il suo esito.
+  //
+  // keepPreviousData su previsione e storico: la loro chiave cambia con
+  // l'intervallo del grafico, e senza, spostare le date farebbe ricomparire lo
+  // scheletro di tutta la pagina. Prima i dati restavano a schermo mentre
+  // arrivavano i nuovi, e così resta.
+  const forecastQuery = useQuery({ ...queries.forecast(monthsParam), placeholderData: keepPreviousData })
+  const checkpointsQuery = useQuery(queries.checkpoints())
+  const recentQuery = useQuery(queries.recentTransactions())
+  const historicalQuery = useQuery({
+    ...queries.transactionsInRange(history.from, history.to),
+    placeholderData: keepPreviousData,
+  })
+  const recurringQuery = useQuery(queries.recurring())
+  const remindersQuery = useQuery(queries.upcomingReminders(UPCOMING_REMINDER_MONTHS))
+  const categoriesQuery = useCategories()
+  const invalidateAll = useInvalidateAll()
 
-      if (checkpointsRes.status === 'fulfilled') setCheckpoints(checkpointsRes.value)
-      else console.error('Aggiornamento saldi di partenza non riuscito', checkpointsRes.reason)
+  const forecast = forecastQuery.data ?? null
+  const checkpoints = checkpointsQuery.data ?? []
+  const recentTransactions = recentQuery.data?.content ?? []
+  const historicalTransactions = historicalQuery.data?.content ?? []
+  const recurring = recurringQuery.data ?? []
+  const upcomingReminders = remindersQuery.data ?? null
+  const categories = categoriesQuery.data ?? []
 
-      if (recentRes.status === 'fulfilled') setRecentTransactions(recentRes.value.content)
-      else console.error('Aggiornamento transazioni recenti non riuscito', recentRes.reason)
+  // Lo scheletro finché manca anche una sola delle sette, come quando si
+  // aspettava l'allSettled — ma su isPending: tornando sulla Dashboard i dati
+  // in cache si vedono subito, e l'aggiornamento in sottofondo non li nasconde.
+  const loading = [forecastQuery, checkpointsQuery, recentQuery, historicalQuery, recurringQuery, remindersQuery, categoriesQuery]
+    .some((q) => q.isPending)
 
-      if (historicalRes.status === 'fulfilled') setHistoricalTransactions(historicalRes.value.content)
-      else console.error('Aggiornamento storico transazioni non riuscito', historicalRes.reason)
-
-      if (recurringRes.status === 'fulfilled') setRecurring(recurringRes.value)
-      else console.error('Aggiornamento ricorrenti non riuscito', recurringRes.reason)
-
-      if (remindersRes.status === 'fulfilled') setUpcomingReminders(remindersRes.value)
-      else console.error('Aggiornamento promemoria non riuscito', remindersRes.reason)
-    })
-  }
-
-  useEffect(() => {
-    reload().finally(() => setLoading(false))
-  }, [salaryDay, rangeStart, rangeEnd])
+  useLogQueryError(forecastQuery.error, 'Aggiornamento previsione non riuscito')
+  useLogQueryError(checkpointsQuery.error, 'Aggiornamento saldi di partenza non riuscito')
+  useLogQueryError(recentQuery.error, 'Aggiornamento transazioni recenti non riuscito')
+  useLogQueryError(historicalQuery.error, 'Aggiornamento storico transazioni non riuscito')
+  useLogQueryError(recurringQuery.error, 'Aggiornamento ricorrenti non riuscito')
+  useLogQueryError(remindersQuery.error, 'Aggiornamento promemoria non riuscito')
 
   useEffect(() => {
     const badge = badgeRef.current
@@ -316,18 +190,6 @@ export default function DashboardPage() {
     observer.observe(badge)
     return () => observer.disconnect()
   }, [loading, savings.enabled])
-
-  // Una transazione aggiunta offline viene sincronizzata in background da
-  // OfflineSyncContext: se l'utente resta sul Dashboard, senza questo
-  // effetto il saldo attuale e la previsione non si aggiornerebbero mai
-  // finché non si naviga altrove e si torna (che rimonta la pagina).
-  const prevPendingCount = useRef(pendingCount)
-  useEffect(() => {
-    if (prevPendingCount.current > 0 && pendingCount === 0) {
-      reload()
-    }
-    prevPendingCount.current = pendingCount
-  }, [pendingCount])
 
   const closeQuickAdd = () => setQuickAddOpen(false)
 
@@ -355,14 +217,14 @@ export default function DashboardPage() {
       throw err
     }
     closeQuickAdd()
-    await reload()
+    await invalidateAll()
   }
 
   const handleCreateCategory = async (data: { name: string; type: 'INCOME' | 'EXPENSE'; color: string | null; icon: string | null }) => {
     const category = await categoriesApi.create(data)
-    const updated = await categoriesApi.list()
-    cacheCategories(updated)
-    setCategories(updated)
+    // Aspettare l'invalidazione vuol dire aspettare che l'elenco delle categorie
+    // contenga la nuova: il modulo la adotta subito, e deve poterla mostrare.
+    await invalidateAll()
     return category
   }
 
@@ -377,46 +239,26 @@ export default function DashboardPage() {
   const currentCalendarKey = todayStr.slice(0, 7)
 
   // Il grafico "Andamento saldo" resta a mese di calendario (fuori
-  // dall'ambito del periodo personalizzato): esclude esplicitamente il mese
-  // corrente, come faceva già prima che la finestra di fetch di
-  // historicalTransactions si allargasse per includerlo.
-  const netByMonth = new Map<string, number>()
-  for (const t of historicalTransactions) {
-    if (monthKey(t.occurredOn) >= currentCalendarKey) continue
-    const key = monthKey(t.occurredOn)
-    const signed = t.type === 'INCOME' ? t.amount : -t.amount
-    netByMonth.set(key, (netByMonth.get(key) ?? 0) + signed)
-  }
-  const historicalKeys = Array.from(netByMonth.keys()).sort()
-  const totalHistoricalNet = historicalKeys.reduce((sum, k) => sum + (netByMonth.get(k) ?? 0), 0)
+  // dall'ambito del periodo personalizzato) ed esclude il mese corrente:
+  // l'aritmetica sta in utils/balanceSeries.ts, dove si puo' provare.
+  const historicalPoints = buildHistoricalPoints(
+    historicalTransactions,
+    currentBalance,
+    currentCalendarKey,
+    startMonthKey,
+    endMonthKey,
+    salaryDay,
+    monthLabel,
+  )
 
-  let running = currentBalance - totalHistoricalNet
-  const historicalPoints: ChartPoint[] = historicalKeys
-    .map((key) => {
-      running += netByMonth.get(key) ?? 0
-      return {
-        key,
-        label: monthLabel(key),
-        actual: running,
-        projected: null,
-        // Il periodo che contiene la metà di questo mese di calendario: con
-        // un accredito a inizio mese il periodo omonimo cadrebbe quasi tutto
-        // nel mese precedente, quindi non basta riusare la stessa chiave.
-        periodKey: periodKeyOf(`${key}-15`, salaryDay),
-      }
-    })
-    .filter((p) => p.key >= startMonthKey && p.key <= endMonthKey)
-
-  const chartData: ChartPoint[] = [
-    ...historicalPoints,
-    { label: 'Ora', actual: currentBalance, projected: currentBalance, periodKey: periodKeyOf(todayStr, salaryDay) },
-    ...futureMonths.map((m) => ({
-      label: monthLabel(m.yearMonth),
-      actual: null,
-      projected: m.runningBalance,
-      periodKey: null,
-    })),
-  ]
+  const chartData: ChartPoint[] = buildBalanceSeries(
+    historicalPoints,
+    currentBalance,
+    todayStr,
+    futureMonths,
+    salaryDay,
+    monthLabel,
+  )
 
   const upcomingExpenses = recurring
     .filter((r) => r.active && r.categoryType === 'EXPENSE')
@@ -550,10 +392,34 @@ export default function DashboardPage() {
   // La mascotte cambia espressione insieme al colore: chi guarda la card di
   // sfuggita capisce come sta andando il periodo prima ancora di leggere la
   // cifra, e lo stato non resta affidato al solo colore.
+  // Tinte via token e non esadecimali: al buio la superficie deve scurirsi
+  // insieme al testo, e la regola che decide quando farlo (tema scuro *e*
+  // palette Canvas neutro) sta già scritta una volta sola in index.css.
   const BUDGET_TONES = {
-    neutral: { bg: '#eff6ff', ring: '#1C8ADB', head: '#1e40af', label: 'In linea', husky: happyHusky, huskyAlt: 'Husky contento' },
-    warning: { bg: '#fffbeb', ring: '#d97706', head: '#92400e', label: 'Attenzione', husky: warningHusky, huskyAlt: 'Husky preoccupato' },
-    danger: { bg: '#fef2f2', ring: '#dc2626', head: '#991b1b', label: 'Sforato', husky: angryHusky, huskyAlt: 'Husky arrabbiato' },
+    neutral: {
+      bg: 'var(--color-budget-neutral-card)',
+      ring: 'var(--color-budget-neutral-ring)',
+      head: 'var(--color-budget-neutral-head)',
+      label: 'In linea',
+      husky: happyHusky,
+      huskyAlt: 'Husky contento',
+    },
+    warning: {
+      bg: 'var(--color-budget-warning-card)',
+      ring: 'var(--color-budget-warning-ring)',
+      head: 'var(--color-budget-warning-head)',
+      label: 'Attenzione',
+      husky: warningHusky,
+      huskyAlt: 'Husky preoccupato',
+    },
+    danger: {
+      bg: 'var(--color-budget-danger-card)',
+      ring: 'var(--color-budget-danger-ring)',
+      head: 'var(--color-budget-danger-head)',
+      label: 'Sforato',
+      husky: angryHusky,
+      huskyAlt: 'Husky arrabbiato',
+    },
   } as const
   const tone = BUDGET_TONES[budget.status]
   const RING = 276.46
@@ -607,18 +473,24 @@ export default function DashboardPage() {
   // Su mobile le due card perdono il bordo e si stringono: la tinta piena le
   // separa già dallo sfondo, e nel carosello un bordo per card faceva sembrare
   // il tutto una lista dentro una lista.
-  const cardChrome = isMobile ? 'rounded-xl p-4' : 'rounded-lg border border-slate-200 p-[18px]'
+  //
+  // h-full solo su mobile: nel carosello ogni card sta dentro un contenitore
+  // che flex allunga all'altezza della più alta, ma la card dentro restava
+  // alta quanto il suo contenuto — e Risparmio, con la riga della media in
+  // fondo, era più alta di Budget. Sul desktop non serve: lì le card sono
+  // direttamente celle della griglia, che si allungano da sole.
+  const cardChrome = isMobile ? 'h-full rounded-xl p-4' : 'rounded-lg border border-slate-200 p-[18px]'
   const cardHeader = isMobile ? 'mb-3 flex items-center justify-between gap-2' : 'mb-3.5 flex items-center justify-between gap-2'
   const cardBody = isMobile ? 'flex items-center gap-3.5' : 'flex items-center gap-4'
   const cardAmount = isMobile ? 'text-xl' : 'text-2xl'
 
   const savingsProgressCard = (
-    <div className={cardChrome} style={{ backgroundColor: '#ecfdf5' }}>
+    <div className={cardChrome} style={{ backgroundColor: 'var(--color-save-card)' }}>
       <div className={cardHeader}>
         <Link
           to="/risparmio"
           className="flex items-center gap-1.5 text-[13px] font-bold hover:underline"
-          style={{ color: '#166534' }}
+          style={{ color: 'var(--color-save-head)' }}
         >
           <PiggyBank className="h-[15px] w-[15px]" />
           Risparmio
@@ -628,7 +500,7 @@ export default function DashboardPage() {
         </span>
       </div>
       <div className={cardBody}>
-        {savingsRing(savingsRingPct, '#2FA36B', 'rgba(255,255,255,.6)')}
+        {savingsRing(savingsRingPct, 'var(--color-save-ring)', 'var(--color-save-ring-track)')}
         <div className="min-w-0">
           <p className="text-xs text-slate-600">Risparmiato in questo periodo</p>
           <p
@@ -643,7 +515,7 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-      <p className="mt-3 border-t border-slate-900/10 pt-2.5 text-[11px] text-slate-600">
+      <p className="mt-3 border-t pt-2.5 text-[11px] text-slate-600" style={{ borderColor: 'var(--color-save-divider)' }}>
         {averageSaved === null
           ? 'Si calcola da solo: è quello che resta tra entrate e uscite del periodo.'
           : `Media dei periodi precedenti: ${currency.format(averageSaved)}`}
@@ -660,14 +532,14 @@ export default function DashboardPage() {
         </span>
         <span
           ref={badgeRef}
-          className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold tracking-wide"
-          style={{ color: tone.ring }}
+          className="rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide"
+          style={{ color: tone.ring, backgroundColor: 'var(--color-budget-badge-bg)' }}
         >
           {tone.label.toUpperCase()}
         </span>
       </div>
       <div className={cardBody}>
-        {savingsRing(budgetRingPct, tone.ring, 'rgba(255,255,255,.6)')}
+        {savingsRing(budgetRingPct, tone.ring, 'var(--color-save-ring-track)')}
         {/* Niente min-w-0 qui: la colonna non deve poter scendere sotto la
             larghezza dell'importo, altrimenti in due colonne la cifra si
             taglia. Chi cede spazio è la mascotte accanto. */}
@@ -854,7 +726,7 @@ export default function DashboardPage() {
               <stop offset="100%" stopColor="var(--color-chart-grad-end)" />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} width={70} />
           <Tooltip formatter={(value) => currency.format(Number(value))} />
@@ -985,7 +857,7 @@ export default function DashboardPage() {
                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
                       style={{ backgroundColor: c.categoryColor ?? '#94a3b8' }}
                     >
-                      <Icon className="h-3.5 w-3.5 text-white" />
+                      <Icon className="h-3.5 w-3.5" style={{ color: categoryInk(c.categoryColor ?? '#94a3b8') }} />
                     </span>
                     <span className="truncate">{c.categoryName}</span>
                   </span>
@@ -994,7 +866,7 @@ export default function DashboardPage() {
                 <div className="h-2 rounded-full bg-bar-track dark:bg-zinc-800">
                   <div
                     className="h-2 rounded-full"
-                    style={{ width: `${widthPct}%`, backgroundColor: c.categoryColor ?? '#94a3b8' }}
+                    style={{ width: `${widthPct}%`, backgroundColor: categoryData(c.categoryColor) }}
                   />
                 </div>
               </>
@@ -1030,7 +902,7 @@ export default function DashboardPage() {
                                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                                 style={{ backgroundColor: child.categoryColor ?? '#94a3b8' }}
                               >
-                                <ChildIcon className="h-3 w-3 text-white" />
+                                <ChildIcon className="h-3 w-3" style={{ color: categoryInk(child.categoryColor ?? '#94a3b8') }} />
                               </span>
                               <span className="truncate">{child.categoryName}</span>
                             </span>
@@ -1041,7 +913,7 @@ export default function DashboardPage() {
                               className="h-1.5 rounded-full"
                               style={{
                                 width: `${childWidthPct}%`,
-                                backgroundColor: child.categoryColor ?? '#94a3b8',
+                                backgroundColor: categoryData(child.categoryColor),
                               }}
                             />
                           </div>
@@ -1174,7 +1046,7 @@ export default function DashboardPage() {
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                     style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
                   >
-                    <Icon className="h-4 w-4 text-white" />
+                    <Icon className="h-4 w-4" style={{ color: categoryInk(r.categoryColor ?? '#94a3b8') }} />
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold capitalize">{r.name}</p>

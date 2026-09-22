@@ -3,6 +3,7 @@ package com.spesetracker.service.bankimport;
 import com.spesetracker.dto.bankimport.*;
 import com.spesetracker.model.BankCategoryMapping;
 import com.spesetracker.model.BankImportExclusion;
+import com.spesetracker.model.Category;
 import com.spesetracker.model.RecurringTransaction;
 import com.spesetracker.model.Transaction;
 import com.spesetracker.model.enums.BankSource;
@@ -50,6 +51,7 @@ public class BankImportAnalysisService {
     private final RecurringTransactionRepository recurringRepository;
     private final BankCategoryMappingRepository mappingRepository;
     private final BankImportExclusionRepository exclusionRepository;
+    private final SalaryCategoryResolver salaryResolver;
 
     @Transactional(readOnly = true)
     public BankImportPreviewResponse analyze(UUID userId, BankSource source, MultipartFile file) throws IOException {
@@ -70,6 +72,11 @@ public class BankImportAnalysisService {
                 .collect(Collectors.toMap(
                         m -> mappingKey(m.getBankCategory(), m.getTransactionType()), m -> m, (a, b) -> a));
         List<BankImportExclusion> exclusions = exclusionRepository.findByUserIdAndSource(userId, source);
+
+        // La categoria stipendio del profilo, da proporre per la categoria con
+        // cui la banca chiama l'accredito. Null se lo stipendio non e' ancora
+        // configurato: in quel caso non c'e' niente da proporre.
+        UUID salaryCategoryId = salaryResolver.profileSalaryCategory(userId).map(Category::getId).orElse(null);
 
         List<BankImportRowPreview> previews = new ArrayList<>();
         Map<String, BankCategoryMappingDto> unmapped = new LinkedHashMap<>();
@@ -141,7 +148,7 @@ public class BankImportAnalysisService {
                     && outcome != BankImportOutcome.GIA_IMPORTATA
                     && outcome != BankImportOutcome.ESCLUSA;
             if (needsCategory) {
-                collectUnmapped(unmapped, row, type, description);
+                collectUnmapped(unmapped, row, type, description, salaryCategoryId);
             }
 
             previews.add(new BankImportRowPreview(
@@ -183,15 +190,21 @@ public class BankImportAnalysisService {
     }
 
     private void collectUnmapped(
-            Map<String, BankCategoryMappingDto> unmapped, BankStatementRow row, TransactionType type, String sample) {
+            Map<String, BankCategoryMappingDto> unmapped, BankStatementRow row, TransactionType type, String sample,
+            UUID salaryCategoryId) {
         String key = mappingKey(row.bankCategory(), type);
         BankCategoryMappingDto existing = unmapped.get(key);
         if (existing == null) {
+            // La categoria con cui la banca chiama lo stipendio arriva gia'
+            // puntata su quella del profilo invece che da scegliere: sono la
+            // stessa cosa, e lasciarle separate rompe il calcolo del risparmio.
+            // Resta una proposta, visibile nel menu e modificabile.
+            UUID suggested = salaryResolver.looksLikeSalary(row.bankCategory(), type) ? salaryCategoryId : null;
             unmapped.put(key, new BankCategoryMappingDto(
-                    bankCategoryLabel(row.bankCategory()), type, null, false, 1, sample));
+                    bankCategoryLabel(row.bankCategory()), type, suggested, false, 1, sample));
         } else {
             unmapped.put(key, new BankCategoryMappingDto(
-                    existing.bankCategory(), existing.transactionType(), null, false,
+                    existing.bankCategory(), existing.transactionType(), existing.categoryId(), false,
                     existing.rowCount() + 1, existing.sampleDescription()));
         }
     }

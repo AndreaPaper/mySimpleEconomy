@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Report di copertura: si rigenera con `npm run test:coverage`.
+coverage/

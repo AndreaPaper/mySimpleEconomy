@@ -26,6 +26,15 @@ public class CategoryController {
         return categoryService.list(principal.getId());
     }
 
+    // Endpoint separato invece di un parametro ?archived=true sulla lista: le
+    // due liste convivono nella stessa pagina e vengono chieste insieme, quindi
+    // tenerle distinte evita di dover interpretare a chiamante quale delle due
+    // si è ricevuta.
+    @GetMapping("/archived")
+    public List<CategoryResponse> listArchived(@AuthenticationPrincipal UserPrincipal principal) {
+        return categoryService.listArchived(principal.getId());
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryResponse create(
@@ -52,6 +61,11 @@ public class CategoryController {
     @PostMapping("/{id}/archive")
     public void archive(@AuthenticationPrincipal UserPrincipal principal, @PathVariable UUID id) {
         categoryService.archive(principal.getId(), id);
+    }
+
+    @PostMapping("/{id}/unarchive")
+    public void unarchive(@AuthenticationPrincipal UserPrincipal principal, @PathVariable UUID id) {
+        categoryService.unarchive(principal.getId(), id);
     }
 
     @DeleteMapping("/{id}")

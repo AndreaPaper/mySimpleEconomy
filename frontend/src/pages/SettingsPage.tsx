@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { dataCleanupApi } from '../api/endpoints'
+import { useInvalidateAll } from '../api/queries'
 import type { DataCleanupResult } from '../api/types'
 import Modal from '../components/Modal'
 import ImportPanel from '../components/ImportPanel'
@@ -34,6 +35,7 @@ function ResultSummary({ result }: { result: DataCleanupResult }) {
 }
 
 export default function SettingsPage() {
+  const invalidateAll = useInvalidateAll()
   const { theme, toggleTheme } = useTheme()
   const { caseStyle, toggleCaseStyle } = useCaseStyle()
   const { paletteKey, setPaletteKey } = usePalette()
@@ -72,6 +74,9 @@ export default function SettingsPage() {
     setBusy(true)
     try {
       const result = await dataCleanupApi.cleanup()
+      // Il caso peggiore da lasciare in cache: senza, Dashboard ed elenchi
+      // continuerebbero a mostrare tutto quello che si è appena cancellato.
+      await invalidateAll()
       setFullWipeResult(result)
       setRangeResult(null)
       setFullWipeOpen(false)
@@ -89,6 +94,7 @@ export default function SettingsPage() {
     setBusy(true)
     try {
       const result = await dataCleanupApi.cleanup({ from: from || undefined, to: to || undefined })
+      await invalidateAll()
       setRangeResult(result)
       setFullWipeResult(null)
     } catch {

@@ -1,4 +1,6 @@
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createQueryClient } from './api/queryClient'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { CaseStyleProvider } from './context/CaseStyleContext'
@@ -20,40 +22,60 @@ import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import SectionsPage from './pages/SectionsPage'
 
+// La tabella delle rotte, separata da App perché i test la montino dentro un
+// MemoryRouter invece del BrowserRouter, che scriverebbe nella cronologia
+// condivisa del documento e si porterebbe dietro lo stato da un test all'altro.
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/transazioni" element={<TransactionsPage />} />
+          <Route path="/categorie" element={<CategoriesPage />} />
+          <Route path="/ricorrenti" element={<RecurringPage />} />
+          <Route path="/debiti" element={<DebtsPage />} />
+          <Route path="/promemoria" element={<RemindersPage />} />
+          <Route path="/risparmio" element={<SavingsPage />} />
+          <Route path="/importa" element={<ImportPage />} />
+          <Route path="/impostazioni" element={<SettingsPage />} />
+          <Route path="/sezioni" element={<SectionsPage />} />
+          <Route path="/profilo" element={<ProfilePage />} />
+        </Route>
+      </Route>
+      {/* Una rotta sconosciuta riporta alla Dashboard invece di lasciare una
+          pagina bianca: succede con un vecchio segnalibro o un link rotto. */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+// Uno solo per tutta la vita dell'app: è lui che tiene la cache fra una pagina
+// e l'altra. Sta fuori dal componente, altrimenti un nuovo render ne creerebbe
+// un altro vuoto.
+const queryClient = createQueryClient()
+
 function App() {
   return (
-    <ThemeProvider>
-      <CaseStyleProvider>
-        <PaletteProvider>
-          <OfflineSyncProvider>
-            <AuthProvider>
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                  <Route element={<ProtectedRoute />}>
-                    <Route element={<Layout />}>
-                      <Route path="/" element={<DashboardPage />} />
-                      <Route path="/transazioni" element={<TransactionsPage />} />
-                      <Route path="/categorie" element={<CategoriesPage />} />
-                      <Route path="/ricorrenti" element={<RecurringPage />} />
-                      <Route path="/debiti" element={<DebtsPage />} />
-                      <Route path="/promemoria" element={<RemindersPage />} />
-                      <Route path="/risparmio" element={<SavingsPage />} />
-                      <Route path="/importa" element={<ImportPage />} />
-                      <Route path="/impostazioni" element={<SettingsPage />} />
-                      <Route path="/sezioni" element={<SectionsPage />} />
-                      <Route path="/profilo" element={<ProfilePage />} />
-                    </Route>
-                  </Route>
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </BrowserRouter>
-            </AuthProvider>
-          </OfflineSyncProvider>
-        </PaletteProvider>
-      </CaseStyleProvider>
-    </ThemeProvider>
+    // Il più esterno: OfflineSyncProvider e AuthProvider lo usano (invalidare
+    // a fine sincronizzazione, svuotare all'uscita), quindi deve stare sopra.
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <CaseStyleProvider>
+          <PaletteProvider>
+            <OfflineSyncProvider>
+              <AuthProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </AuthProvider>
+            </OfflineSyncProvider>
+          </PaletteProvider>
+        </CaseStyleProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }
 

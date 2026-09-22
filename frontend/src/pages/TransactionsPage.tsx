@@ -1,22 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
-import { Download, Pencil, Plus, Search, SlidersHorizontal, Tag, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Download, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
-import type { Category, Transaction, TransactionType } from '../api/types'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
+import type { Transaction, TransactionType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import ConfirmDialog from '../components/ConfirmDialog'
 import DateRangePicker from '../components/DateRangePicker'
 import Modal from '../components/Modal'
 import TransactionForm from '../components/TransactionForm'
+import CategoryCombobox from '../components/CategoryCombobox'
+import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { TransactionsPageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useOfflineSync } from '../context/OfflineSyncContext'
-import { cacheCategories, loadCachedCategories } from '../offline/categoriesCache'
 import { getQueue, type QueuedTransaction } from '../offline/queue'
-import { periodKeyOf } from '../utils/period'
+import { groupByMonth, toDisplayTransaction, type DisplayTransaction } from '../utils/transactionRows'
 
-const PAGE_SIZE = 30
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const monthLabelFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
 
@@ -25,53 +27,15 @@ function monthLabel(yearMonth: string): string {
   return monthLabelFormatter.format(new Date(year, month - 1, 1))
 }
 
-// Le transazioni arrivano già ordinate per data decrescente, quindi quelle
-// dello stesso periodo sono sempre adiacenti: basta accumularle in gruppi.
-function groupByMonth(
-  transactions: DisplayTransaction[],
-  salaryDay: number | null,
-): { key: string; items: DisplayTransaction[] }[] {
-  const groups: { key: string; items: DisplayTransaction[] }[] = []
-  for (const t of transactions) {
-    const key = periodKeyOf(t.occurredOn, salaryDay)
-    const lastGroup = groups[groups.length - 1]
-    if (lastGroup && lastGroup.key === key) {
-      lastGroup.items.push(t)
-    } else {
-      groups.push({ key, items: [t] })
-    }
-  }
-  return groups
-}
-
-type DisplayTransaction = Transaction & { pending?: boolean }
-
-function toDisplayTransaction(q: QueuedTransaction, categories: Category[]): DisplayTransaction {
-  const category = categories.find((c) => c.id === q.categoryId)
-  return {
-    id: q.localId,
-    categoryId: q.categoryId,
-    categoryName: category?.name ?? '—',
-    categoryIcon: category?.icon ?? null,
-    categoryColor: category?.color ?? null,
-    amount: q.amount,
-    type: q.type,
-    occurredOn: q.occurredOn,
-    description: q.description,
-    recurringTransactionId: null,
-    pending: true,
-  }
-}
-
 export default function TransactionsPage() {
   const { salaryDay } = useAuth()
   const isMobile = useIsMobile()
   const { isOnline, backendReachable, pendingCount, addOfflineTransaction } = useOfflineSync()
   const offlineLike = !isOnline || !backendReachable
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const invalidateAll = useInvalidateAll()
+  const categoriesQuery = useCategories()
+  const categories = categoriesQuery.data ?? []
   const [pendingItems, setPendingItems] = useState<QueuedTransaction[]>(() => getQueue())
-  const [loading, setLoading] = useState(true)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -81,10 +45,6 @@ export default function TransactionsPage() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [page, setPage] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const prevPendingCount = useRef(pendingCount)
   // Su mobile i filtri stanno dietro l'icona nell'intestazione invece che in
   // riga sotto il titolo, e ogni riga apre un foglio di scelta invece dei due
   // pulsanti "Modifica"/"Elimina" affiancati all'importo.
@@ -117,64 +77,34 @@ export default function TransactionsPage() {
     setTypeFilter('')
   }
 
-  // Ogni richiesta prende un numero progressivo e solo l'ultima può scrivere
-  // nello stato. Cambiando le date partono più chiamate ravvicinate (il campo
-  // data emette un evento per ogni pezzo che si compila) e senza questo
-  // controllo la risposta di un filtro intermedio, se arriva per ultima,
-  // sovrascrive quella del filtro davvero impostato.
-  const latestRequest = useRef(0)
+  // L'elenco, a pagine da 30, con i filtri nella chiave di cache.
+  //
+  // Cambiando le date partono più richieste ravvicinate (il campo data emette
+  // un evento per ogni pezzo che si compila): prima un numero progressivo
+  // scartava le risposte arrivate in ritardo, perché quella di un filtro
+  // intermedio non sovrascrivesse quella del filtro davvero impostato. Ora non
+  // serve: ogni combinazione di filtri ha la sua chiave, e una risposta in
+  // ritardo finisce sotto la chiave vecchia, che nessuno sta guardando.
+  //
+  // keepPreviousData tiene a schermo l'elenco precedente mentre arriva quello
+  // del filtro nuovo, com'era prima. Senza, una chiave nuova parte vuota e lo
+  // scheletro comparirebbe a ogni carattere digitato in una data.
+  const transactionsQuery = useInfiniteQuery({
+    ...queries.transactionsPaged(activeFilters),
+    placeholderData: keepPreviousData,
+  })
+  const transactions = transactionsQuery.data?.pages.flatMap((p) => p.content) ?? []
+  const hasMore = transactionsQuery.hasNextPage
+  const loadingMore = transactionsQuery.isFetchingNextPage
+  const loadMore = () => transactionsQuery.fetchNextPage()
+  // Scheletro solo senza dati: vedi DebtsPage per il perché di isPending.
+  const loading = transactionsQuery.isPending || categoriesQuery.isPending
 
-  const reloadTransactions = () => {
-    const requestId = ++latestRequest.current
-    return transactionsApi
-      .list({ ...activeFilters, page: 0, size: PAGE_SIZE })
-      .then((res) => {
-        if (requestId !== latestRequest.current) return
-        setTransactions(res.content)
-        setPage(0)
-        setHasMore(res.hasNext)
-      })
-      .catch(() => {})
-  }
-
-  const loadMore = async () => {
-    const requestId = ++latestRequest.current
-    setLoadingMore(true)
-    try {
-      const res = await transactionsApi.list({ ...activeFilters, page: page + 1, size: PAGE_SIZE })
-      if (requestId !== latestRequest.current) return
-      setTransactions((prev) => [...prev, ...res.content])
-      setPage((p) => p + 1)
-      setHasMore(res.hasNext)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  useEffect(() => {
-    Promise.all([
-      reloadTransactions(),
-      categoriesApi
-        .list()
-        .then((cats) => {
-          cacheCategories(cats)
-          setCategories(cats)
-        })
-        .catch(() => setCategories(loadCachedCategories())),
-    ]).finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (loading) return
-    reloadTransactions()
-  }, [categoryFilter, dateFrom, dateTo])
-
+  // La coda offline si rilegge a ogni cambio del contatore. Il ricaricamento
+  // dell'elenco a sincronizzazione finita non sta più qui: lo fa
+  // OfflineSyncContext invalidando la cache, per tutte le pagine insieme.
   useEffect(() => {
     setPendingItems(getQueue())
-    if (prevPendingCount.current > 0 && pendingCount === 0) {
-      reloadTransactions()
-    }
-    prevPendingCount.current = pendingCount
   }, [pendingCount])
 
   const openCreate = () => {
@@ -198,7 +128,7 @@ export default function TransactionsPage() {
   }) => {
     if (modalMode === 'edit' && editing) {
       await transactionsApi.update(editing.id, data)
-      await reloadTransactions()
+      await invalidateAll()
       closeModal()
       return
     }
@@ -219,15 +149,15 @@ export default function TransactionsPage() {
       }
       throw err
     }
-    await reloadTransactions()
+    await invalidateAll()
     closeModal()
   }
 
   const handleCreateCategory = async (data: { name: string; type: TransactionType; color: string | null; icon: string | null }) => {
     const category = await categoriesApi.create(data)
-    const updated = await categoriesApi.list()
-    cacheCategories(updated)
-    setCategories(updated)
+    // Aspettare l'invalidazione vuol dire aspettare che l'elenco delle categorie
+    // contenga la nuova: il modulo la adotta subito, e deve poterla mostrare.
+    await invalidateAll()
     return category
   }
 
@@ -246,7 +176,7 @@ export default function TransactionsPage() {
     try {
       await transactionsApi.delete(pendingDelete.id)
       setPendingDelete(null)
-      await reloadTransactions()
+      await invalidateAll()
     } catch {
       setDeleteError('Eliminazione non riuscita. Riprova.')
     } finally {
@@ -351,21 +281,15 @@ export default function TransactionsPage() {
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="tx-category-filter">
           Categoria
         </label>
-        <select
-          id="tx-category-filter"
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className={`rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white ${
-            isMobile ? 'w-full' : 'w-full max-w-xs'
-          }`}
-        >
-          <option value="">Tutte le categorie</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div className={isMobile ? 'w-full' : 'w-full max-w-xs'}>
+          <CategoryCombobox
+            id="tx-category-filter"
+            categories={categories}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            extraOptions={[{ value: '', label: 'Tutte le categorie' }]}
+          />
+        </div>
       </div>
 
       {/* max/min incrociati: il browser impedisce di comporre un intervallo
@@ -445,26 +369,15 @@ export default function TransactionsPage() {
             ))}
           </div>
 
-          {/* Stesso <select> di sempre, solo rivestito da pillola e icona:
-              il menu nativo resta quello che tastiera e lettore di schermo
-              già sanno usare. */}
-          <div className="relative shrink-0">
-            <Tag className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-            <select
-              id="tx-category-filter"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              aria-label="Categoria"
-              className="appearance-none rounded-full border border-slate-300 bg-brand-300 py-2 pl-9 pr-8 text-sm text-slate-600 dark:border-slate-700 dark:bg-black dark:text-slate-300"
-            >
-              <option value="">Categoria</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CategoryCombobox
+            id="tx-category-filter"
+            variant="pill"
+            ariaLabel="Categoria"
+            categories={categories}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            extraOptions={[{ value: '', label: 'Categoria' }]}
+          />
 
           <DateRangePicker from={dateFrom} to={dateTo} onApply={(f, t) => { setDateFrom(f); setDateTo(t) }} />
 
@@ -534,7 +447,7 @@ export default function TransactionsPage() {
                           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
                         >
-                          <Icon className="h-5 w-5 text-white" />
+                          <Icon className="h-5 w-5" style={{ color: categoryInk(t.categoryColor ?? '#94a3b8') }} />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[15px] font-semibold">{t.description || t.categoryName}</p>
@@ -580,7 +493,7 @@ export default function TransactionsPage() {
                           className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: t.categoryColor ?? '#94a3b8' }}
                         >
-                          <Icon className="h-4 w-4 text-white" />
+                          <Icon className="h-4 w-4" style={{ color: categoryInk(t.categoryColor ?? '#94a3b8') }} />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[14.5px] font-bold">{t.description || t.categoryName}</p>

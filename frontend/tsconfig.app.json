@@ -22,5 +22,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // I test non entrano nel build di produzione: con noUnusedLocals e
+  // verbatimModuleSyntax attivi, `tsc -b` fallirebbe sui file di test.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test"]
 }

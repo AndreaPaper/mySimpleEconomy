@@ -1,79 +1,24 @@
 import { useMemo, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import type { PieLabelRenderProps } from 'recharts'
-import type { CategoryAmount, CategoryAmountNode } from '../api/types'
+import type { CategoryAmountNode } from '../api/types'
+import { categoryData, categoryInk, readableOn } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
-
-// Sotto questa quota una fetta è troppo sottile perché il donut resti leggibile:
-// le minori confluiscono in "Altro", che resta selezionabile per vedere cosa
-// contiene invece di sparire.
-const MINOR_SHARE = 0.05
+import { buildCategorySlices, OTHER_COLOR } from '../utils/categorySlices'
 
 // Sotto questa quota non c'è spazio per scrivere il numero dentro la fetta.
 const LABEL_MIN_SHARE = 0.08
 
-const OTHER_ID = '__altro__'
-const OTHER_COLOR = '#94a3b8'
 
 interface MobileCategoryChartProps {
   breakdown: CategoryAmountNode[]
   currency: Intl.NumberFormat
 }
 
-interface Slice {
-  categoryId: string
-  categoryName: string
-  categoryColor: string
-  categoryIcon: string | null
-  amount: number
-  children: CategoryAmount[]
-}
-
 export default function MobileCategoryChart({ breakdown, currency }: MobileCategoryChartProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const { slices, total } = useMemo(() => {
-    const sum = breakdown.reduce((acc, c) => acc + c.amount, 0)
-    const major: Slice[] = []
-    const minor: CategoryAmountNode[] = []
-
-    for (const c of breakdown) {
-      const slice: Slice = {
-        categoryId: c.categoryId,
-        categoryName: c.categoryName,
-        categoryColor: c.categoryColor ?? OTHER_COLOR,
-        categoryIcon: c.categoryIcon,
-        amount: c.amount,
-        children: c.children,
-      }
-      if (sum > 0 && c.amount / sum < MINOR_SHARE) minor.push(c)
-      else major.push(slice)
-    }
-
-    // Una sola categoria minore non guadagna niente a chiamarsi "Altro".
-    if (minor.length === 1) {
-      const only = minor[0]
-      major.push({
-        categoryId: only.categoryId,
-        categoryName: only.categoryName,
-        categoryColor: only.categoryColor ?? OTHER_COLOR,
-        categoryIcon: only.categoryIcon,
-        amount: only.amount,
-        children: only.children,
-      })
-    } else if (minor.length > 1) {
-      major.push({
-        categoryId: OTHER_ID,
-        categoryName: 'Altro',
-        categoryColor: OTHER_COLOR,
-        categoryIcon: null,
-        amount: minor.reduce((acc, c) => acc + c.amount, 0),
-        children: minor,
-      })
-    }
-
-    return { slices: major, total: sum }
-  }, [breakdown])
+  const { slices, total } = useMemo(() => buildCategorySlices(breakdown), [breakdown])
 
   if (slices.length === 0) return null
 
@@ -111,7 +56,7 @@ export default function MobileCategoryChart({ breakdown, currency }: MobileCateg
               {slices.map((slice) => (
                 <Cell
                   key={slice.categoryId}
-                  fill={slice.categoryColor}
+                  fill={categoryData(slice.categoryColor)}
                   // La fetta scelta resta piena, le altre si attenuano: il
                   // colore da solo non basterebbe a dire quale hai toccato.
                   fillOpacity={selected && selected.categoryId !== slice.categoryId ? 0.35 : 1}
@@ -131,7 +76,7 @@ export default function MobileCategoryChart({ breakdown, currency }: MobileCateg
                 className="mb-1 flex h-5 w-5 items-center justify-center rounded-full"
                 style={{ backgroundColor: selected.categoryColor }}
               >
-                {SelectedIcon && <SelectedIcon className="h-3 w-3 text-white" />}
+                {SelectedIcon && <SelectedIcon className="h-3 w-3" style={{ color: categoryInk(selected.categoryColor) }} />}
               </span>
               <span className="max-w-[110px] truncate text-xs font-bold text-slate-600 dark:text-slate-300">
                 {selected.categoryName}
@@ -160,9 +105,16 @@ export default function MobileCategoryChart({ breakdown, currency }: MobileCateg
               aria-pressed={active}
               onClick={() => setSelectedId(active ? null : slice.categoryId)}
               className={`flex max-w-[150px] items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs ${
-                active ? 'text-white' : 'bg-bar-track dark:bg-zinc-800 text-slate-600 dark:text-slate-300'
+                active ? '' : 'bg-bar-track dark:bg-zinc-800 text-slate-600 dark:text-slate-300'
               }`}
-              style={active ? { backgroundColor: slice.categoryColor } : undefined}
+              // Il chip scelto si tinge del pastello della categoria: lì il
+              // testo bianco di prima sparirebbe, e vale la stessa regola del
+              // glifo sulla pastiglia.
+              style={
+                active
+                  ? { backgroundColor: slice.categoryColor, color: categoryInk(slice.categoryColor) }
+                  : undefined
+              }
             >
               {!active && (
                 <span
@@ -216,11 +168,15 @@ function renderSliceLabel(props: PieLabelRenderProps) {
   const x = cx + radius * Math.cos(-midAngle * radians)
   const y = cy + radius * Math.sin(-midAngle * radians)
 
+  // Il bianco fisso funzionava sulle tinte piene di prima; sui toni medi
+  // chiari — il giallo su tutti — faceva 1,65:1. Lo decide la fetta.
+  const sliceFill = typeof props.fill === 'string' ? props.fill : undefined
+
   return (
     <text
       x={x}
       y={y}
-      fill="#ffffff"
+      fill={sliceFill ? readableOn(sliceFill) : '#ffffff'}
       textAnchor="middle"
       dominantBaseline="central"
       fontSize={12}

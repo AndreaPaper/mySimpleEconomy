@@ -4,13 +4,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.spesetracker.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -74,8 +77,10 @@ class RecurringTransactionApiTest extends AbstractIntegrationTest {
         assertThat(api.listTransactions(token).size()).isLessThan(3);
     }
 
+    // Il nome diceva "Update" ma il PUT non c'era: si faceva GET, deactivate,
+    // reactivate e DELETE. La modifica ha ora i suoi test, qui sotto.
     @Test
-    void listUpdateDeactivateReactivateAndDelete() throws Exception {
+    void listDeactivateReactivateAndDelete() throws Exception {
         String token = api.registerAndLogin();
         String category = api.createExpenseCategory(token);
         String id = createRule(token, category, LocalDate.now().plusMonths(1), null);
@@ -177,6 +182,153 @@ class RecurringTransactionApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated());
 
         assertThat(api.listTransactions(token)).isEmpty();
+    }
+
+    // ------------------------------------------------------------------
+    // La modifica di una regola (PUT), che non era mai stata esercitata
+    // ------------------------------------------------------------------
+
+    private ResultActions putRule(String token, String id, String categoryId, String nome, String importo,
+                                  LocalDate startDate, LocalDate nextDue) throws Exception {
+        return mockMvc.perform(put("/api/recurring-transactions/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"categoryId":"%s","name":"%s","defaultAmount":%s,"intervalUnit":"MONTH",\
+                        "intervalValue":1,"startDate":"%s","nextDueDate":"%s"}
+                        """.formatted(categoryId, nome, importo, startDate, nextDue)));
+    }
+
+    @Test
+    void laModificaCambiaNomeImportoECategoria() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        String altraCategoria = api.createExpenseCategory(token);
+        LocalDate futuro = LocalDate.now().plusMonths(1);
+        String id = createRule(token, category, futuro, null);
+
+        putRule(token, id, altraCategoria, "Spotify", "12.99", futuro, futuro)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Spotify"))
+                .andExpect(jsonPath("$.defaultAmount").value(12.99))
+                .andExpect(jsonPath("$.categoryId").value(altraCategoria));
+
+        mockMvc.perform(get("/api/recurring-transactions").header("Authorization", "Bearer " + token))
+                .andExpect(jsonPath("$[0].name").value("Spotify"));
+    }
+
+    /**
+     * La modifica rilancia {@code processDueRule}: spostando la scadenza indietro nel tempo la
+     * regola diventa arretrata e recupera subito, senza aspettare il job notturno.
+     */
+    @Test
+    void laModificaRecuperaGliArretratiSubito() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        LocalDate futuro = LocalDate.now().plusMonths(1);
+        String id = createRule(token, category, futuro, null);
+        assertThat(api.listTransactions(token)).isEmpty();
+
+        LocalDate passato = LocalDate.now().minusDays(3);
+        putRule(token, id, category, "Netflix", "9.99", passato, passato).andExpect(status().isOk());
+
+        assertThat(api.listTransactions(token)).hasSize(1);
+        // E la scadenza è stata spinta avanti dal recupero.
+        JsonNode regola = api.json(mockMvc.perform(get("/api/recurring-transactions")
+                        .header("Authorization", "Bearer " + token))
+                .andReturn()).get(0);
+        assertThat(LocalDate.parse(regola.get("nextDueDate").asText())).isAfter(LocalDate.now());
+    }
+
+    /**
+     * Il salvataggio ripetuto come lo fa davvero l'app: il form rimanda la scadenza corrente,
+     * che dopo il recupero è già nel futuro. Non si rigenera nulla.
+     */
+    @Test
+    void risalvareSenzaCambiareLaScadenzaNonRigeneraNulla() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        LocalDate passato = LocalDate.now().minusDays(3);
+        String id = createRule(token, category, passato, null);
+        int dopoLaCreazione = api.listTransactions(token).size();
+
+        JsonNode regola = api.json(mockMvc.perform(get("/api/recurring-transactions")
+                        .header("Authorization", "Bearer " + token))
+                .andReturn()).get(0);
+        LocalDate scadenzaCorrente = LocalDate.parse(regola.get("nextDueDate").asText());
+
+        putRule(token, id, category, "Netflix", "12.99", passato, scadenzaCorrente)
+                .andExpect(status().isOk());
+
+        assertThat(api.listTransactions(token)).hasSize(dopoLaCreazione);
+    }
+
+    /**
+     * Comportamento attuale, scritto perché è una perdita di dati silenziosa e non un dettaglio.
+     *
+     * <p>A differenza dei promemoria — che prima di generare controllano
+     * {@code existsByExpenseReminderIdAndOccurredOnBetween} — la generazione ricorrente
+     * <strong>non ha alcuna guardia anti-doppione per occorrenza</strong>. Rimandando due volte
+     * la stessa scadenza già passata (un doppio invio del form, un client che riusa un corpo
+     * vecchio) la stessa occorrenza viene scritta due volte, e l'utente si ritrova la spesa
+     * doppia senza che nulla lo segnali.
+     *
+     * <p>Il test fissa quello che succede oggi. Se un domani si aggiunge la guardia, fallisce e
+     * va aggiornato — consapevolmente.
+     */
+    @Test
+    void rimandareDueVolteLaStessaScadenzaPassataDuplicaLOccorrenza() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        LocalDate futuro = LocalDate.now().plusMonths(1);
+        String id = createRule(token, category, futuro, null);
+        LocalDate passato = LocalDate.now().minusDays(3);
+
+        putRule(token, id, category, "Netflix", "9.99", passato, passato).andExpect(status().isOk());
+        putRule(token, id, category, "Netflix", "9.99", passato, passato).andExpect(status().isOk());
+
+        assertThat(api.listTransactions(token)).hasSize(2);
+    }
+
+    @Test
+    void nonSiPuoModificareLaRegolaDiUnAltroUtente() throws Exception {
+        String alice = api.registerAndLogin();
+        String bob = api.registerAndLogin();
+        String aliceCategory = api.createExpenseCategory(alice);
+        String bobCategory = api.createExpenseCategory(bob);
+        LocalDate futuro = LocalDate.now().plusMonths(1);
+        String aliceRule = createRule(alice, aliceCategory, futuro, null);
+
+        putRule(bob, aliceRule, bobCategory, "Rubata", "1.00", futuro, futuro)
+                .andExpect(status().isNotFound());
+    }
+
+    /**
+     * La categoria di un altro utente non deve poter essere agganciata a una propria regola.
+     * Il controllo esisteva già per Debiti e Promemoria; qui non era mai stato provato, ed è
+     * l'unica cosa che impedisce di scrivere transazioni dentro la categoria di qualcun altro.
+     */
+    @Test
+    void nonSiPuoUsareLaCategoriaDiUnAltroUtente() throws Exception {
+        String alice = api.registerAndLogin();
+        String bob = api.registerAndLogin();
+        String aliceCategory = api.createExpenseCategory(alice);
+        String bobCategory = api.createExpenseCategory(bob);
+        LocalDate futuro = LocalDate.now().plusMonths(1);
+        String aliceRule = createRule(alice, aliceCategory, futuro, null);
+
+        putRule(alice, aliceRule, bobCategory, "Netflix", "9.99", futuro, futuro)
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void unaRegolaInesistenteDa404() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        LocalDate futuro = LocalDate.now().plusMonths(1);
+
+        putRule(token, UUID.randomUUID().toString(), category, "Netflix", "9.99", futuro, futuro)
+                .andExpect(status().isNotFound());
     }
 
     @Test

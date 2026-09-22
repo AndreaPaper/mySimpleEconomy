@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Pencil, Plus } from 'lucide-react'
-import { categoriesApi, remindersApi } from '../api/endpoints'
-import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
+import { useQuery } from '@tanstack/react-query'
+import { remindersApi } from '../api/endpoints'
+import { queries, useCategories, useInvalidateAll } from '../api/queries'
+import type { ExpenseReminder, IntervalUnit } from '../api/types'
 import Modal from '../components/Modal'
 import ExpenseReminderForm from '../components/ExpenseReminderForm'
 import { ListPageSkeleton } from '../components/Skeleton'
+import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { useIsMobile } from '../hooks/useIsMobile'
 
@@ -12,17 +15,16 @@ const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: '
 
 export default function RemindersPage() {
   const isMobile = useIsMobile()
-  const [items, setItems] = useState<ExpenseReminder[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const itemsQuery = useQuery(queries.reminders())
+  const categoriesQuery = useCategories()
+  const items = itemsQuery.data ?? []
+  const categories = categoriesQuery.data ?? []
+  // Scheletro solo senza dati: vedi DebtsPage per il perché di isPending.
+  const loading = itemsQuery.isPending || categoriesQuery.isPending
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<ExpenseReminder | null>(null)
 
-  const reload = () => remindersApi.list().then(setItems)
-
-  useEffect(() => {
-    Promise.all([reload(), categoriesApi.list().then(setCategories)]).finally(() => setLoading(false))
-  }, [])
+  const reload = useInvalidateAll()
 
   const openCreate = () => {
     setEditing(null)
@@ -112,7 +114,7 @@ export default function RemindersPage() {
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                   style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
                 >
-                  <Icon className="h-[18px] w-[18px] text-white" />
+                  <Icon className="h-[18px] w-[18px]" style={{ color: categoryInk(r.categoryColor ?? '#94a3b8') }} />
                 </span>
                 {/* Niente foglio azioni: qui c'è solo Modifica, e il tocco
                     sulla riga apre già il form direttamente. */}
@@ -175,7 +177,7 @@ export default function RemindersPage() {
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                       style={{ backgroundColor: r.categoryColor ?? '#94a3b8' }}
                     >
-                      <Icon className="h-4 w-4 text-white" />
+                      <Icon className="h-4 w-4" style={{ color: categoryInk(r.categoryColor ?? '#94a3b8') }} />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{r.name}</p>

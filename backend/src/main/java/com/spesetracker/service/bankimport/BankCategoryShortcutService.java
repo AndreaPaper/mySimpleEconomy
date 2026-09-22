@@ -28,6 +28,7 @@ public class BankCategoryShortcutService {
 
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final SalaryCategoryResolver salaryResolver;
 
     @Transactional
     public List<BankCategoryMappingDto> createFromBankCategories(UUID userId, List<BankCategoryMappingDto> requested) {
@@ -46,14 +47,23 @@ public class BankCategoryShortcutService {
                     ? CategoryType.EXPENSE
                     : CategoryType.INCOME;
 
-            // Se una categoria con quel nome esiste gia' la si riusa: ricrearla
-            // sarebbe comunque impedito dal vincolo di unicita' sul nome.
-            Category category = categoryRepository.findByUserIdAndNameIgnoreCase(userId, name)
-                    .orElseGet(() -> categoryRepository.save(Category.builder()
-                            .user(user)
-                            .name(name)
-                            .type(type)
-                            .build()));
+            // Lo stipendio fa eccezione alla regola "una categoria per ogni
+            // categoria della banca": il profilo ne ha gia' una, e crearne una
+            // seconda col nome della banca ("Stipendi e pensioni" accanto a
+            // "Stipendio") lascerebbe due categorie per la stessa cosa e il
+            // calcolo del risparmio a cercare lo stipendio dove non sta.
+            Category category = salaryResolver
+                    .profileSalaryCategory(userId)
+                    .filter(c -> salaryResolver.looksLikeSalary(dto.bankCategory(), dto.transactionType()))
+                    // Se una categoria con quel nome esiste gia' la si riusa:
+                    // ricrearla sarebbe comunque impedito dal vincolo di
+                    // unicita' sul nome.
+                    .orElseGet(() -> categoryRepository.findByUserIdAndNameIgnoreCase(userId, name)
+                            .orElseGet(() -> categoryRepository.save(Category.builder()
+                                    .user(user)
+                                    .name(name)
+                                    .type(type)
+                                    .build())));
 
             resolved.add(new BankCategoryMappingDto(
                     dto.bankCategory(), dto.transactionType(), category.getId(), false,

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
-import { categoryOptionLabel, flattenCategoryTree } from '../utils/categoryTree'
+import CategoryCombobox from './CategoryCombobox'
 
 interface ExpenseReminderFormProps {
   categories: Category[]
@@ -84,19 +84,12 @@ export default function ExpenseReminderForm({ categories, initial, onSubmit, onC
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-category">
           Categoria
         </label>
-        <select
+        <CategoryCombobox
           id="er-category"
-          required
+          categories={expenseCategories}
           value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
-        >
-          {flattenCategoryTree(expenseCategories).map((entry) => (
-            <option key={entry.category.id} value={entry.category.id}>
-              {categoryOptionLabel(entry)}
-            </option>
-          ))}
-        </select>
+          onChange={setCategoryId}
+        />
       </div>
       <div>
         <label className="mb-1 block text-sm text-slate-600 dark:text-slate-300" htmlFor="er-name">

@@ -49,7 +49,9 @@ export const categoriesApi = {
     id: string,
     data: { name: string; color?: string | null; icon?: string | null; parentId?: string | null },
   ) => client.put<Category>(`/categories/${id}`, data).then((r) => r.data),
+  listArchived: () => client.get<Category[]>('/categories/archived').then((r) => r.data),
   archive: (id: string) => client.post(`/categories/${id}/archive`),
+  unarchive: (id: string) => client.post(`/categories/${id}/unarchive`),
   generateDefaults: () => client.post<Category[]>('/categories/generate-defaults').then((r) => r.data),
   delete: (id: string) => client.delete(`/categories/${id}`),
 }

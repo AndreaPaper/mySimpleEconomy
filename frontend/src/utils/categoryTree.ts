@@ -76,10 +76,3 @@ export function buildCategoryTree(categories: Category[]): CategoryTreeNode[] {
     .sort(byName)
     .map((root) => ({ category: root, children: (childrenByParent.get(root.id) ?? []).sort(byName) }))
 }
-
-// Etichetta per i menu a tendina: le sottocategorie sono rientrate con un
-// connettore, dato che <optgroup> non è utilizzabile (le sue intestazioni non
-// sono selezionabili, mentre qui anche le categorie padre restano scegliibili).
-export function categoryOptionLabel({ category, depth }: FlatCategoryEntry): string {
-  return depth === 1 ? `    └ ${category.name}` : category.name
-}

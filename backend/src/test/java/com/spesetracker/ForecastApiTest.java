@@ -295,6 +295,53 @@ class ForecastApiTest extends AbstractIntegrationTest {
         assertThat(nextMonth.get("projectedExpense").decimalValue()).isEqualByComparingTo("45.00");
     }
 
+    /**
+     * La parte "previsione" della previsione: la media delle spese variabili dei mesi
+     * pieni passati entra nei mesi <em>futuri</em> e non in quello corrente, dove le spese
+     * vere ci sono già. Nessun test la esercitava, quindi il meccanismo che riempie i mesi
+     * in cui non è ancora successo nulla — cioè quasi tutto il grafico — non era provato.
+     *
+     * <p>La finestra è di sei mesi: 60 € spesi in un mese passato valgono 10 € al mese.
+     */
+    @Test
+    void laMediaDelleSpeseVariabiliEntraSoloNeiMesiFuturi() throws Exception {
+        String token = api.registerAndLogin();
+        String svago = api.createExpenseCategory(token);
+        api.createCheckpoint(token, LocalDate.now().withDayOfMonth(1), "1000.00");
+        api.createTransaction(token, svago, LocalDate.now().minusMonths(1).withDayOfMonth(15), "60.00", "EXPENSE");
+
+        JsonNode mesi = api.forecast(token, 2).get("months");
+
+        // Il mese corrente non ha spese proprie: la media non lo tocca.
+        assertThat(mesi.get(0).get("projectedExpense").decimalValue()).isEqualByComparingTo("0.00");
+        assertThat(mesi.get(1).get("projectedExpense").decimalValue()).isEqualByComparingTo("10.00");
+    }
+
+    /**
+     * Un promemoria su una categoria di entrata viene rifiutato.
+     *
+     * <p>Scritto mentre cercavo di coprire il ramo INCOME dentro il ciclo dei promemoria
+     * della previsione: quel ramo <em>non è raggiungibile</em>, perché il servizio non
+     * lascia nemmeno creare il promemoria. Il test resta perché il rifiuto non era provato
+     * da nessuna parte, ed è la ragione per cui il ramo di là può restare scoperto senza
+     * che sia un buco.
+     */
+    @Test
+    void unPromemoriaSuUnaCategoriaDiEntrataVieneRifiutato() throws Exception {
+        String token = api.registerAndLogin();
+        String bonus = api.createIncomeCategory(token);
+
+        LocalDate due = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+        mockMvc.perform(post("/api/expense-reminders")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":"%s","name":"Rimborso spese","amount":250.00,"intervalUnit":"MONTH",\
+                                "intervalValue":1,"startDate":"%s","nextDueDate":"%s"}
+                                """.formatted(bonus, due, due)))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void forecastIsScopedToTheRequestingUser() throws Exception {
         String alice = api.registerAndLogin();
