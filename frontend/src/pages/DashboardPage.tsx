@@ -373,7 +373,6 @@ export default function DashboardPage() {
   // periodi, con la parola giusta — è solo la card del saldo previsto a contare
   // per mese di calendario.
   const periodoParola = usaPeriodi ? 'periodo' : 'mese'
-  const fineLabel = currentMonth ? `al ${fullDate(currentMonth.periodEnd)}` : ''
 
   const summaryCards = isMobile ? (
     <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
@@ -399,10 +398,6 @@ export default function DashboardPage() {
         <p className="text-2xl font-semibold text-slate-900">
           {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
         </p>
-        {/* La data vera, presa dalla previsione: con il resto della pagina a
-            periodi, dire a quale giorno si riferisce il numero evita di
-            confonderlo col primo punto previsto del grafico. */}
-        {currentMonth && <p className="mt-0.5 text-xs text-slate-500">{fineLabel}</p>}
       </div>
     </div>
   )

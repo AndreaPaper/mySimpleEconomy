@@ -234,18 +234,16 @@ describe('la card del saldo previsto', () => {
   })
 
   /**
-   * La data per esteso è la fine del mese, non quella del periodo. Con il resto
-   * della pagina a periodi serve a dire a quale giorno si riferisce il numero
-   * grande: senza, lo si confonderebbe col primo punto previsto del grafico, che
-   * è un altro giorno e un altro numero.
+   * L'etichetta resta "a fine mese" anche con un accredito configurato, perché
+   * è del mese di calendario che la card parla. Sotto il numero non va nessuna
+   * data: "fine mese" dice già da sé qual è l'ultimo giorno.
    */
-  it('la data sotto la card è la fine del mese, anche con un accredito il 27', async () => {
+  it('parla di fine mese anche con un accredito il 27, e senza data sotto', async () => {
     server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
     mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
 
     expect(await screen.findByText('Saldo previsto a fine mese')).toBeInTheDocument()
-    expect(screen.getByText('al 31/03/2026')).toBeInTheDocument()
-    expect(screen.queryByText('al 26/04/2026')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^al /)).not.toBeInTheDocument()
   })
 
   /**
