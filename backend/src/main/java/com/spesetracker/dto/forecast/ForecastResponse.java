@@ -14,6 +14,12 @@ public record ForecastResponse(
         // Un elemento per periodo da stipendio a stipendio, dal periodo in corso
         // in avanti. Si chiamava months ed erano mesi di calendario: vedi
         // PeriodForecast per il perché del cambio.
-        List<PeriodForecast> periods
+        List<PeriodForecast> periods,
+        // Il mese di CALENDARIO in corso, la stessa previsione raggruppata in un
+        // altro modo. Serve alla card "Saldo previsto a fine mese": chi la guarda
+        // vuole sapere quanti soldi avrà il 30, non il giorno prima del prossimo
+        // stipendio, e con l'accredito a metà mese le due date non coincidono.
+        // Senza giorno di accredito configurato è identico a periods[0].
+        PeriodForecast currentMonth
 ) {
 }

@@ -234,10 +234,12 @@ export default function DashboardPage() {
   if (loading) return <DashboardPageSkeleton />
 
   const latestCheckpoint = checkpoints[0] ?? null
-  // Il periodo in corso: è il numero grande della card "Saldo previsto a fine
-  // periodo", ed è anche il primo punto previsto del grafico — gli stessi dati,
-  // non due calcoli diversi.
-  const currentPeriod = forecast?.periods[0] ?? null
+  // La card del saldo previsto conta invece il mese di calendario, e per questo
+  // legge un campo suo: guardandola si vuole sapere quanti soldi ci saranno a
+  // fine mese, stipendio nuovo compreso. È l'unico posto della Dashboard che
+  // non ragiona per periodi, quindi con un accredito a metà mese la sua cifra
+  // non è il primo punto previsto del grafico: sono due date diverse.
+  const currentMonth = forecast?.currentMonth ?? null
   const forecastPeriods = periodsDiff >= 0 ? forecast?.periods.slice(0, periodsParam) ?? [] : []
   const currentBalance = forecast?.currentBalance ?? latestCheckpoint?.balance ?? 0
 
@@ -363,18 +365,15 @@ export default function DashboardPage() {
   // Su mobile i due KPI stanno affiancati in una card sola invece che impilati:
   // erano due schermate di altezza per due numeri, e il primo scroll partiva
   // già senza aver visto niente. Le due tinte restano e fanno da divisorio.
-  // Con un accredito configurato "fine mese" sarebbe falso: il periodo finisce
-  // il giorno prima del prossimo stipendio, che quasi mai è l'ultimo del mese.
-  // Senza accredito periodo e mese coincidono, e "fine mese" è la parola che
-  // chi legge si aspetta.
   const usaPeriodi = salaryDay != null && salaryDay !== 1
-  const previstoLabel = usaPeriodi ? 'Previsto a fine periodo' : 'Previsto a fine mese'
-  // Stessa ragione per le card dei totali, il sottotitolo del grafico e il suo
-  // vuoto: i numeri che mostrano sono sempre stati quelli del periodo (li
-  // calcola currentPeriodKey), ma la parola diceva "mese". Con l'accredito a
-  // metà mese l'etichetta e la cifra non parlavano della stessa cosa.
+  const previstoLabel = 'Previsto a fine mese'
+  // Le card dei totali, il sottotitolo del grafico e il suo vuoto contano per
+  // periodo (li calcola currentPeriodKey) ma dicevano "mese": con l'accredito a
+  // metà mese l'etichetta e la cifra non parlavano della stessa cosa. Restano a
+  // periodi, con la parola giusta — è solo la card del saldo previsto a contare
+  // per mese di calendario.
   const periodoParola = usaPeriodi ? 'periodo' : 'mese'
-  const fineLabel = currentPeriod ? `al ${fullDate(currentPeriod.periodEnd)}` : ''
+  const fineLabel = currentMonth ? `al ${fullDate(currentMonth.periodEnd)}` : ''
 
   const summaryCards = isMobile ? (
     <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
@@ -385,7 +384,7 @@ export default function DashboardPage() {
       <div className="flex-1 bg-kpi-b p-3">
         <p className="text-xs text-slate-500">{previstoLabel}</p>
         <p className="text-lg font-semibold text-slate-900">
-          {currentPeriod ? currency.format(currentPeriod.runningBalance) : '-'}
+          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
         </p>
       </div>
     </div>
@@ -398,11 +397,12 @@ export default function DashboardPage() {
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-kpi-b p-4">
         <p className="text-sm text-slate-500">Saldo {previstoLabel.toLowerCase()}</p>
         <p className="text-2xl font-semibold text-slate-900">
-          {currentPeriod ? currency.format(currentPeriod.runningBalance) : '-'}
+          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
         </p>
-        {/* La data vera, presa dalla previsione: senza, "fine periodo" resta un
-            concetto e non si sa a quale giorno si riferisca il numero sopra. */}
-        {currentPeriod && <p className="mt-0.5 text-xs text-slate-500">{fineLabel}</p>}
+        {/* La data vera, presa dalla previsione: con il resto della pagina a
+            periodi, dire a quale giorno si riferisce il numero evita di
+            confonderlo col primo punto previsto del grafico. */}
+        {currentMonth && <p className="mt-0.5 text-xs text-slate-500">{fineLabel}</p>}
       </div>
     </div>
   )

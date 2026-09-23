@@ -202,42 +202,50 @@ describe('la card del saldo previsto', () => {
         categoryBreakdown: [],
       },
     ],
+    currentMonth: {
+      period: '2026-03',
+      periodStart: '2026-03-01',
+      periodEnd: '2026-03-31',
+      projectedIncome: 1800,
+      projectedExpense: 900,
+      netBalance: 900,
+      runningBalance: 1900,
+      categoryBreakdown: [],
+    },
     ...over,
   })
 
   /**
-   * La card mostra il PRIMO periodo della previsione, che è quello in corso, ed
-   * è lo stesso numero che il grafico disegna come primo punto previsto (vedi
-   * balanceSeries.test.ts). Prima card e grafico partivano da due periodi
-   * diversi e non combaciavano mai.
+   * La card conta il mese di CALENDARIO, mentre il resto della pagina conta da
+   * un accredito al successivo: chi la guarda vuole sapere quanti soldi avrà a
+   * fine mese, stipendio nuovo compreso.
+   *
+   * La previsione di prova mette due cifre diverse nei due campi apposta: 1.900
+   * per il mese, 2.150 per il periodo in corso. Leggendo il campo sbagliato la
+   * card mostrerebbe comunque un numero plausibile, ed è il modo peggiore di
+   * sbagliare — quindi il test controlla anche che l'altro NON compaia.
    */
-  it('mostra il saldo di fine periodo in corso', async () => {
+  it('mostra il saldo di fine mese di calendario, non quello di fine periodo', async () => {
     server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
     mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
 
-    expect(await screen.findByText(/2\.?150,00\s*€/)).toBeInTheDocument()
+    expect(await screen.findByText(/1\.?900,00\s*€/)).toBeInTheDocument()
+    expect(screen.queryByText(/2\.?150,00\s*€/)).not.toBeInTheDocument()
   })
 
   /**
-   * Con un accredito configurato "fine mese" sarebbe falso: il periodo finisce
-   * il giorno prima del prossimo stipendio. La data lo dice per esteso, così il
-   * numero sopra non resta senza una data a cui riferirsi.
+   * La data per esteso è la fine del mese, non quella del periodo. Con il resto
+   * della pagina a periodi serve a dire a quale giorno si riferisce il numero
+   * grande: senza, lo si confonderebbe col primo punto previsto del grafico, che
+   * è un altro giorno e un altro numero.
    */
-  it('con l accredito configurato parla di periodo e ne mostra la fine', async () => {
+  it('la data sotto la card è la fine del mese, anche con un accredito il 27', async () => {
     server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
     mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
 
-    expect(await screen.findByText('Saldo previsto a fine periodo')).toBeInTheDocument()
-    expect(screen.getByText('al 26/04/2026')).toBeInTheDocument()
-  })
-
-  // Senza accredito il periodo È il mese di calendario, e "fine mese" è la
-  // parola che chi legge si aspetta.
-  it('senza accredito resta "fine mese"', async () => {
-    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
-    mountPage(<DashboardPage />, { profile: { salaryDay: null } })
-
     expect(await screen.findByText('Saldo previsto a fine mese')).toBeInTheDocument()
+    expect(screen.getByText('al 31/03/2026')).toBeInTheDocument()
+    expect(screen.queryByText('al 26/04/2026')).not.toBeInTheDocument()
   })
 
   /**

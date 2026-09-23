@@ -93,6 +93,12 @@ export interface ForecastResponse {
   startingBalance: number
   currentBalance: number
   periods: PeriodForecast[]
+  // Il mese di CALENDARIO in corso: la stessa previsione raggruppata in un
+  // altro modo, per la card "Saldo previsto a fine mese". Il resto della
+  // pagina conta da un accredito al successivo; la card no, perché chi la
+  // guarda vuole sapere quanti soldi avrà il 30. Senza giorno di accredito
+  // configurato è identico a periods[0].
+  currentMonth: PeriodForecast
 }
 
 export interface BalanceCheckpoint {

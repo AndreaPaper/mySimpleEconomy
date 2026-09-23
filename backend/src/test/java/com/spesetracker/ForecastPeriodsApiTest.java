@@ -111,4 +111,41 @@ class ForecastPeriodsApiTest extends AbstractIntegrationTest {
         assertThat(periodo.get("projectedExpense").decimalValue()).isEqualByComparingTo("0");
         assertThat(periodo.get("runningBalance").decimalValue()).isEqualByComparingTo("800.00");
     }
+    /**
+     * La card "Saldo previsto a fine mese" conta il mese di CALENDARIO, non il
+     * periodo: chi la guarda vuole sapere quanti soldi avrà il 30, non il giorno
+     * prima del prossimo stipendio. Il resto della Dashboard resta a periodi.
+     *
+     * <p>Due asserzioni con due scopi. I confini sono la prova strutturale, vera
+     * qualunque sia il giorno di oggi: se currentMonth venisse calcolato col
+     * giorno di accredito, comincerebbe il 15 e non il primo. Le cifre sono la
+     * prova nel merito: una spesa del primo del mese prossimo non entra nel mese
+     * in corso nemmeno quando il periodo in corso la contiene.
+     */
+    @Test
+    void laCardDelMeseContaIlMeseDiCalendarioNonIlPeriodo() throws Exception {
+        String token = api.registerAndLogin();
+        impostaGiornoStipendio(token, 15);
+        String categoria = api.createExpenseCategory(token);
+
+        LocalDate oggi = LocalDate.now();
+        LocalDate primoDelMese = oggi.withDayOfMonth(1);
+        LocalDate primoDelMeseProssimo = primoDelMese.plusMonths(1);
+
+        api.createCheckpoint(token, primoDelMese.minusDays(1), "1000.00");
+        api.createTransaction(token, categoria, primoDelMese, "100.00", "EXPENSE");
+        api.createTransaction(token, categoria, primoDelMeseProssimo, "50.00", "EXPENSE");
+
+        JsonNode previsione = api.forecast(token, 2);
+        JsonNode mese = previsione.get("currentMonth");
+
+        assertThat(LocalDate.parse(mese.get("periodStart").asText())).isEqualTo(primoDelMese);
+        assertThat(LocalDate.parse(mese.get("periodEnd").asText()))
+                .isEqualTo(primoDelMeseProssimo.minusDays(1));
+        assertThat(mese.get("projectedExpense").decimalValue()).isEqualByComparingTo("100.00");
+        assertThat(mese.get("runningBalance").decimalValue()).isEqualByComparingTo("900.00");
+        // E il primo periodo resta un periodo, che comincia il 15.
+        assertThat(LocalDate.parse(previsione.get("periods").get(0).get("periodStart").asText())
+                .getDayOfMonth()).isEqualTo(15);
+    }
 }
