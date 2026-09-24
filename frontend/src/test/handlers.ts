@@ -55,6 +55,8 @@ export const previsioneVuota: ForecastResponse = {
     runningBalance: 0,
     categoryBreakdown: [],
   },
+  variableExpenseAverage: 0,
+  historyPeriods: 0,
 }
 
 export const paginaVuota: TransactionPage = { content: [], hasNext: false }

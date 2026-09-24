@@ -143,6 +143,19 @@ public class ApiTestClient {
         return json(result).get("id").asText();
     }
 
+    /** Un debito sulla categoria indicata, con la rata mensile data (o senza rata, se null). */
+    public String createDebt(String token, String categoryId, String total, String monthly) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/debts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":"%s","name":"Prestito","totalAmount":%s,"monthlyPaymentAmount":%s}
+                                """.formatted(categoryId, total, monthly)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return json(result).get("id").asText();
+    }
+
     /** Previsione dell'utente, già deserializzata. */
     public JsonNode forecast(String token, int periods) throws Exception {
         MvcResult result = mockMvc.perform(get("/api/forecast")

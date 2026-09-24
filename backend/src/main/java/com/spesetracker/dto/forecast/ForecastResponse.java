@@ -20,6 +20,12 @@ public record ForecastResponse(
         // vuole sapere quanti soldi avrà il 30, non il giorno prima del prossimo
         // stipendio, e con l'accredito a metà mese le due date non coincidono.
         // Senza giorno di accredito configurato è identico a periods[0].
-        PeriodForecast currentMonth
+        PeriodForecast currentMonth,
+        // L'ipotesi con cui è stata fatta la previsione di periods, che il frontend
+        // scrive sotto il grafico: la media delle SPESE variabili aggiunta a ogni
+        // periodo futuro, e su quanti periodi di storico è calcolata (da 0 a 6).
+        // Con 0 non c'è storico da cui stimare, e la media vale zero.
+        BigDecimal variableExpenseAverage,
+        int historyPeriods
 ) {
 }

@@ -309,3 +309,60 @@ describe('il grafico "Andamento saldo"', () => {
     expect(screen.getByText('apr 26')).toBeInTheDocument()
   })
 })
+
+describe("l'ipotesi sotto il grafico", () => {
+  /**
+   * La curva tratteggiata sale o scende per ragioni che il grafico da solo non
+   * dice. La riga sotto scrive quanto toglie di spese variabili e su quanto
+   * storico lo ha calcolato: quando la previsione sembra strana, la causa si
+   * legge lì invece che nel codice.
+   */
+  it('scrive la media delle spese variabili e su quanti periodi è calcolata', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json({ ...previsioneVuota, variableExpenseAverage: 850, historyPeriods: 3 }),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(
+      await screen.findByText(
+        'Oltre a entrate, spese fisse e rate dei debiti, la previsione toglie 850,00 € a periodo di spese variabili: la media degli ultimi 3 periodi.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  // Senza accredito il periodo è il mese, e con un solo mese di storico la frase
+  // va al singolare.
+  it('senza accredito parla di mesi, e al singolare con un mese solo', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json({ ...previsioneVuota, variableExpenseAverage: 120, historyPeriods: 1 }),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: null } })
+
+    expect(
+      await screen.findByText(
+        "Oltre a entrate, spese fisse e rate dei debiti, la previsione toglie 120,00 € a mese di spese variabili: la media dell'ultimo mese.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  /**
+   * Con lo storico a zero non c'è media da togliere, e una curva costruita solo
+   * su entrate e spese fisse sale quasi sempre: la riga lo dice, invece di
+   * lasciare che la curva finga di sapere.
+   */
+  it('senza storico dice che non ce n è abbastanza', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json({ ...previsioneVuota, historyPeriods: 0 })))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(
+      await screen.findByText(
+        "Non c'è ancora abbastanza storico per stimare le spese variabili: la previsione conta solo entrate, spese fisse e rate dei debiti.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/la previsione toglie/)).not.toBeInTheDocument()
+  })
+})

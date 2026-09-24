@@ -374,6 +374,20 @@ export default function DashboardPage() {
   // per mese di calendario.
   const periodoParola = usaPeriodi ? 'periodo' : 'mese'
 
+  // L'ipotesi della previsione, scritta sotto il grafico: senza, la curva
+  // tratteggiata sembra arrivare dal nulla, e quando sale troppo non si capisce
+  // perché. Con lo storico a zero lo si dice, invece di lasciare che una curva
+  // costruita solo su entrate e spese fisse finga di sapere.
+  const ipotesiPrevisione = !forecast
+    ? ''
+    : forecast.historyPeriods === 0
+      ? "Non c'è ancora abbastanza storico per stimare le spese variabili: la previsione conta solo entrate, spese fisse e rate dei debiti."
+      : `Oltre a entrate, spese fisse e rate dei debiti, la previsione toglie ${currency.format(forecast.variableExpenseAverage)} a ${periodoParola} di spese variabili: la media ${
+          forecast.historyPeriods === 1
+            ? `dell'ultimo ${periodoParola}`
+            : `degli ultimi ${forecast.historyPeriods} ${usaPeriodi ? 'periodi' : 'mesi'}`
+        }.`
+
   const summaryCards = isMobile ? (
     <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
       <div className="flex-1 bg-kpi-a p-3">
@@ -773,6 +787,9 @@ export default function DashboardPage() {
           />
         </ComposedChart>
       </ResponsiveContainer>
+      {ipotesiPrevisione && (
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{ipotesiPrevisione}</p>
+      )}
     </div>
   )
 

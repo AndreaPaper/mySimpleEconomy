@@ -99,6 +99,11 @@ export interface ForecastResponse {
   // guarda vuole sapere quanti soldi avrà il 30. Senza giorno di accredito
   // configurato è identico a periods[0].
   currentMonth: PeriodForecast
+  // L'ipotesi della previsione di `periods`, da scrivere sotto il grafico: la
+  // media delle spese variabili aggiunta a ogni periodo futuro, e su quanti
+  // periodi di storico è calcolata (0-6). Con 0 non c'è niente da cui stimare.
+  variableExpenseAverage: number
+  historyPeriods: number
 }
 
 export interface BalanceCheckpoint {

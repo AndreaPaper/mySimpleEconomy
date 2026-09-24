@@ -301,7 +301,11 @@ class ForecastApiTest extends AbstractIntegrationTest {
      * vere ci sono già. Nessun test la esercitava, quindi il meccanismo che riempie i mesi
      * in cui non è ancora successo nulla — cioè quasi tutto il grafico — non era provato.
      *
-     * <p>La finestra è di sei mesi: 60 € spesi in un mese passato valgono 10 € al mese.
+     * <p>60 € spesi nell'unico mese di storico valgono 60 € al mese. Questo test
+     * asseriva 10: la media divideva sempre per sei, anche con un mese solo di dati,
+     * e con poco storico le spese future valevano una frazione del reale mentre lo
+     * stipendio contava per intero — la curva del grafico saliva senza fine. Il
+     * divisore ora sono i periodi di storico che esistono (vedi ForecastEstimatesApiTest).
      */
     @Test
     void laMediaDelleSpeseVariabiliEntraSoloNeiMesiFuturi() throws Exception {
@@ -314,7 +318,7 @@ class ForecastApiTest extends AbstractIntegrationTest {
 
         // Il mese corrente non ha spese proprie: la media non lo tocca.
         assertThat(mesi.get(0).get("projectedExpense").decimalValue()).isEqualByComparingTo("0.00");
-        assertThat(mesi.get(1).get("projectedExpense").decimalValue()).isEqualByComparingTo("10.00");
+        assertThat(mesi.get(1).get("projectedExpense").decimalValue()).isEqualByComparingTo("60.00");
     }
 
     /**
