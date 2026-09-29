@@ -66,9 +66,13 @@ function monthLabelFull(yearMonth: string): string {
   return monthLabelFullFormatter.format(new Date(year, month - 1, 1))
 }
 
-function monthNameCapitalized(yearMonth: string): string {
+function monthName(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number)
-  const name = monthLabelFullFormatter.formatToParts(new Date(year, month - 1, 1)).find((p) => p.type === 'month')!.value
+  return monthLabelFullFormatter.formatToParts(new Date(year, month - 1, 1)).find((p) => p.type === 'month')!.value
+}
+
+function monthNameCapitalized(yearMonth: string): string {
+  const name = monthName(yearMonth)
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
@@ -234,12 +238,13 @@ export default function DashboardPage() {
   if (loading) return <DashboardPageSkeleton />
 
   const latestCheckpoint = checkpoints[0] ?? null
-  // La card del saldo previsto conta invece il mese di calendario, e per questo
+  // La card del saldo previsto conta invece per mese di calendario, e per questo
   // legge un campo suo: guardandola si vuole sapere quanti soldi ci saranno a
-  // fine mese, stipendio nuovo compreso. È l'unico posto della Dashboard che
-  // non ragiona per periodi, quindi con un accredito a metà mese la sua cifra
-  // non è il primo punto previsto del grafico: sono due date diverse.
-  const currentMonth = forecast?.currentMonth ?? null
+  // fine mese, stipendio in arrivo compreso — quindi, passato lo stipendio del
+  // mese, guarda alla fine del mese prossimo. È l'unico posto della Dashboard
+  // che non ragiona per periodi, quindi con un accredito a metà mese la sua
+  // cifra non è il primo punto previsto del grafico: sono due date diverse.
+  const monthEnd = forecast?.monthEndForecast ?? null
   const forecastPeriods = periodsDiff >= 0 ? forecast?.periods.slice(0, periodsParam) ?? [] : []
   const currentBalance = forecast?.currentBalance ?? latestCheckpoint?.balance ?? 0
 
@@ -366,7 +371,9 @@ export default function DashboardPage() {
   // erano due schermate di altezza per due numeri, e il primo scroll partiva
   // già senza aver visto niente. Le due tinte restano e fanno da divisorio.
   const usaPeriodi = salaryDay != null && salaryDay !== 1
-  const previstoLabel = 'Previsto a fine mese'
+  // Il mese per nome, non "fine mese": dopo lo stipendio la card guarda al mese
+  // prossimo, e "fine mese" lascerebbe intendere quello in corso.
+  const previstoLabel = monthEnd ? `Previsto a fine ${monthName(monthEnd.period)}` : 'Previsto a fine mese'
   // Le card dei totali, il sottotitolo del grafico e il suo vuoto contano per
   // periodo (li calcola currentPeriodKey) ma dicevano "mese": con l'accredito a
   // metà mese l'etichetta e la cifra non parlavano della stessa cosa. Restano a
@@ -397,7 +404,7 @@ export default function DashboardPage() {
       <div className="flex-1 bg-kpi-b p-3">
         <p className="text-xs text-slate-500">{previstoLabel}</p>
         <p className="text-lg font-semibold text-slate-900">
-          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
+          {monthEnd ? currency.format(monthEnd.runningBalance) : '-'}
         </p>
       </div>
     </div>
@@ -410,7 +417,7 @@ export default function DashboardPage() {
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-kpi-b p-4">
         <p className="text-sm text-slate-500">Saldo {previstoLabel.toLowerCase()}</p>
         <p className="text-2xl font-semibold text-slate-900">
-          {currentMonth ? currency.format(currentMonth.runningBalance) : '-'}
+          {monthEnd ? currency.format(monthEnd.runningBalance) : '-'}
         </p>
       </div>
     </div>

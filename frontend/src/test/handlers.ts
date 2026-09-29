@@ -45,7 +45,7 @@ export const previsioneVuota: ForecastResponse = {
   startingBalance: 0,
   currentBalance: 0,
   periods: [],
-  currentMonth: {
+  monthEndForecast: {
     period: '2026-03',
     periodStart: '2026-03-01',
     periodEnd: '2026-03-31',

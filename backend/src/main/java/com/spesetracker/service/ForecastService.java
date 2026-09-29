@@ -122,14 +122,21 @@ public class ForecastService {
         Integer salaryDay = SalaryPeriods.of(user.getSalaryDay());
         YearMonth currentPeriod = SalaryPeriods.periodOf(today, salaryDay);
         YearMonth currentMonth = YearMonth.from(today);
+        // Il mese la cui fine mostra la card "Saldo previsto a fine …": quello in cui
+        // arriva il prossimo stipendio, così la card lo contiene sempre. Coincide col
+        // nome del periodo in corso, che prende il nome dal mese in cui finisce — e il
+        // giorno dopo la fine è l'accredito. Con accredito il 27: il 23 settembre è
+        // settembre, il 29 è già ottobre (lo stipendio di settembre è arrivato, quello
+        // in arrivo è di ottobre). Senza accredito è il mese in corso.
+        YearMonth monthEndTarget = currentPeriod;
 
         // L'orizzonte da leggere copre entrambe le letture. Con l'accredito a metà
-        // mese la fine del mese di calendario può cadere oltre la fine dell'ultimo
+        // mese la fine del mese della card può cadere oltre la fine dell'ultimo
         // periodo chiesto (accredito il 15, oggi il 5 ottobre: il periodo in corso
-        // finisce il 14, il mese il 31), e viceversa.
+        // finisce il 14, la card guarda al 31), e viceversa.
         LocalDate horizonEndDate = latest(
                 SalaryPeriods.periodEnd(currentPeriod.plusMonths(periods - 1L), salaryDay),
-                currentMonth.atEndOfMonth());
+                monthEndTarget.atEndOfMonth());
 
         Optional<BalanceCheckpoint> checkpoint = balanceCheckpointRepository
                 .findFirstByUserIdAndCheckpointDateLessThanEqualOrderByCheckpointDateDesc(userId, today);
@@ -222,18 +229,21 @@ public class ForecastService {
                 reminders, reminderAmounts, historicalWindow, debts, debtCategoryIds, categoryLookup, new HashMap<>());
 
         Built byPeriod = build(inputs, salaryDay, currentPeriod, periods);
-        // La card "Saldo previsto a fine mese" vuole il mese di calendario, non il
-        // periodo: chi la guarda vuole sapere quanti soldi avrà il 30, non il giorno
-        // prima del prossimo stipendio. Stesso calcolo, raggruppato per mese —
-        // esattamente ciò che si ottiene ignorando il giorno di accredito.
-        PeriodForecast currentMonthForecast = build(inputs, null, currentMonth, 1).buckets().get(0);
+        // La card vuole mesi di calendario, non periodi: chi la guarda vuole sapere
+        // quanti soldi avrà a fine mese, stipendio in arrivo compreso. Stesso calcolo,
+        // raggruppato per mese — esattamente ciò che si ottiene ignorando il giorno di
+        // accredito — partendo dal mese in corso, perché il saldo a fine del mese
+        // prossimo passa anche per il resto di questo.
+        int monthsToTarget = (int) currentMonth.until(monthEndTarget, ChronoUnit.MONTHS);
+        List<PeriodForecast> months = build(inputs, null, currentMonth, monthsToTarget + 1).buckets();
+        PeriodForecast monthEndForecast = months.get(monthsToTarget);
 
         return new ForecastResponse(
                 checkpoint.map(BalanceCheckpoint::getCheckpointDate).orElse(null),
                 checkpointBalance,
                 currentBalance,
                 byPeriod.buckets(),
-                currentMonthForecast,
+                monthEndForecast,
                 byPeriod.variableExpenseAverage(),
                 byPeriod.historyPeriods()
         );

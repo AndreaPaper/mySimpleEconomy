@@ -93,12 +93,12 @@ export interface ForecastResponse {
   startingBalance: number
   currentBalance: number
   periods: PeriodForecast[]
-  // Il mese di CALENDARIO in corso: la stessa previsione raggruppata in un
-  // altro modo, per la card "Saldo previsto a fine mese". Il resto della
-  // pagina conta da un accredito al successivo; la card no, perché chi la
-  // guarda vuole sapere quanti soldi avrà il 30. Senza giorno di accredito
-  // configurato è identico a periods[0].
-  currentMonth: PeriodForecast
+  // Il mese di CALENDARIO la cui fine mostra la card "Saldo previsto a fine …":
+  // quello in cui arriva il prossimo stipendio, così la card lo contiene
+  // sempre. Passato l'accredito del mese è il mese prossimo, prima è questo;
+  // senza giorno di accredito è sempre il mese in corso. Il resto della pagina
+  // conta da un accredito al successivo; la card no.
+  monthEndForecast: PeriodForecast
   // L'ipotesi della previsione di `periods`, da scrivere sotto il grafico: la
   // media delle spese variabili aggiunta a ogni periodo futuro, e su quanti
   // periodi di storico è calcolata (0-6). Con 0 non c'è niente da cui stimare.

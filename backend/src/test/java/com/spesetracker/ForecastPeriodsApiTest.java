@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -111,41 +113,83 @@ class ForecastPeriodsApiTest extends AbstractIntegrationTest {
         assertThat(periodo.get("projectedExpense").decimalValue()).isEqualByComparingTo("0");
         assertThat(periodo.get("runningBalance").decimalValue()).isEqualByComparingTo("800.00");
     }
+    // ------------------------------------------------------------------
+    // La card "Saldo previsto a fine …"
+    //
+    // Conta per mese di CALENDARIO, non per periodo, e guarda alla fine del mese
+    // in cui arriva il prossimo stipendio, così lo contiene sempre: chi la guarda
+    // vuole sapere quanti soldi avrà a fine mese, stipendio in arrivo compreso.
+    // Guardava sempre al mese in corso, e dal giorno dello stipendio a fine mese
+    // mostrava lo stesso numero del saldo attuale.
+    //
+    // I due test che seguono scelgono il giorno di accredito rispetto a oggi, per
+    // cadere sempre nel ramo che vogliono provare. Uno dei due rami non esiste in
+    // certi giorni — il primo del mese non c'è un accredito già passato, l'ultimo
+    // non ce n'è uno ancora da arrivare — e lì il test si salta invece di provare
+    // la cosa sbagliata.
+    // ------------------------------------------------------------------
+
     /**
-     * La card "Saldo previsto a fine mese" conta il mese di CALENDARIO, non il
-     * periodo: chi la guarda vuole sapere quanti soldi avrà il 30, non il giorno
-     * prima del prossimo stipendio. Il resto della Dashboard resta a periodi.
-     *
-     * <p>Due asserzioni con due scopi. I confini sono la prova strutturale, vera
-     * qualunque sia il giorno di oggi: se currentMonth venisse calcolato col
-     * giorno di accredito, comincerebbe il 15 e non il primo. Le cifre sono la
-     * prova nel merito: una spesa del primo del mese prossimo non entra nel mese
-     * in corso nemmeno quando il periodo in corso la contiene.
+     * Prima dello stipendio del mese la card guarda alla fine di questo mese, e
+     * lo stipendio in arrivo c'è dentro.
      */
     @Test
-    void laCardDelMeseContaIlMeseDiCalendarioNonIlPeriodo() throws Exception {
-        String token = api.registerAndLogin();
-        impostaGiornoStipendio(token, 15);
-        String categoria = api.createExpenseCategory(token);
-
+    void primaDelloStipendioLaCardGuardaAFineDiQuestoMese() throws Exception {
         LocalDate oggi = LocalDate.now();
-        LocalDate primoDelMese = oggi.withDayOfMonth(1);
-        LocalDate primoDelMeseProssimo = primoDelMese.plusMonths(1);
+        assumeTrue(oggi.getDayOfMonth() < oggi.lengthOfMonth(), "l'ultimo giorno del mese non c'è un accredito ancora da arrivare");
+        String token = api.registerAndLogin();
+        impostaGiornoStipendio(token, oggi.getDayOfMonth() + 1);
+        String stipendio = api.createIncomeCategory(token);
+        api.createCheckpoint(token, oggi, "1000.00");
+        api.createRecurring(token, stipendio, "Stipendio", "2000.00", oggi.plusDays(1));
 
-        api.createCheckpoint(token, primoDelMese.minusDays(1), "1000.00");
-        api.createTransaction(token, categoria, primoDelMese, "100.00", "EXPENSE");
-        api.createTransaction(token, categoria, primoDelMeseProssimo, "50.00", "EXPENSE");
+        JsonNode mese = api.forecast(token, 2).get("monthEndForecast");
 
-        JsonNode previsione = api.forecast(token, 2);
-        JsonNode mese = previsione.get("currentMonth");
+        assertThat(mese.get("period").asText()).isEqualTo(YearMonth.from(oggi).toString());
+        assertThat(LocalDate.parse(mese.get("periodStart").asText())).isEqualTo(oggi.withDayOfMonth(1));
+        assertThat(LocalDate.parse(mese.get("periodEnd").asText())).isEqualTo(YearMonth.from(oggi).atEndOfMonth());
+        assertThat(mese.get("projectedIncome").decimalValue()).isEqualByComparingTo("2000.00");
+        assertThat(mese.get("runningBalance").decimalValue()).isEqualByComparingTo("3000.00");
+    }
 
-        assertThat(LocalDate.parse(mese.get("periodStart").asText())).isEqualTo(primoDelMese);
-        assertThat(LocalDate.parse(mese.get("periodEnd").asText()))
-                .isEqualTo(primoDelMeseProssimo.minusDays(1));
-        assertThat(mese.get("projectedExpense").decimalValue()).isEqualByComparingTo("100.00");
-        assertThat(mese.get("runningBalance").decimalValue()).isEqualByComparingTo("900.00");
-        // E il primo periodo resta un periodo, che comincia il 15.
-        assertThat(LocalDate.parse(previsione.get("periods").get(0).get("periodStart").asText())
-                .getDayOfMonth()).isEqualTo(15);
+    /**
+     * Passato lo stipendio del mese la card guarda alla fine del mese prossimo,
+     * dove cade quello in arrivo. Il saldo passa anche per il resto di questo
+     * mese: la spesa dell'ultimo giorno ci deve essere.
+     *
+     * <p>Guardando al mese in corso — com'era — il periodo sarebbe questo, e lo
+     * stipendio in arrivo non ci sarebbe: è il caso segnalato, una card uguale al
+     * saldo attuale negli ultimi giorni del mese.
+     */
+    @Test
+    void passatoLoStipendioLaCardGuardaAFineDelMeseProssimo() throws Exception {
+        LocalDate oggi = LocalDate.now();
+        assumeTrue(oggi.getDayOfMonth() >= 2, "nessun accredito già passato il primo del mese");
+        String token = api.registerAndLogin();
+        impostaGiornoStipendio(token, 2);
+        String stipendio = api.createIncomeCategory(token);
+        String spesa = api.createExpenseCategory(token);
+        YearMonth prossimo = YearMonth.from(oggi).plusMonths(1);
+        api.createCheckpoint(token, oggi.withDayOfMonth(1).minusDays(1), "1000.00");
+        api.createTransaction(token, spesa, YearMonth.from(oggi).atEndOfMonth(), "100.00", "EXPENSE");
+        api.createRecurring(token, stipendio, "Stipendio", "2000.00", prossimo.atDay(2));
+
+        JsonNode mese = api.forecast(token, 2).get("monthEndForecast");
+
+        assertThat(mese.get("period").asText()).isEqualTo(prossimo.toString());
+        assertThat(LocalDate.parse(mese.get("periodStart").asText())).isEqualTo(prossimo.atDay(1));
+        assertThat(LocalDate.parse(mese.get("periodEnd").asText())).isEqualTo(prossimo.atEndOfMonth());
+        assertThat(mese.get("projectedIncome").decimalValue()).isEqualByComparingTo("2000.00");
+        assertThat(mese.get("runningBalance").decimalValue()).isEqualByComparingTo("2900.00");
+    }
+
+    /** Senza giorno di accredito non c'è uno stipendio da inseguire: il mese è quello in corso. */
+    @Test
+    void senzaAccreditoLaCardGuardaAlMeseInCorso() throws Exception {
+        String token = api.registerAndLogin();
+
+        JsonNode mese = api.forecast(token, 2).get("monthEndForecast");
+
+        assertThat(mese.get("period").asText()).isEqualTo(YearMonth.now().toString());
     }
 }

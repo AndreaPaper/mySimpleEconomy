@@ -15,12 +15,13 @@ public record ForecastResponse(
         // in avanti. Si chiamava months ed erano mesi di calendario: vedi
         // PeriodForecast per il perché del cambio.
         List<PeriodForecast> periods,
-        // Il mese di CALENDARIO in corso, la stessa previsione raggruppata in un
-        // altro modo. Serve alla card "Saldo previsto a fine mese": chi la guarda
-        // vuole sapere quanti soldi avrà il 30, non il giorno prima del prossimo
-        // stipendio, e con l'accredito a metà mese le due date non coincidono.
-        // Senza giorno di accredito configurato è identico a periods[0].
-        PeriodForecast currentMonth,
+        // Il mese di CALENDARIO la cui fine mostra la card "Saldo previsto a fine …":
+        // quello in cui arriva il prossimo stipendio, così la card lo contiene
+        // sempre. Passato l'accredito del mese è il mese prossimo, prima è questo;
+        // senza giorno di accredito è sempre il mese in corso, identico a periods[0].
+        // Si chiamava currentMonth, nome diventato falso quando la card ha
+        // cominciato a guardare al mese prossimo dopo lo stipendio.
+        PeriodForecast monthEndForecast,
         // L'ipotesi con cui è stata fatta la previsione di periods, che il frontend
         // scrive sotto il grafico: la media delle SPESE variabili aggiunta a ogni
         // periodo futuro, e su quanti periodi di storico è calcolata (da 0 a 6).

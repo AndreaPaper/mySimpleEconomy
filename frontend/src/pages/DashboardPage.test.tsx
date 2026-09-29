@@ -202,7 +202,7 @@ describe('la card del saldo previsto', () => {
         categoryBreakdown: [],
       },
     ],
-    currentMonth: {
+    monthEndForecast: {
       period: '2026-03',
       periodStart: '2026-03-01',
       periodEnd: '2026-03-31',
@@ -234,16 +234,48 @@ describe('la card del saldo previsto', () => {
   })
 
   /**
-   * L'etichetta resta "a fine mese" anche con un accredito configurato, perché
-   * è del mese di calendario che la card parla. Sotto il numero non va nessuna
-   * data: "fine mese" dice già da sé qual è l'ultimo giorno.
+   * L'etichetta nomina il mese, preso dalla previsione. Passato lo stipendio la
+   * card guarda al mese prossimo, e "fine mese" lascerebbe intendere quello in
+   * corso. Sotto il numero non va nessuna data: "fine marzo" dice già da sé qual
+   * è l'ultimo giorno.
    */
-  it('parla di fine mese anche con un accredito il 27, e senza data sotto', async () => {
+  it('nomina il mese di cui mostra la fine, senza data sotto', async () => {
     server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
     mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
 
-    expect(await screen.findByText('Saldo previsto a fine mese')).toBeInTheDocument()
+    expect(await screen.findByText('Saldo previsto a fine marzo')).toBeInTheDocument()
     expect(screen.queryByText(/^al /)).not.toBeInTheDocument()
+  })
+
+  /**
+   * Il caso segnalato: il 15 marzo con accredito il 27 lo stipendio di marzo non
+   * è ancora arrivato, ma quando il backend guarda già al mese prossimo — com'è
+   * dal 27 in poi — l'etichetta lo deve dire. Il mese lo decide il backend; qui si
+   * prova che la pagina non lo riscrive per conto suo come "mese in corso".
+   */
+  it('quando il backend guarda al mese prossimo, lo nomina', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json(
+          previsione({
+            monthEndForecast: {
+              period: '2026-04',
+              periodStart: '2026-04-01',
+              periodEnd: '2026-04-30',
+              projectedIncome: 1800,
+              projectedExpense: 900,
+              netBalance: 900,
+              runningBalance: 2800,
+              categoryBreakdown: [],
+            },
+          }),
+        ),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('Saldo previsto a fine aprile')).toBeInTheDocument()
+    expect(screen.getByText(/2\.?800,00\s*€/)).toBeInTheDocument()
   })
 
   /**
