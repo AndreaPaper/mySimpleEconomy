@@ -10,6 +10,4 @@ import java.util.UUID;
 public interface BankCategoryMappingRepository extends JpaRepository<BankCategoryMapping, UUID> {
 
     List<BankCategoryMapping> findByUserIdAndSource(UUID userId, BankSource source);
-
-    void deleteByUserIdAndSource(UUID userId, BankSource source);
 }

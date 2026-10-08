@@ -22,9 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -144,22 +144,33 @@ public class BankImportCommitService {
             List<BankCategoryMappingDto> mappings, Map<UUID, Category> categories) {
         if (mappings.isEmpty()) return 0;
 
-        List<BankCategoryMapping> toSave = new ArrayList<>();
+        // Si aggiornano solo le corrispondenze di questo import e si lasciano le altre.
+        // Prima le si cancellava tutte e si salvavano solo queste — ma il frontend manda
+        // solo le categorie della banca che l'analisi non conosceva ancora, quindi ogni
+        // import buttava via quelle decise negli import precedenti, e l'app tornava a
+        // chiederle ("dagli import successivi non te lo chiederò più" era falso).
+        Map<String, BankCategoryMapping> existing = new HashMap<>();
+        for (BankCategoryMapping m : mappingRepository.findByUserIdAndSource(userId, source)) {
+            existing.put(BankImportAnalysisService.mappingKey(m.getBankCategory(), m.getTransactionType()), m);
+        }
+
+        Map<String, BankCategoryMapping> toSave = new LinkedHashMap<>();
         for (BankCategoryMappingDto dto : mappings) {
             if (!dto.isResolved()) continue;
-            toSave.add(BankCategoryMapping.builder()
+            String label = BankImportAnalysisService.bankCategoryLabel(dto.bankCategory());
+            String key = BankImportAnalysisService.mappingKey(label, dto.transactionType());
+            BankCategoryMapping mapping = existing.getOrDefault(key, BankCategoryMapping.builder()
                     .user(user)
                     .source(source)
-                    .bankCategory(BankImportAnalysisService.bankCategoryLabel(dto.bankCategory()))
+                    .bankCategory(label)
                     .transactionType(dto.transactionType())
-                    .category(dto.doNotImport() ? null : requireCategory(categories, dto.categoryId()))
                     .build());
+            mapping.setCategory(dto.doNotImport() ? null : requireCategory(categories, dto.categoryId()));
+            toSave.put(key, mapping);
         }
         if (toSave.isEmpty()) return 0;
 
-        mappingRepository.deleteByUserIdAndSource(userId, source);
-        mappingRepository.flush();
-        mappingRepository.saveAll(toSave);
+        mappingRepository.saveAll(toSave.values());
         return toSave.size();
     }
 

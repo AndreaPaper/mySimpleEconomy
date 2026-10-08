@@ -104,6 +104,49 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------
+    // Le corrispondenze restano da un import all'altro
+    // ------------------------------------------------------------------
+
+    /**
+     * Ogni import cancellava le corrispondenze decise in quelli precedenti. Il frontend
+     * manda solo le categorie della banca che l'analisi non conosceva ancora, e il
+     * salvataggio buttava via tutto il resto: l'app tornava a chiedere categorie a cui
+     * si era già risposto. Qui due import decidono due categorie della banca diverse, e
+     * la prima deve esserci ancora dopo la seconda.
+     */
+    @Test
+    void leCorrispondenzeDiUnImportRestanoDopoQuelloSuccessivo() throws Exception {
+        String token = api.registerAndLogin();
+        String salute = api.createExpenseCategory(token);
+        String spesa = api.createExpenseCategory(token);
+        mappa(token, "Salute", salute);
+        mappa(token, "Supermercato", spesa);
+
+        JsonNode preview = analyze(token, workbook(List.of(spesa(57.40))));
+
+        assertThat(preview.get("unmappedCategories")).isEmpty();
+        assertThat(preview.get("rows").get(0).get("categoryId").asText()).isEqualTo(salute);
+    }
+
+    /**
+     * Decisa di nuovo, una corrispondenza si aggiorna invece di aggiungersi: c'è un
+     * vincolo di unicità su (utente, banca, categoria della banca, tipo), e un secondo
+     * inserimento farebbe fallire l'intero import.
+     */
+    @Test
+    void unaCorrispondenzaDecisaDiNuovoSiAggiorna() throws Exception {
+        String token = api.registerAndLogin();
+        String prima = api.createExpenseCategory(token);
+        String dopo = api.createExpenseCategory(token);
+        mappa(token, "Salute", prima);
+        mappa(token, "Salute", dopo);
+
+        JsonNode preview = analyze(token, workbook(List.of(spesa(57.40))));
+
+        assertThat(preview.get("rows").get(0).get("categoryId").asText()).isEqualTo(dopo);
+    }
+
+    // ------------------------------------------------------------------
     // SOSPETTO_MANUALE
     // ------------------------------------------------------------------
 
