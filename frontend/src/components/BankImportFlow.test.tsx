@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import BankImportFlow from './BankImportFlow'
-import { bankImportApi } from '../api/endpoints'
+import { bankImportApi, categoriesApi } from '../api/endpoints'
 import type {
   BankCategoryMappingDto,
   BankImportPreviewResponse,
@@ -27,10 +27,14 @@ vi.mock('../api/endpoints', () => ({
     commit: vi.fn(),
     createCategoriesFromBank: vi.fn(),
   },
+  categoriesApi: {
+    create: vi.fn(),
+  },
 }))
 
 const analyze = vi.mocked(bankImportApi.analyze)
 const commit = vi.mocked(bankImportApi.commit)
+const creaCategoria = vi.mocked(categoriesApi.create)
 
 const categorie: Category[] = [
   { id: 'cat-casa', name: 'Casa', type: 'EXPENSE', color: '#A8C7E7', icon: null, parentId: null } as Category,
@@ -379,5 +383,117 @@ describe('le escluse che si decide di far entrare', () => {
 
     // La riga nuova arriva con la categoria della mappatura: niente da scegliere.
     expect(screen.queryByLabelText(/Categoria per/)).not.toBeInTheDocument()
+  })
+})
+
+describe('la categoria della banca si può riportare a "nessuna"', () => {
+  // Due movimenti nella stessa categoria della banca, che sono spese diverse.
+  const dueMovimenti = () =>
+    anteprima({
+      rows: [
+        riga({ rowNumber: 1, categoryId: null, description: 'Bonifico affitto' }),
+        riga({ rowNumber: 2, categoryId: null, description: 'Bonifico psicologo', rawDetails: 'SEDUTA' }),
+      ],
+      unmappedCategories: [mappatura({ categoryId: null, rowCount: 2 })],
+      summary: { ...anteprima().summary, rowsInFile: 2, nuove: 2, categorieDaMappare: 1 },
+    })
+
+  const scegli = async (grilletto: HTMLElement, voce: RegExp) => {
+    await userEvent.click(grilletto)
+    await userEvent.click(screen.getByRole('option', { name: voce }))
+  }
+
+  /**
+   * Il caso segnalato. Scelta una categoria per la categoria della banca, non
+   * c'era modo di toglierla: aprendo i movimenti per darne una a ciascuno,
+   * quelli non toccati la ereditavano. "Nessuna categoria" la riporta al vuoto,
+   * e allora si prosegue solo quando ogni movimento ha la sua.
+   *
+   * Il carico finale controlla anche il lato che non si vede: la corrispondenza
+   * parte vuota, quindi il backend non la ricorda per gli import futuri.
+   */
+  it('tolta la categoria, ogni movimento prende la sua e niente eredita quella tolta', async () => {
+    await analizza(dueMovimenti())
+
+    const [grillettoBanca] = document.querySelectorAll<HTMLButtonElement>('[aria-haspopup="listbox"]')
+    await scegli(grillettoBanca, /Salute/)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continua' })).toBeEnabled())
+
+    await scegli(grillettoBanca, /Nessuna categoria/)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continua' })).toBeDisabled())
+
+    await userEvent.click(screen.getByRole('button', { name: /Vedi i 2 movimenti/ }))
+    const [, primo, secondo] = document.querySelectorAll<HTMLButtonElement>('[aria-haspopup="listbox"]')
+    await scegli(primo, /Casa/)
+    expect(screen.getByRole('button', { name: 'Continua' })).toBeDisabled()
+    await scegli(secondo, /Salute/)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continua' })).toBeEnabled())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continua' }))
+    await userEvent.click(await screen.findByRole('button', { name: /Importa 2 movimenti/i }))
+
+    await waitFor(() => expect(commit).toHaveBeenCalledTimes(1))
+    const carico = commit.mock.calls[0][0]
+    expect(carico.rows.map((r) => r.categoryId)).toEqual(['cat-casa', 'cat-salute'])
+    expect(carico.mappings[0]).toMatchObject({ categoryId: null, doNotImport: false })
+  })
+})
+
+describe('una categoria nuova creata dall import', () => {
+  /**
+   * Dal selettore della categoria della banca si crea una categoria, che viene
+   * assegnata subito a chi l'ha chiesta: senza, bisognava uscire dall'import,
+   * crearla in Categorie e ricominciare da capo.
+   */
+  it('si crea dal selettore e viene assegnata alla categoria della banca', async () => {
+    const nuova = { id: 'cat-nuova', name: 'Psicologo', type: 'EXPENSE', color: '#A8C7E7', icon: null, parentId: null } as Category
+    creaCategoria.mockResolvedValue(nuova)
+    const onCategoriesChanged = vi.fn()
+    analyze.mockResolvedValue(
+      anteprima({
+        rows: [riga({ categoryId: null })],
+        unmappedCategories: [mappatura({ categoryId: null })],
+        summary: { ...anteprima().summary, categorieDaMappare: 1 },
+      }),
+    )
+    render(withQueryClient(<BankImportFlow categories={categorie} onCategoriesChanged={onCategoriesChanged} />))
+    await userEvent.upload(document.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'e.xlsx'))
+    await userEvent.click(screen.getByRole('button', { name: /Analizza/i }))
+
+    await screen.findByRole('button', { name: 'Continua' })
+    await userEvent.click(document.querySelector('[aria-haspopup="listbox"]') as HTMLButtonElement)
+    await userEvent.click(screen.getByRole('button', { name: /Nuova categoria/ }))
+    await userEvent.type(screen.getByLabelText('Nome'), 'Psicologo')
+    await userEvent.click(screen.getByRole('button', { name: 'Salva' }))
+
+    await waitFor(() => expect(creaCategoria).toHaveBeenCalledTimes(1))
+    expect(creaCategoria.mock.calls[0][0]).toMatchObject({ name: 'Psicologo', type: 'EXPENSE' })
+    expect(onCategoriesChanged).toHaveBeenCalled()
+    // Assegnata subito, e visibile per nome: la lista del chiamante non è ancora
+    // stata ricaricata, ma il selettore la conosce già.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continua' })).toBeEnabled())
+    expect(screen.getByText('Psicologo')).toBeInTheDocument()
+  })
+
+  // Da una categoria di entrate il modulo parte già su "Entrata": scordarsi di
+  // cambiarlo creerebbe una categoria di uscita che la riga non può usare.
+  it('da una categoria di entrate la crea di entrata senza doverlo cambiare', async () => {
+    creaCategoria.mockResolvedValue({ id: 'cat-bonus', name: 'Bonus', type: 'INCOME' } as Category)
+    await analizza(
+      anteprima({
+        rows: [riga({ categoryId: null, type: 'INCOME', amount: 300, bankCategory: 'Accrediti' })],
+        unmappedCategories: [mappatura({ categoryId: null, transactionType: 'INCOME', bankCategory: 'Accrediti' })],
+        summary: { ...anteprima().summary, categorieDaMappare: 1 },
+      }),
+    )
+
+    await screen.findByRole('button', { name: 'Continua' })
+    await userEvent.click(document.querySelector('[aria-haspopup="listbox"]') as HTMLButtonElement)
+    await userEvent.click(screen.getByRole('button', { name: /Nuova categoria/ }))
+    await userEvent.type(screen.getByLabelText('Nome'), 'Bonus')
+    await userEvent.click(screen.getByRole('button', { name: 'Salva' }))
+
+    await waitFor(() => expect(creaCategoria).toHaveBeenCalledTimes(1))
+    expect(creaCategoria.mock.calls[0][0]).toMatchObject({ name: 'Bonus', type: 'INCOME' })
   })
 })

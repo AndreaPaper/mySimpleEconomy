@@ -17,11 +17,14 @@ interface CategoryFormProps {
     parentId: string | null
   }) => Promise<void>
   onCancel: () => void
+  // Il tipo da cui partire per una categoria nuova: chi la crea da un selettore
+  // delle entrate non deve ricordarsi di cambiarlo. Ignorato con `initial`.
+  defaultType?: CategoryType
 }
 
-export default function CategoryForm({ initial, categories, onSubmit, onCancel }: CategoryFormProps) {
+export default function CategoryForm({ initial, categories, onSubmit, onCancel, defaultType }: CategoryFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [type, setType] = useState<CategoryType>(initial?.type ?? 'EXPENSE')
+  const [type, setType] = useState<CategoryType>(initial?.type ?? defaultType ?? 'EXPENSE')
   const [color, setColor] = useState<string | null>(initial?.color ?? CATEGORY_COLORS[0])
   const [icon, setIcon] = useState<string | null>(initial?.icon ?? null)
   const [parentId, setParentId] = useState<string | null>(initial?.parentId ?? null)
