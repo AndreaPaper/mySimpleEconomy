@@ -261,6 +261,57 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         assertThat(esiti(analyze(token, workbook(List.of(spesa(57.40)))))).containsExactly("NUOVA");
     }
 
+    // La categoria della riga, quando è già nota, decide quanto devono somigliarsi gli
+    // importi. Il caso segnalato: una spesa da 8,61 € da In's Mercato, categoria
+    // Supermercato, accostata all'abbonamento Apple TV da 9,99 € della stessa settimana
+    // — dentro il 20%, e con una spesa che con l'abbonamento non c'entra niente.
+
+    private Movimento supermercato(double importo) {
+        return new Movimento(DATA, "In's Mercato Spa", "IN'S MERCATO SPA CDC 519 Carta n.5397",
+                true, "Supermercato", -importo);
+    }
+
+    @Test
+    void unaSpesaDiUnAltraCategoriaNonVieneAccostataAUnaRicorrenteSimile() throws Exception {
+        String token = api.registerAndLogin();
+        String abbonamenti = api.createExpenseCategory(token);
+        String spesa = api.createExpenseCategory(token);
+        creaRicorrente(token, abbonamenti, "Apple TV", "9.99", DATA.plusDays(5));
+        mappa(token, "Supermercato", spesa);
+
+        assertThat(esiti(analyze(token, workbook(List.of(supermercato(8.61)))))).containsExactly("NUOVA");
+    }
+
+    /**
+     * Il verso opposto, che impedisce alla correzione di diventare un buco: con
+     * categorie diverse un importo <em>identico</em> viene ancora segnalato. Un
+     * abbonamento costa sempre uguale, e la banca può classificarlo a modo suo, in una
+     * categoria che non è quella in cui l'utente ha messo la regola.
+     */
+    @Test
+    void conCategorieDiverseLImportoIdenticoVieneAncoraSegnalato() throws Exception {
+        String token = api.registerAndLogin();
+        String abbonamenti = api.createExpenseCategory(token);
+        String spesa = api.createExpenseCategory(token);
+        creaRicorrente(token, abbonamenti, "Apple TV", "9.99", DATA.plusDays(5));
+        mappa(token, "Supermercato", spesa);
+
+        assertThat(esiti(analyze(token, workbook(List.of(supermercato(9.99))))))
+                .containsExactly("SOSPETTO_RICORRENTE");
+    }
+
+    /** Con la stessa categoria della regola resta la tolleranza: le bollette variano. */
+    @Test
+    void conLaStessaCategoriaDellaRegolaValeAncoraLaTolleranza() throws Exception {
+        String token = api.registerAndLogin();
+        String utenze = api.createExpenseCategory(token);
+        creaRicorrente(token, utenze, "Bolletta luce", "60.00", DATA.plusDays(2));
+        mappa(token, "Salute", utenze);
+
+        assertThat(esiti(analyze(token, workbook(List.of(spesa(57.40))))))
+                .containsExactly("SOSPETTO_RICORRENTE");
+    }
+
     // ------------------------------------------------------------------
     // Le guardie del commit
     // ------------------------------------------------------------------
@@ -429,6 +480,19 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         JsonNode preview = analyze(token, file);
         commit(token, righeDaImportare(preview, categoria),
                 objectMapper.createArrayNode(), objectMapper.createArrayNode());
+    }
+
+    /** Mappa una categoria della banca su una categoria dell'app, come al commit di un import. */
+    private void mappa(String token, String categoriaBanca, String categoriaId) throws Exception {
+        ArrayNode mappature = objectMapper.createArrayNode();
+        ObjectNode m = mappature.addObject();
+        m.put("bankCategory", categoriaBanca);
+        m.put("transactionType", "EXPENSE");
+        m.put("categoryId", categoriaId);
+        m.put("doNotImport", false);
+        m.put("rowCount", 1);
+        m.putNull("sampleDescription");
+        commit(token, objectMapper.createArrayNode(), mappature, objectMapper.createArrayNode());
     }
 
     private void creaRicorrente(String token, String categoria, String nome, String importo, LocalDate scadenza)

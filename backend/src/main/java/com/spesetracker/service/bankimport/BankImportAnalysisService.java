@@ -39,7 +39,9 @@ public class BankImportAnalysisService {
     private static final int PROVISIONAL_MATCH_DAYS = 5;
 
     // Sotto questo scarto una spesa e una ricorrente si somigliano abbastanza da
-    // meritare una segnalazione: bollette e rate variano poco.
+    // meritare una segnalazione: bollette e rate variano poco. Vale solo quando la
+    // categoria della riga è quella della regola, o non è ancora nota: vedi
+    // looksLikeRecurring.
     private static final BigDecimal RECURRING_TOLERANCE = new BigDecimal("0.20");
 
     // Una ricorrente mensile non cade mai al giorno esatto (weekend, festivi),
@@ -131,7 +133,7 @@ public class BankImportAnalysisService {
                     Optional<Transaction> manual = findManualDuplicate(inRange, row.date(), amount, type);
                     String recurringConflict = manual.isPresent()
                             ? null
-                            : findRecurringConflict(inRange, recurring, row.date(), amount, type);
+                            : findRecurringConflict(inRange, recurring, row.date(), amount, type, categoryId);
                     if (manual.isPresent()) {
                         outcome = BankImportOutcome.SOSPETTO_MANUALE;
                         conflict = "Gia' presente, scritta a mano: " + describeTransaction(manual.get());
@@ -251,12 +253,12 @@ public class BankImportAnalysisService {
     // simile (un bonifico da 87 euro alla "Bolletta luce" da 95).
     private String findRecurringConflict(
             List<Transaction> inRange, List<RecurringTransaction> rules,
-            LocalDate date, BigDecimal amount, TransactionType type) {
+            LocalDate date, BigDecimal amount, TransactionType type, UUID rowCategoryId) {
         Optional<Transaction> generated = inRange.stream()
                 .filter(t -> t.getRecurringTransaction() != null)
                 .filter(t -> t.getType() == type)
                 .filter(t -> Math.abs(ChronoUnit.DAYS.between(t.getOccurredOn(), date)) <= RECURRING_MATCH_DAYS)
-                .filter(t -> withinTolerance(amount, t.getAmount()))
+                .filter(t -> looksLikeRecurring(amount, rowCategoryId, t.getAmount(), t.getCategory().getId()))
                 .findFirst();
         if (generated.isPresent()) {
             return "L'app l'ha gia' generata da una regola ricorrente: " + describeTransaction(generated.get());
@@ -266,11 +268,33 @@ public class BankImportAnalysisService {
         return rules.stream()
                 .filter(r -> r.getCategory().getType() == categoryType)
                 .filter(r -> Math.abs(ChronoUnit.DAYS.between(r.getNextDueDate(), date)) <= RECURRING_MATCH_DAYS)
-                .filter(r -> withinTolerance(amount, r.getDefaultAmount()))
+                .filter(r -> looksLikeRecurring(amount, rowCategoryId, r.getDefaultAmount(), r.getCategory().getId()))
                 .findFirst()
                 .map(r -> "Sta per generarla la regola ricorrente " + r.getName() + " · "
                         + r.getDefaultAmount() + " € del " + r.getNextDueDate())
                 .orElse(null);
+    }
+
+    /**
+     * Se una riga somiglia abbastanza a una ricorrente da poter essere la stessa spesa.
+     *
+     * <p>Quando la categoria della riga è già nota (la categoria della banca è
+     * mappata) ed è <em>diversa</em> da quella della regola, il 20% di tolleranza è
+     * troppo largo: su importi piccoli copre mezzo scaffale del supermercato. Una
+     * spesa da 8,61 € da In's Mercato, categoria Supermercato, veniva accostata
+     * all'abbonamento Apple TV da 9,99 € della stessa settimana. Con categorie
+     * diverse serve allora l'importo identico: un abbonamento fisso che la banca
+     * classifica a modo suo viene ancora segnalato, la spesa che gli somiglia no.
+     *
+     * <p>Con la stessa categoria, o con la riga ancora senza categoria, resta la
+     * tolleranza: è il caso delle bollette, che variano di mese in mese.
+     */
+    private boolean looksLikeRecurring(
+            BigDecimal amount, UUID rowCategoryId, BigDecimal reference, UUID recurringCategoryId) {
+        if (rowCategoryId != null && !rowCategoryId.equals(recurringCategoryId)) {
+            return reference != null && amount.compareTo(reference) == 0;
+        }
+        return withinTolerance(amount, reference);
     }
 
     private boolean withinTolerance(BigDecimal amount, BigDecimal reference) {
