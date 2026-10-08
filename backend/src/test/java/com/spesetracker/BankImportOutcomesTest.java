@@ -203,31 +203,31 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
      * scadenza è arrivata: alla creazione la regola recupera l'arretrato, e da
      * lì in archivio c'è una transazione legata a una regola.
      *
-     * <p>E serve saperla mettere nel punto giusto del mese, che è il dettaglio
-     * su cui questo test è già caduto una volta. L'occorrenza generata non viene
-     * datata al giorno di scadenza ma al <strong>primo del mese</strong>
-     * (RecurringTransactionGenerationService: è prenotata a inizio mese per dare
-     * subito una stima del saldo residuo). La riga bancaria deve quindi cadere
-     * entro cinque giorni dal primo del mese, ma non esattamente su di esso:
-     * a distanza zero scatterebbe prima il controllo del doppione scritto a
-     * mano, che pretende la data identica, e l'esito sarebbe un altro.
+     * <p>È il caso dello stipendio contato due volte. L'occorrenza generata era
+     * retrodatata al primo del mese: lo stipendio del 27 importato dalla banca
+     * cadeva a 26 giorni da lei, fuori dalla finestra di cinque, ed entrava come
+     * nuovo. Ora è datata alla scadenza reale, e la riga della banca cade di
+     * solito lo stesso giorno e con lo stesso importo — che è esattamente quello
+     * che questo test riproduce.
      *
-     * <p>Scritto com'era prima — la riga a "oggi meno cinque giorni" — il test
-     * passava solo se lo si eseguiva nei primi giorni del mese. Passò il 7
-     * settembre e fallì il 22: non per una modifica, ma per il calendario.
+     * <p>Lo stesso giorno e lo stesso importo sono anche il caso in cui il
+     * controllo del doppione scritto a mano, che viene prima, la chiamava "scritta
+     * a mano". Le transazioni generate da una regola ne sono escluse, e l'esito
+     * deve dire che è stata una regola.
      */
     @Test
     void unaSpesaGiaGenerataDaUnaRegolaRendeLaRigaSospetta() throws Exception {
         String token = api.registerAndLogin();
         String categoria = api.createExpenseCategory(token);
-        LocalDate primoDelMese = LocalDate.now().withDayOfMonth(1);
-        creaRicorrente(token, categoria, "Bolletta luce", "57.40", primoDelMese);
+        // Il 20 del mese scorso: già scaduta, quindi generata alla creazione, e lontana
+        // dal primo del mese qualunque sia oggi. Con "tre giorni fa" il test non
+        // distingueva le due date nei primi giorni del mese, quando anche il primo
+        // cade dentro la finestra di cinque.
+        LocalDate scadenza = LocalDate.now().minusMonths(1).withDayOfMonth(20);
+        creaRicorrente(token, categoria, "Bolletta luce", "57.40", scadenza);
 
-        // Due giorni dopo l'occorrenza generata: dentro la tolleranza di cinque
-        // giorni del confronto con le ricorrenti, fuori dall'uguaglianza esatta
-        // che cerca il doppione scritto a mano.
         JsonNode preview = analyze(token, workbook(List.of(
-                new Movimento(primoDelMese.plusDays(2), "Farmacia Economica", "FARMACIA ECONOMICA Carta n.5397",
+                new Movimento(scadenza, "Farmacia Economica", "FARMACIA ECONOMICA Carta n.5397",
                         true, "Salute", -57.40))));
 
         assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");
@@ -297,6 +297,25 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         mappa(token, "Supermercato", spesa);
 
         assertThat(esiti(analyze(token, workbook(List.of(supermercato(9.99))))))
+                .containsExactly("SOSPETTO_RICORRENTE");
+    }
+
+    /**
+     * Il buco che una prima versione della correzione apriva, pretendendo l'importo
+     * identico con categorie diverse. Chi scrive una regola arrotonda ("Iliad Casa",
+     * 20,00 €), la banca addebita il prezzo vero (19,99 €), e la banca può classificarla
+     * in un'altra categoria: era un doppione vero, e passava. Con categorie diverse la
+     * tolleranza è stretta, non nulla.
+     */
+    @Test
+    void conCategorieDiverseUnImportoArrotondatoVieneAncoraSegnalato() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        String bollette = api.createExpenseCategory(token);
+        creaRicorrente(token, casa, "Iliad Casa", "20.00", DATA.plusDays(2));
+        mappa(token, "Supermercato", bollette);
+
+        assertThat(esiti(analyze(token, workbook(List.of(supermercato(19.99))))))
                 .containsExactly("SOSPETTO_RICORRENTE");
     }
 

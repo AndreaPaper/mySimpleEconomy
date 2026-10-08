@@ -44,6 +44,11 @@ public class BankImportAnalysisService {
     // looksLikeRecurring.
     private static final BigDecimal RECURRING_TOLERANCE = new BigDecimal("0.20");
 
+    // La tolleranza quando la categoria della riga è nota e diversa da quella della
+    // regola: abbastanza per un importo arrotondato nella regola, non per una spesa
+    // qualsiasi che gli somiglia. Vedi looksLikeRecurring.
+    private static final BigDecimal RECURRING_TOLERANCE_OTHER_CATEGORY = new BigDecimal("0.05");
+
     // Una ricorrente mensile non cade mai al giorno esatto (weekend, festivi),
     // ma nemmeno a due settimane di distanza.
     private static final int RECURRING_MATCH_DAYS = 5;
@@ -239,6 +244,12 @@ public class BankImportAnalysisService {
             List<Transaction> inRange, LocalDate date, BigDecimal amount, TransactionType type) {
         return inRange.stream()
                 .filter(t -> t.getImportFingerprint() == null)
+                // Le transazioni generate da una regola non sono scritte a mano: le guarda
+                // findRecurringConflict, che lo dice nel messaggio. Da quando sono datate
+                // alla scadenza reale cadono spesso lo stesso giorno e con lo stesso
+                // importo della riga della banca, e questo controllo — che viene prima —
+                // le avrebbe chiamate "scritte a mano".
+                .filter(t -> t.getRecurringTransaction() == null)
                 .filter(t -> t.getType() == type)
                 .filter(t -> t.getOccurredOn().equals(date))
                 .filter(t -> t.getAmount().compareTo(amount) == 0)
@@ -282,24 +293,29 @@ public class BankImportAnalysisService {
      * mappata) ed è <em>diversa</em> da quella della regola, il 20% di tolleranza è
      * troppo largo: su importi piccoli copre mezzo scaffale del supermercato. Una
      * spesa da 8,61 € da In's Mercato, categoria Supermercato, veniva accostata
-     * all'abbonamento Apple TV da 9,99 € della stessa settimana. Con categorie
-     * diverse serve allora l'importo identico: un abbonamento fisso che la banca
-     * classifica a modo suo viene ancora segnalato, la spesa che gli somiglia no.
+     * all'abbonamento Apple TV da 9,99 € della stessa settimana (14% di scarto).
+     * Con categorie diverse la tolleranza scende al 5%: un abbonamento fisso che la
+     * banca classifica a modo suo viene ancora segnalato, la spesa che gli somiglia
+     * no.
+     *
+     * <p>Non l'importo identico, come in una prima versione: chi scrive una regola
+     * arrotonda ("Iliad Casa", 20,00 €) e la banca addebita il prezzo vero (19,99 €).
+     * Con l'identità quel doppione vero passava, ed entrava due volte.
      *
      * <p>Con la stessa categoria, o con la riga ancora senza categoria, resta la
-     * tolleranza: è il caso delle bollette, che variano di mese in mese.
+     * tolleranza piena: è il caso delle bollette, che variano di mese in mese.
      */
     private boolean looksLikeRecurring(
             BigDecimal amount, UUID rowCategoryId, BigDecimal reference, UUID recurringCategoryId) {
         if (rowCategoryId != null && !rowCategoryId.equals(recurringCategoryId)) {
-            return reference != null && amount.compareTo(reference) == 0;
+            return withinTolerance(amount, reference, RECURRING_TOLERANCE_OTHER_CATEGORY);
         }
-        return withinTolerance(amount, reference);
+        return withinTolerance(amount, reference, RECURRING_TOLERANCE);
     }
 
-    private boolean withinTolerance(BigDecimal amount, BigDecimal reference) {
+    private boolean withinTolerance(BigDecimal amount, BigDecimal reference, BigDecimal tolerance) {
         if (reference == null || reference.signum() == 0) return false;
-        return amount.subtract(reference).abs().compareTo(reference.multiply(RECURRING_TOLERANCE)) <= 0;
+        return amount.subtract(reference).abs().compareTo(reference.multiply(tolerance)) <= 0;
     }
 
     private boolean matchesExclusion(BankStatementRow row, List<BankImportExclusion> exclusions) {

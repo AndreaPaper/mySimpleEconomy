@@ -55,11 +55,16 @@ public class RecurringTransactionGenerationService {
                 .recurringTransaction(rule)
                 .amount(amount)
                 .type(TransactionType.valueOf(rule.getCategory().getType().name()))
-                // Prenotata a inizio mese (non alla data di scadenza reale) per
-                // dare subito una stima del saldo residuo del mese, invece di
-                // aspettare il giorno esatto. La data di scadenza reale resta
-                // usata sopra per il lookup dell'eventuale RecurringOverride.
-                .occurredOn(rule.getNextDueDate().withDayOfMonth(1))
+                // Alla data di scadenza reale. Era retrodatata al primo del mese "per
+                // dare subito una stima del saldo", ma la generazione avviene solo a
+                // scadenza arrivata, quindi non anticipava niente: spostava soltanto
+                // la data. E la data sbagliata faceva danni veri. Lo stipendio del 27
+                // finiva al 1°, cioè nel periodo di stipendio precedente. E l'import
+                // dalla banca non lo riconosceva più come lo stesso movimento del 27,
+                // 26 giorni dopo: entrava una seconda volta, e il saldo contava due
+                // stipendi. La stima del mese la dà la previsione, che proietta le
+                // regole non ancora scadute.
+                .occurredOn(rule.getNextDueDate())
                 .description(rule.getName())
                 .build();
 
