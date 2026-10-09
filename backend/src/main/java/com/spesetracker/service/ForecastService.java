@@ -331,14 +331,28 @@ public class ForecastService {
                 .map(n -> Math.min(Math.max(n, 0), VARIABLE_AVERAGE_WINDOW_PERIODS))
                 .orElse(0);
 
-        // Si escludono le occorrenze delle regole ricorrenti e dei promemoria, e i
-        // pagamenti dei debiti: sono tutti già previsti esplicitamente, quindi lasciarli
-        // anche nella media li conterebbe due volte.
+        // Le categorie delle regole di ENTRATA attive: lo stipendio, soprattutto. Gli
+        // stipendi importati dalla banca non sono legati alla regola (sono righe
+        // dell'estratto conto, non occorrenze generate), e nella media sarebbero
+        // "entrate variabili" — sommate alla regola, che lo stipendio lo prevede già:
+        // due stipendi a periodo. Solo per le entrate: una categoria di spesa ospita
+        // spesso sia una ricorrenza sia acquisti occasionali (la terapia mensile e i
+        // farmaci comprati una tantum), e toglierla dalla media perderebbe i secondi.
+        Set<UUID> incomeRuleCategoryIds = in.activeRules().stream()
+                .filter(r -> r.getCategory().getType() == CategoryType.INCOME)
+                .map(r -> r.getCategory().getId())
+                .collect(Collectors.toSet());
+
+        // Si escludono le occorrenze delle regole ricorrenti e dei promemoria, i
+        // pagamenti dei debiti e le entrate delle categorie con una regola di entrata:
+        // sono tutti già previsti esplicitamente, quindi lasciarli anche nella media li
+        // conterebbe due volte.
         Map<UUID, BigDecimal> variableAverageByCategory = historyPeriods == 0
                 ? Map.of()
                 : window.stream()
                         .filter(t -> t.getRecurringTransaction() == null && t.getExpenseReminder() == null)
                         .filter(t -> !in.debtCategoryIds().contains(t.getCategory().getId()))
+                        .filter(t -> !incomeRuleCategoryIds.contains(t.getCategory().getId()))
                         .collect(Collectors.groupingBy(
                                 t -> t.getCategory().getId(),
                                 Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)))

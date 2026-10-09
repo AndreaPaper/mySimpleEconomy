@@ -154,4 +154,39 @@ class ForecastEstimatesApiTest extends AbstractIntegrationTest {
         assertThat(previsione.get("periods").get(1).get("projectedExpense").decimalValue())
                 .isEqualByComparingTo("150.00");
     }
+    /**
+     * Gli stipendi importati dalla banca sono righe dell'estratto conto, non occorrenze
+     * generate dalla regola: nella media erano "entrate variabili", e con la regola dello
+     * stipendio attiva il periodo prossimo ne prevedeva due — 1.800 della regola più
+     * 1.800 di media. Con una regola di entrata attiva, le entrate della sua categoria
+     * escono dalla media.
+     */
+    @Test
+    void gliStipendiImportatiNonSiSommanoAllaRegolaDelloStipendio() throws Exception {
+        String token = api.registerAndLogin();
+        String stipendio = api.createIncomeCategory(token);
+        api.createTransaction(token, stipendio, meseFa(2), "1800.00", "INCOME");
+        api.createTransaction(token, stipendio, meseFa(1), "1800.00", "INCOME");
+        api.createRecurring(token, stipendio, "Stipendio", "1800.00", fraMesi(1));
+
+        JsonNode periodi = api.forecast(token, 2).get("periods");
+
+        assertThat(periodi.get(1).get("projectedIncome").decimalValue()).isEqualByComparingTo("1800.00");
+    }
+
+    /**
+     * Il verso opposto: senza una regola dello stipendio, la media degli stipendi
+     * importati è l'unico modo in cui la previsione lo conosce, e deve restare.
+     */
+    @Test
+    void senzaRegolaGliStipendiImportatiRestanoNellaMedia() throws Exception {
+        String token = api.registerAndLogin();
+        String stipendio = api.createIncomeCategory(token);
+        api.createTransaction(token, stipendio, meseFa(2), "1800.00", "INCOME");
+        api.createTransaction(token, stipendio, meseFa(1), "1800.00", "INCOME");
+
+        JsonNode periodi = api.forecast(token, 2).get("periods");
+
+        assertThat(periodi.get(1).get("projectedIncome").decimalValue()).isEqualByComparingTo("1800.00");
+    }
 }
