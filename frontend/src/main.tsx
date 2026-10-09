@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import UpdatePrompt from './components/UpdatePrompt'
+import ThemeColorSync from './components/ThemeColorSync'
 
 // Il service worker lo registra UpdatePrompt, che avvisa quando c'è una versione
 // nuova. Sta accanto all'app e non dentro, così l'avviso compare anche nella
@@ -11,5 +12,6 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
     <UpdatePrompt />
+    <ThemeColorSync />
   </StrictMode>,
 )
