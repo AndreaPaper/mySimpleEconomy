@@ -251,6 +251,7 @@ export type BankImportOutcome =
   | 'NUOVA'
   | 'GIA_IMPORTATA'
   | 'AGGIORNA_PROVVISORIA'
+  | 'SOSTITUISCE_RICORRENTE'
   | 'SOSPETTO_MANUALE'
   | 'SOSPETTO_RICORRENTE'
   | 'ESCLUSA'
@@ -268,6 +269,9 @@ export interface BankImportRowPreview {
   outcome: BankImportOutcome
   categoryId: string | null
   matchedTransactionId: string | null
+  // Su SOSTITUISCE_RICORRENTE, quando la regola non ha ancora generato la sua
+  // transazione: la regola di cui la riga prende il posto.
+  matchedRecurringId: string | null
   conflictDescription: string | null
   selectedByDefault: boolean
 }
@@ -318,6 +322,9 @@ export interface BankImportCommitRow {
   description: string
   categoryId: string | null
   updateTransactionId: string | null
+  // La regola di cui la riga prende il posto, se non ha ancora generato la sua
+  // transazione: il backend la fa passare alla scadenza dopo.
+  recurringTransactionId: string | null
 }
 
 export interface BankImportResult {

@@ -60,6 +60,14 @@ const SECTIONS: {
     tone: 'text-sky-700 dark:text-sky-400',
   },
   {
+    outcome: 'SOSTITUISCE_RICORRENTE',
+    title: 'Dalle tue regole ricorrenti',
+    hint: 'Sono le scadenze di una regola ricorrente, come lo stipendio: prendono il posto della transazione della regola con l’importo vero della banca, anche quando è diverso (un mese con il bonus).',
+    checked: 'prende il posto della transazione della regola, già creata o in arrivo — non ne crea una seconda',
+    unchecked: 'resta la transazione della regola, con il suo importo; questa te la riproporrò al prossimo import',
+    tone: 'text-sky-700 dark:text-sky-400',
+  },
+  {
     outcome: 'SOSPETTO_MANUALE',
     title: 'Da controllare — forse già inserite a mano',
     hint: 'Coincidono per data e importo con qualcosa che hai già. Potrebbero essere due spese diverse davvero uguali: decidi tu.',
@@ -263,6 +271,7 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
             description: r.description,
             categoryId: r.categoryId,
             updateTransactionId: r.matchedTransactionId,
+            recurringTransactionId: r.matchedRecurringId,
           })),
           mappings,
           exclusions,
@@ -541,7 +550,10 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Movimenti nel file" value={preview.summary.rowsInFile} />
         <Stat label="Da importare" value={rows.filter((r) => r.outcome === 'NUOVA').length} />
-        <Stat label="Da aggiornare" value={rows.filter((r) => r.outcome === 'AGGIORNA_PROVVISORIA').length} />
+        <Stat
+          label="Da aggiornare"
+          value={rows.filter((r) => r.outcome === 'AGGIORNA_PROVVISORIA' || r.outcome === 'SOSTITUISCE_RICORRENTE').length}
+        />
         <Stat
           label="Da controllare"
           value={rows.filter((r) => r.outcome === 'SOSPETTO_MANUALE' || r.outcome === 'SOSPETTO_RICORRENTE').length}

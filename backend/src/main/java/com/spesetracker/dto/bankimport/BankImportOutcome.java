@@ -11,6 +11,10 @@ public enum BankImportOutcome {
     // È la versione definitiva di un movimento importato quando era ancora
     // provvisorio: si aggiorna quello invece di crearne un altro.
     AGGIORNA_PROVVISORIA,
+    // È l'occorrenza di una regola ricorrente (stessa categoria, pochi giorni di
+    // distanza, qualunque importo): riscrive la transazione che la regola ha
+    // generato, o entra al posto di quella che sta per generare.
+    SOSTITUISCE_RICORRENTE,
     // Somiglia a una transazione scritta a mano, o a più di una provvisoria:
     // decide l'utente, perché due spese uguali lo stesso giorno esistono.
     SOSPETTO_MANUALE,

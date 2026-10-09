@@ -38,6 +38,7 @@ function riga(
     outcome: 'NUOVA' as BankImportOutcome,
     categoryId: null,
     matchedTransactionId: null,
+    matchedRecurringId: null,
     conflictDescription: null,
     selectedByDefault: true,
     ...overrides,
@@ -186,6 +187,9 @@ describe('selezione', () => {
   it('entrano di default le righe nuove e quelle da aggiornare', () => {
     expect(selectedByDefault(riga(1, { outcome: 'NUOVA' }))).toBe(true)
     expect(selectedByDefault(riga(2, { outcome: 'AGGIORNA_PROVVISORIA' }))).toBe(true)
+    // La scadenza di una regola ricorrente (lo stipendio) prende il posto della sua
+    // transazione: lasciarla spenta riporterebbe il doppio stipendio a un clic dimenticato.
+    expect(selectedByDefault(riga(3, { outcome: 'SOSTITUISCE_RICORRENTE' }))).toBe(true)
   })
 
   it('quello che va deciso o è escluso parte spento', () => {

@@ -20,7 +20,11 @@ public record BankImportCommitRow(
         boolean provisional,
         String description,
         UUID categoryId,
-        // Valorizzato solo per aggiornare una provvisoria già importata.
-        UUID updateTransactionId
+        // Valorizzato per aggiornare una provvisoria già importata, o la transazione
+        // generata da una regola ricorrente di cui la riga prende il posto.
+        UUID updateTransactionId,
+        // Valorizzato quando la riga prende il posto di un'occorrenza che la regola
+        // non ha ancora generato: la regola, che passa alla scadenza dopo.
+        UUID recurringTransactionId
 ) {
 }

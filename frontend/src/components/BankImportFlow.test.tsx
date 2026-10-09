@@ -54,6 +54,7 @@ const riga = (overrides: Partial<BankImportRowPreview> = {}): BankImportRowPrevi
   outcome: 'NUOVA',
   categoryId: 'cat-salute',
   matchedTransactionId: null,
+  matchedRecurringId: null,
   conflictDescription: null,
   selectedByDefault: true,
   ...overrides,
@@ -152,6 +153,33 @@ describe('il carico mandato al commit', () => {
 
     await waitFor(() => expect(commit).toHaveBeenCalled())
     expect(commit.mock.calls[0][0].rows[0].updateTransactionId).toBeNull()
+    expect(commit.mock.calls[0][0].rows[0].recurringTransactionId).toBeNull()
+  })
+
+  /**
+   * La scadenza di una regola ricorrente: entra senza bisogno di spuntarla, e porta
+   * con sé cosa sostituire. La transazione già generata dalla regola, se c'è, che il
+   * backend riscrive; altrimenti la regola, che il backend fa passare alla scadenza
+   * dopo. Perso uno dei due id, la riga entrerebbe come nuova accanto alla
+   * transazione della regola: lo stipendio due volte.
+   */
+  it('la scadenza di una regola entra da sola e porta cosa sostituire', async () => {
+    await analizza(
+      anteprima({
+        rows: [
+          riga({ rowNumber: 1, outcome: 'SOSTITUISCE_RICORRENTE', matchedTransactionId: 'tx-generata' }),
+          riga({ rowNumber: 2, outcome: 'SOSTITUISCE_RICORRENTE', matchedRecurringId: 'regola-stipendio' }),
+        ],
+        summary: { ...anteprima().summary, rowsInFile: 2, nuove: 0, daAggiornare: 2 },
+      }),
+    )
+
+    await userEvent.click(await screen.findByRole('button', { name: /Importa 2 movimenti/i }))
+
+    await waitFor(() => expect(commit).toHaveBeenCalled())
+    const [riscritta, alPostoDellaRegola] = commit.mock.calls[0][0].rows
+    expect(riscritta).toMatchObject({ updateTransactionId: 'tx-generata', recurringTransactionId: null })
+    expect(alPostoDellaRegola).toMatchObject({ updateTransactionId: null, recurringTransactionId: 'regola-stipendio' })
   })
 
   // Quello che l'utente ha tolto dalla selezione non deve entrare: e' il modo

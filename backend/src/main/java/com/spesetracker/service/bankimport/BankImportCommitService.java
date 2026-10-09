@@ -8,12 +8,14 @@ import com.spesetracker.dto.bankimport.BankImportResult;
 import com.spesetracker.model.BankCategoryMapping;
 import com.spesetracker.model.BankImportExclusion;
 import com.spesetracker.model.Category;
+import com.spesetracker.model.RecurringTransaction;
 import com.spesetracker.model.Transaction;
 import com.spesetracker.model.User;
 import com.spesetracker.model.enums.BankSource;
 import com.spesetracker.repository.BankCategoryMappingRepository;
 import com.spesetracker.repository.BankImportExclusionRepository;
 import com.spesetracker.repository.CategoryRepository;
+import com.spesetracker.repository.RecurringTransactionRepository;
 import com.spesetracker.repository.TransactionRepository;
 import com.spesetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +24,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,6 +45,30 @@ public class BankImportCommitService {
     private final UserRepository userRepository;
     private final BankCategoryMappingRepository mappingRepository;
     private final BankImportExclusionRepository exclusionRepository;
+    private final RecurringTransactionRepository recurringRepository;
+
+    /** Una transazione generata da una regola, che nessuna riga della banca ha ancora riscritto. */
+    private boolean isUnreplacedOccurrence(Transaction transaction) {
+        return transaction.getRecurringTransaction() != null && transaction.getImportFingerprint() == null;
+    }
+
+    /**
+     * Riscrive una transazione esistente con i dati veri della banca. Il collegamento
+     * alla regola, se c'è, resta: è ancora la sua occorrenza, solo con l'importo e la
+     * data veri, e così resta fuori dalla media delle spese variabili della previsione.
+     */
+    private void rewrite(Transaction existing, BankImportCommitRow row, String fingerprint,
+                         BankSource source, Map<UUID, Category> categories) {
+        existing.setOccurredOn(row.occurredOn());
+        existing.setAmount(row.amount());
+        existing.setDescription(row.description());
+        existing.setImportSource(source);
+        existing.setImportFingerprint(fingerprint);
+        existing.setImportProvisional(row.provisional());
+        if (row.categoryId() != null) {
+            existing.setCategory(requireCategory(categories, row.categoryId()));
+        }
+    }
 
     @Transactional
     public BankImportResult commit(UUID userId, BankImportCommitRequest request) {
@@ -72,22 +100,70 @@ public class BankImportCommitService {
                         .filter(t -> t.getUser().getId().equals(userId))
                         .orElseThrow(() -> new ResponseStatusException(
                                 HttpStatus.BAD_REQUEST, "Transazione da aggiornare non trovata"));
-                if (!Boolean.TRUE.equals(existing.getImportProvisional())) {
-                    // Solo le provvisorie si riscrivono. Se non lo e' piu',
-                    // qualcuno l'ha gia' aggiornata: non la si tocca due volte.
+                if (!Boolean.TRUE.equals(existing.getImportProvisional()) && !isUnreplacedOccurrence(existing)) {
+                    // Si riscrivono solo le provvisorie e le transazioni generate da una
+                    // regola non ancora sostituite. Se non lo sono più, qualcuno le ha
+                    // già aggiornate: non le si tocca due volte.
                     skipped++;
                     continue;
                 }
-                existing.setOccurredOn(row.occurredOn());
-                existing.setAmount(row.amount());
-                existing.setDescription(row.description());
-                existing.setImportFingerprint(fingerprint);
-                existing.setImportProvisional(row.provisional());
-                if (row.categoryId() != null) {
-                    existing.setCategory(requireCategory(categories, row.categoryId()));
-                }
+                rewrite(existing, row, fingerprint, source, categories);
                 known.add(fingerprint);
                 updated++;
+                continue;
+            }
+
+            if (row.recurringTransactionId() != null) {
+                if (known.contains(fingerprint)) {
+                    skipped++;
+                    continue;
+                }
+                RecurringTransaction rule = recurringRepository.findById(row.recurringTransactionId())
+                        .filter(r -> r.getUser().getId().equals(userId))
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST, "Regola ricorrente non trovata"));
+                // Fra l'anteprima e la conferma il job può aver generato l'occorrenza
+                // (un'anteprima aperta il 26, confermata il 27): allora la si riscrive,
+                // invece di affiancarle la riga della banca.
+                Optional<Transaction> generatedMeanwhile = transactionRepository
+                        .findByUserIdAndOccurredOnBetween(userId,
+                                row.occurredOn().minusDays(BankImportAnalysisService.RECURRING_MATCH_DAYS),
+                                row.occurredOn().plusDays(BankImportAnalysisService.RECURRING_MATCH_DAYS))
+                        .stream()
+                        .filter(t -> t.getRecurringTransaction() != null
+                                && t.getRecurringTransaction().getId().equals(rule.getId()))
+                        .filter(this::isUnreplacedOccurrence)
+                        .findFirst();
+                if (generatedMeanwhile.isPresent()) {
+                    rewrite(generatedMeanwhile.get(), row, fingerprint, source, categories);
+                    known.add(fingerprint);
+                    updated++;
+                    continue;
+                }
+
+                transactionRepository.save(Transaction.builder()
+                        .user(user)
+                        .category(row.categoryId() != null ? requireCategory(categories, row.categoryId()) : rule.getCategory())
+                        .recurringTransaction(rule)
+                        .amount(row.amount())
+                        .type(row.type())
+                        .occurredOn(row.occurredOn())
+                        .description(row.description())
+                        .importSource(source)
+                        .importFingerprint(fingerprint)
+                        .importProvisional(row.provisional())
+                        .build());
+                // La regola passa alla scadenza dopo, così il job non genera la stessa
+                // occorrenza una seconda volta. Solo se la scadenza è ancora quella
+                // accanto alla riga: se nel frattempo il job l'ha già fatta avanzare,
+                // farla avanzare ancora salterebbe la scadenza del mese dopo. (Un invio
+                // ripetuto della stessa riga non arriva qui: lo ferma l'impronta.)
+                if (Math.abs(ChronoUnit.DAYS.between(rule.getNextDueDate(), row.occurredOn()))
+                        <= BankImportAnalysisService.RECURRING_MATCH_DAYS) {
+                    rule.advanceNextDueDate();
+                }
+                known.add(fingerprint);
+                imported++;
                 continue;
             }
 

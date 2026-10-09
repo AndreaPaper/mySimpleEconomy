@@ -25,8 +25,12 @@ public record BankImportRowPreview(
         BankImportOutcome outcome,
         // Null se la categoria della banca non è ancora mappata.
         UUID categoryId,
-        // Valorizzato su AGGIORNA_PROVVISORIA: la transazione da aggiornare.
+        // Valorizzato su AGGIORNA_PROVVISORIA, e su SOSTITUISCE_RICORRENTE quando la
+        // regola l'ha già generata: la transazione da aggiornare.
         UUID matchedTransactionId,
+        // Valorizzato su SOSTITUISCE_RICORRENTE quando la regola non ha ancora
+        // generato la sua transazione: la regola di cui la riga prende il posto.
+        UUID matchedRecurringId,
         // Per i due SOSPETTO_*: cosa cozza con questa riga, da mostrare accanto
         // così la decisione si prende avendo il confronto sotto gli occhi.
         String conflictDescription,

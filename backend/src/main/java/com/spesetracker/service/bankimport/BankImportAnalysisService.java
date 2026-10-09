@@ -51,7 +51,7 @@ public class BankImportAnalysisService {
 
     // Una ricorrente mensile non cade mai al giorno esatto (weekend, festivi),
     // ma nemmeno a due settimane di distanza.
-    private static final int RECURRING_MATCH_DAYS = 5;
+    static final int RECURRING_MATCH_DAYS = 5;
 
     private final IntesaSanpaoloParser intesaParser;
     private final TransactionRepository transactionRepository;
@@ -90,6 +90,9 @@ public class BankImportAnalysisService {
         // Una provvisoria puo' essere il definitivo di una sola riga: senza
         // questo, due spese uguali si abbinerebbero entrambe alla stessa.
         Set<UUID> claimedProvisional = new HashSet<>();
+        // Lo stesso per le occorrenze delle regole ricorrenti (transazioni generate e
+        // regole non ancora scadute): una sola riga può prenderne il posto.
+        Set<UUID> claimedRecurring = new HashSet<>();
 
         for (BankStatementRow row : rows) {
             TransactionType type = row.amount().signum() < 0 ? TransactionType.EXPENSE : TransactionType.INCOME;
@@ -103,6 +106,7 @@ public class BankImportAnalysisService {
 
             BankImportOutcome outcome;
             UUID matchedTransactionId = null;
+            UUID matchedRecurringId = null;
             String conflict = null;
 
             if (knownFingerprints.contains(fingerprint)) {
@@ -135,11 +139,40 @@ public class BankImportAnalysisService {
                     conflict = "Sembra la versione provvisoria di un movimento gia' definitivo in archivio: "
                             + describeTransaction(settledVersion(inRange, row.date(), amount, type).get());
                 } else {
-                    Optional<Transaction> manual = findManualDuplicate(inRange, row.date(), amount, type);
-                    String recurringConflict = manual.isPresent()
+                    // La categoria con cui confrontare la riga: quella mappata o, per una
+                    // categoria della banca non ancora mappata che è chiaramente lo
+                    // stipendio, quella dello stipendio del profilo.
+                    UUID effectiveCategoryId = categoryId != null
+                            ? categoryId
+                            : salaryCategoryId != null && salaryResolver.looksLikeSalary(row.bankCategory(), type)
+                                    ? salaryCategoryId
+                                    : null;
+                    RecurringOccurrence occurrence = findRecurringOccurrence(
+                            inRange, recurring, claimedRecurring, row.date(), amount, type, effectiveCategoryId);
+                    Optional<Transaction> manual = occurrence != null
+                            ? Optional.empty()
+                            : findManualDuplicate(inRange, row.date(), amount, type);
+                    String recurringConflict = occurrence != null || manual.isPresent()
                             ? null
                             : findRecurringConflict(inRange, recurring, row.date(), amount, type, categoryId);
-                    if (manual.isPresent()) {
+                    if (occurrence != null) {
+                        outcome = BankImportOutcome.SOSTITUISCE_RICORRENTE;
+                        if (occurrence.generated() != null) {
+                            claimedRecurring.add(occurrence.generated().getId());
+                            matchedTransactionId = occurrence.generated().getId();
+                            conflict = "Prende il posto della transazione della regola: "
+                                    + describeTransaction(occurrence.generated());
+                        } else {
+                            claimedRecurring.add(occurrence.rule().getId());
+                            matchedRecurringId = occurrence.rule().getId();
+                            conflict = "È la scadenza del " + occurrence.rule().getNextDueDate()
+                                    + " della regola " + occurrence.rule().getName()
+                                    + ": entra al suo posto, e la regola non la genererà una seconda volta";
+                        }
+                        if (categoryId == null) {
+                            categoryId = effectiveCategoryId;
+                        }
+                    } else if (manual.isPresent()) {
                         outcome = BankImportOutcome.SOSPETTO_MANUALE;
                         conflict = "Gia' presente, scritta a mano: " + describeTransaction(manual.get());
                     } else if (recurringConflict != null) {
@@ -171,8 +204,11 @@ public class BankImportAnalysisService {
                     outcome,
                     categoryId,
                     matchedTransactionId,
+                    matchedRecurringId,
                     conflict,
-                    outcome == BankImportOutcome.NUOVA || outcome == BankImportOutcome.AGGIORNA_PROVVISORIA));
+                    outcome == BankImportOutcome.NUOVA
+                            || outcome == BankImportOutcome.AGGIORNA_PROVVISORIA
+                            || outcome == BankImportOutcome.SOSTITUISCE_RICORRENTE));
         }
 
         // Le proposte di esclusione hanno senso solo la prima volta: dopo, la
@@ -254,6 +290,55 @@ public class BankImportAnalysisService {
                 .filter(t -> t.getOccurredOn().equals(date))
                 .filter(t -> t.getAmount().compareTo(amount) == 0)
                 .findFirst();
+    }
+
+    /** L'occorrenza di una regola di cui una riga prende il posto: già generata, o non ancora. */
+    private record RecurringOccurrence(Transaction generated, RecurringTransaction rule) {
+    }
+
+    /**
+     * La riga della banca è l'occorrenza di una regola ricorrente, e ne prende il posto.
+     *
+     * <p>Serve la <em>stessa categoria</em> della regola, e una data a pochi giorni dalla
+     * sua scadenza: insieme sono un indizio forte, e allora l'importo non conta. È il
+     * caso dello stipendio con il bonus — la regola dice 1.800, la banca accredita
+     * 2.300 — che con un confronto sull'importo entrava come nuovo e si sommava alla
+     * transazione della regola: due stipendi. Con indizi più deboli (categoria diversa
+     * o sconosciuta) la riga non sostituisce niente da sola: findRecurringConflict la
+     * segnala, e decide l'utente.
+     *
+     * <p>Prima le transazioni già generate dalla regola e non ancora sostituite (senza
+     * impronta della banca): la riga le riscrive. Poi le regole non ancora scadute — lo
+     * stipendio pagato il venerdì prima di un 27 di domenica: la riga entra al posto
+     * dell'occorrenza, e la regola passa alla scadenza dopo. Fra più candidati, quello
+     * con l'importo più vicino.
+     */
+    private RecurringOccurrence findRecurringOccurrence(
+            List<Transaction> inRange, List<RecurringTransaction> rules, Set<UUID> claimed,
+            LocalDate date, BigDecimal amount, TransactionType type, UUID rowCategoryId) {
+        if (rowCategoryId == null) return null;
+
+        Optional<Transaction> generated = inRange.stream()
+                .filter(t -> t.getRecurringTransaction() != null)
+                .filter(t -> t.getImportFingerprint() == null)
+                .filter(t -> !claimed.contains(t.getId()))
+                .filter(t -> t.getType() == type)
+                .filter(t -> rowCategoryId.equals(t.getCategory().getId()))
+                .filter(t -> Math.abs(ChronoUnit.DAYS.between(t.getOccurredOn(), date)) <= RECURRING_MATCH_DAYS)
+                .min(Comparator.comparing(t -> t.getAmount().subtract(amount).abs()));
+        if (generated.isPresent()) {
+            return new RecurringOccurrence(generated.get(), null);
+        }
+
+        CategoryType categoryType = type == TransactionType.EXPENSE ? CategoryType.EXPENSE : CategoryType.INCOME;
+        return rules.stream()
+                .filter(r -> !claimed.contains(r.getId()))
+                .filter(r -> r.getCategory().getType() == categoryType)
+                .filter(r -> rowCategoryId.equals(r.getCategory().getId()))
+                .filter(r -> Math.abs(ChronoUnit.DAYS.between(r.getNextDueDate(), date)) <= RECURRING_MATCH_DAYS)
+                .min(Comparator.comparing(r -> r.getDefaultAmount().subtract(amount).abs()))
+                .map(r -> new RecurringOccurrence(null, r))
+                .orElse(null);
     }
 
     // Il rischio di contare due volte non nasce dall'esistere di una regola, ma
@@ -347,7 +432,10 @@ public class BankImportAnalysisService {
                 rows.size(), first, last,
                 count(byOutcome, BankImportOutcome.NUOVA),
                 count(byOutcome, BankImportOutcome.GIA_IMPORTATA),
-                count(byOutcome, BankImportOutcome.AGGIORNA_PROVVISORIA),
+                // Le sostituzioni di una ricorrente aggiornano anche loro qualcosa che
+                // c'è già (o che la regola avrebbe creato): stanno nello stesso conto.
+                count(byOutcome, BankImportOutcome.AGGIORNA_PROVVISORIA)
+                        + count(byOutcome, BankImportOutcome.SOSTITUISCE_RICORRENTE),
                 count(byOutcome, BankImportOutcome.SOSPETTO_MANUALE),
                 count(byOutcome, BankImportOutcome.SOSPETTO_RICORRENTE),
                 count(byOutcome, BankImportOutcome.ESCLUSA),

@@ -57,10 +57,13 @@ export function applyDecisions(
   })
 }
 
-// Entrano di default solo le righe nuove e quelle da aggiornare: quello che va
+// Entrano di default le righe nuove e quelle che aggiornano qualcosa che c'è già
+// (una provvisoria, o la transazione di una regola ricorrente): quello che va
 // deciso, o è stato escluso, parte spento.
 export function selectedByDefault(row: BankImportRowPreview): boolean {
-  return row.outcome === 'NUOVA' || row.outcome === 'AGGIORNA_PROVVISORIA'
+  return (
+    row.outcome === 'NUOVA' || row.outcome === 'AGGIORNA_PROVVISORIA' || row.outcome === 'SOSTITUISCE_RICORRENTE'
+  )
 }
 
 // La selezione è memorizzata come scostamenti dalla proposta e non come elenco
