@@ -10,7 +10,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', non 'autoUpdate': la versione nuova aspetta che la si accetti
+      // dall'avviso di UpdatePrompt invece di ricaricare la pagina da sola, magari
+      // a metà di un import.
+      registerType: 'prompt',
       injectRegister: null,
       // public/manifest.webmanifest already exists and is linked from
       // index.html (from the PWA-installability work) — the plugin must

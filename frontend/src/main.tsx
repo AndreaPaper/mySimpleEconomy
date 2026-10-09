@@ -1,13 +1,15 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
+import UpdatePrompt from './components/UpdatePrompt'
 
-registerSW({ immediate: true })
-
+// Il service worker lo registra UpdatePrompt, che avvisa quando c'è una versione
+// nuova. Sta accanto all'app e non dentro, così l'avviso compare anche nella
+// pagina di accesso.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <UpdatePrompt />
   </StrictMode>,
 )
