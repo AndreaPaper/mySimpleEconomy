@@ -4,6 +4,7 @@ import com.spesetracker.dto.bankimport.*;
 import com.spesetracker.model.BankCategoryMapping;
 import com.spesetracker.model.BankImportExclusion;
 import com.spesetracker.model.Category;
+import com.spesetracker.model.ExpenseReminder;
 import com.spesetracker.model.RecurringTransaction;
 import com.spesetracker.model.Transaction;
 import com.spesetracker.model.enums.BankSource;
@@ -11,6 +12,7 @@ import com.spesetracker.model.enums.CategoryType;
 import com.spesetracker.model.enums.TransactionType;
 import com.spesetracker.repository.BankCategoryMappingRepository;
 import com.spesetracker.repository.BankImportExclusionRepository;
+import com.spesetracker.repository.ExpenseReminderRepository;
 import com.spesetracker.repository.RecurringTransactionRepository;
 import com.spesetracker.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,6 +59,7 @@ public class BankImportAnalysisService {
     private final IntesaSanpaoloParser intesaParser;
     private final TransactionRepository transactionRepository;
     private final RecurringTransactionRepository recurringRepository;
+    private final ExpenseReminderRepository expenseReminderRepository;
     private final BankCategoryMappingRepository mappingRepository;
     private final BankImportExclusionRepository exclusionRepository;
     private final SalaryCategoryResolver salaryResolver;
@@ -69,11 +73,19 @@ public class BankImportAnalysisService {
 
         Set<String> knownFingerprints = new HashSet<>(transactionRepository.findImportFingerprints(userId));
         List<Transaction> provisional = transactionRepository.findByUserIdAndImportProvisionalTrue(userId);
-        // Il confronto con le transazioni scritte a mano si limita al periodo del
-        // file: fuori da li' non ci puo' essere un doppione.
+        // Il confronto con le transazioni già in archivio si limita al periodo del
+        // file: fuori da li' non ci puo' essere un doppione. Allargato ai mesi interi
+        // che il file tocca, perché i promemoria registrano la loro spesa fissa il
+        // primo del mese, anche quando il file comincia il 20: ogni confronto qui
+        // sotto filtra comunque per data.
+        LocalDate rangeFrom = firstDate.minusDays(PROVISIONAL_MATCH_DAYS);
+        LocalDate rangeTo = lastDate.plusDays(PROVISIONAL_MATCH_DAYS);
         List<Transaction> inRange = transactionRepository.findByUserIdAndOccurredOnBetween(
-                userId, firstDate.minusDays(PROVISIONAL_MATCH_DAYS), lastDate.plusDays(PROVISIONAL_MATCH_DAYS));
+                userId,
+                rangeFrom.isBefore(firstDate.withDayOfMonth(1)) ? rangeFrom : firstDate.withDayOfMonth(1),
+                rangeTo.isAfter(YearMonth.from(lastDate).atEndOfMonth()) ? rangeTo : YearMonth.from(lastDate).atEndOfMonth());
         List<RecurringTransaction> recurring = recurringRepository.findByUserIdAndActiveTrue(userId);
+        List<ExpenseReminder> reminders = expenseReminderRepository.findByUserIdAndActiveTrue(userId);
 
         Map<String, BankCategoryMapping> mappings = mappingRepository.findByUserIdAndSource(userId, source).stream()
                 .collect(Collectors.toMap(
@@ -107,6 +119,7 @@ public class BankImportAnalysisService {
             BankImportOutcome outcome;
             UUID matchedTransactionId = null;
             UUID matchedRecurringId = null;
+            UUID matchedReminderId = null;
             String conflict = null;
 
             if (knownFingerprints.contains(fingerprint)) {
@@ -149,6 +162,10 @@ public class BankImportAnalysisService {
                                     : null;
                     RecurringOccurrence occurrence = findRecurringOccurrence(
                             inRange, recurring, claimedRecurring, row.date(), amount, type, effectiveCategoryId);
+                    if (occurrence == null) {
+                        occurrence = findReminderOccurrence(
+                                inRange, reminders, claimedRecurring, row.date(), amount, type, effectiveCategoryId);
+                    }
                     Optional<Transaction> manual = occurrence != null
                             ? Optional.empty()
                             : findManualDuplicate(inRange, row.date(), amount, type);
@@ -160,8 +177,16 @@ public class BankImportAnalysisService {
                         if (occurrence.generated() != null) {
                             claimedRecurring.add(occurrence.generated().getId());
                             matchedTransactionId = occurrence.generated().getId();
-                            conflict = "Prende il posto della transazione della regola: "
+                            conflict = (occurrence.generated().getExpenseReminder() != null
+                                    ? "Prende il posto della spesa fissa del promemoria: "
+                                    : "Prende il posto della transazione della regola: ")
                                     + describeTransaction(occurrence.generated());
+                        } else if (occurrence.reminder() != null) {
+                            claimedRecurring.add(occurrence.reminder().getId());
+                            matchedReminderId = occurrence.reminder().getId();
+                            conflict = "È la spesa fissa del promemoria " + occurrence.reminder().getName()
+                                    + " per " + YearMonth.from(row.date())
+                                    + ": entra legata al promemoria, che non la conterà una seconda volta";
                         } else {
                             claimedRecurring.add(occurrence.rule().getId());
                             matchedRecurringId = occurrence.rule().getId();
@@ -205,6 +230,7 @@ public class BankImportAnalysisService {
                     categoryId,
                     matchedTransactionId,
                     matchedRecurringId,
+                    matchedReminderId,
                     conflict,
                     outcome == BankImportOutcome.NUOVA
                             || outcome == BankImportOutcome.AGGIORNA_PROVVISORIA
@@ -292,8 +318,58 @@ public class BankImportAnalysisService {
                 .findFirst();
     }
 
-    /** L'occorrenza di una regola di cui una riga prende il posto: già generata, o non ancora. */
-    private record RecurringOccurrence(Transaction generated, RecurringTransaction rule) {
+    /**
+     * L'occorrenza di cui una riga prende il posto: una transazione già generata (da una
+     * regola o da un promemoria), oppure la regola o il promemoria che non l'hanno ancora
+     * generata. Uno solo dei tre è valorizzato.
+     */
+    private record RecurringOccurrence(Transaction generated, RecurringTransaction rule, ExpenseReminder reminder) {
+    }
+
+    /**
+     * La riga della banca è la spesa fissa di un promemoria, e ne prende il posto.
+     *
+     * <p>Il promemoria registra la sua spesa il primo del mese, come segnaposto per il
+     * mese, e la banca la addebita il giorno vero — il condominio il 15. La finestra di
+     * pochi giorni delle regole non li accosterebbe mai, e la riga entrava come nuova
+     * accanto al segnaposto: la stessa spesa due volte. Qui la chiave è il mese di
+     * calendario, la stessa con cui il job decide se il promemoria è già stato generato.
+     * Come per le regole serve la stessa categoria, e allora l'importo non conta.
+     *
+     * <p>Prima il segnaposto già registrato, che la riga riscrive. Poi il promemoria che
+     * non l'ha ancora registrato per quel mese (creato a metà mese: il job passa solo il
+     * primo): la riga entra legata a lui, così la previsione smette di contarlo e il job
+     * non lo genera.
+     */
+    private RecurringOccurrence findReminderOccurrence(
+            List<Transaction> inRange, List<ExpenseReminder> reminders, Set<UUID> claimed,
+            LocalDate date, BigDecimal amount, TransactionType type, UUID rowCategoryId) {
+        if (rowCategoryId == null || type != TransactionType.EXPENSE) return null;
+        YearMonth month = YearMonth.from(date);
+
+        Optional<Transaction> placeholder = inRange.stream()
+                .filter(t -> t.getExpenseReminder() != null)
+                .filter(t -> t.getImportFingerprint() == null)
+                .filter(t -> !claimed.contains(t.getId()))
+                .filter(t -> rowCategoryId.equals(t.getCategory().getId()))
+                .filter(t -> YearMonth.from(t.getOccurredOn()).equals(month))
+                .min(Comparator.comparing(t -> t.getAmount().subtract(amount).abs()));
+        if (placeholder.isPresent()) {
+            return new RecurringOccurrence(placeholder.get(), null, null);
+        }
+
+        return reminders.stream()
+                .filter(r -> !claimed.contains(r.getId()))
+                .filter(r -> r.getCategory() != null && rowCategoryId.equals(r.getCategory().getId()))
+                .filter(r -> YearMonth.from(r.getNextDueDate()).equals(month))
+                // Già qualcosa legato a lui in quel mese (anche una riga importata prima):
+                // allora il mese è coperto, e questa riga è un'altra spesa.
+                .filter(r -> inRange.stream().noneMatch(t -> t.getExpenseReminder() != null
+                        && t.getExpenseReminder().getId().equals(r.getId())
+                        && YearMonth.from(t.getOccurredOn()).equals(month)))
+                .findFirst()
+                .map(r -> new RecurringOccurrence(null, null, r))
+                .orElse(null);
     }
 
     /**
@@ -327,7 +403,7 @@ public class BankImportAnalysisService {
                 .filter(t -> Math.abs(ChronoUnit.DAYS.between(t.getOccurredOn(), date)) <= RECURRING_MATCH_DAYS)
                 .min(Comparator.comparing(t -> t.getAmount().subtract(amount).abs()));
         if (generated.isPresent()) {
-            return new RecurringOccurrence(generated.get(), null);
+            return new RecurringOccurrence(generated.get(), null, null);
         }
 
         CategoryType categoryType = type == TransactionType.EXPENSE ? CategoryType.EXPENSE : CategoryType.INCOME;
@@ -337,7 +413,7 @@ public class BankImportAnalysisService {
                 .filter(r -> rowCategoryId.equals(r.getCategory().getId()))
                 .filter(r -> Math.abs(ChronoUnit.DAYS.between(r.getNextDueDate(), date)) <= RECURRING_MATCH_DAYS)
                 .min(Comparator.comparing(r -> r.getDefaultAmount().subtract(amount).abs()))
-                .map(r -> new RecurringOccurrence(null, r))
+                .map(r -> new RecurringOccurrence(null, r, null))
                 .orElse(null);
     }
 
@@ -358,6 +434,19 @@ public class BankImportAnalysisService {
                 .findFirst();
         if (generated.isPresent()) {
             return "L'app l'ha gia' generata da una regola ricorrente: " + describeTransaction(generated.get());
+        }
+
+        // La spesa fissa di un promemoria, registrata il primo del mese: la stessa
+        // chiave di findReminderOccurrence (il mese), ma con indizi deboli — categoria
+        // diversa o sconosciuta — non la si sostituisce da soli: la si segnala.
+        Optional<Transaction> reminderPlaceholder = inRange.stream()
+                .filter(t -> t.getExpenseReminder() != null)
+                .filter(t -> t.getType() == type)
+                .filter(t -> YearMonth.from(t.getOccurredOn()).equals(YearMonth.from(date)))
+                .filter(t -> looksLikeRecurring(amount, rowCategoryId, t.getAmount(), t.getCategory().getId()))
+                .findFirst();
+        if (reminderPlaceholder.isPresent()) {
+            return "Il promemoria ha gia' registrato questa spesa fissa: " + describeTransaction(reminderPlaceholder.get());
         }
 
         CategoryType categoryType = type == TransactionType.EXPENSE ? CategoryType.EXPENSE : CategoryType.INCOME;

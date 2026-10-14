@@ -8,6 +8,7 @@ import com.spesetracker.dto.bankimport.BankImportResult;
 import com.spesetracker.model.BankCategoryMapping;
 import com.spesetracker.model.BankImportExclusion;
 import com.spesetracker.model.Category;
+import com.spesetracker.model.ExpenseReminder;
 import com.spesetracker.model.RecurringTransaction;
 import com.spesetracker.model.Transaction;
 import com.spesetracker.model.User;
@@ -15,6 +16,7 @@ import com.spesetracker.model.enums.BankSource;
 import com.spesetracker.repository.BankCategoryMappingRepository;
 import com.spesetracker.repository.BankImportExclusionRepository;
 import com.spesetracker.repository.CategoryRepository;
+import com.spesetracker.repository.ExpenseReminderRepository;
 import com.spesetracker.repository.RecurringTransactionRepository;
 import com.spesetracker.repository.TransactionRepository;
 import com.spesetracker.repository.UserRepository;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,10 +49,15 @@ public class BankImportCommitService {
     private final BankCategoryMappingRepository mappingRepository;
     private final BankImportExclusionRepository exclusionRepository;
     private final RecurringTransactionRepository recurringRepository;
+    private final ExpenseReminderRepository expenseReminderRepository;
 
-    /** Una transazione generata da una regola, che nessuna riga della banca ha ancora riscritto. */
+    /**
+     * Una transazione registrata da una regola o da un promemoria, che nessuna riga della
+     * banca ha ancora riscritto.
+     */
     private boolean isUnreplacedOccurrence(Transaction transaction) {
-        return transaction.getRecurringTransaction() != null && transaction.getImportFingerprint() == null;
+        return (transaction.getRecurringTransaction() != null || transaction.getExpenseReminder() != null)
+                && transaction.getImportFingerprint() == null;
     }
 
     /**
@@ -110,6 +118,56 @@ public class BankImportCommitService {
                 rewrite(existing, row, fingerprint, source, categories);
                 known.add(fingerprint);
                 updated++;
+                continue;
+            }
+
+            if (row.expenseReminderId() != null) {
+                if (known.contains(fingerprint)) {
+                    skipped++;
+                    continue;
+                }
+                ExpenseReminder reminder = expenseReminderRepository.findById(row.expenseReminderId())
+                        .filter(r -> r.getUser().getId().equals(userId))
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST, "Promemoria non trovato"));
+                // Se nel frattempo il promemoria ha registrato la spesa del mese (il job
+                // del primo del mese fra anteprima e conferma), la si riscrive invece di
+                // affiancarle la riga della banca.
+                YearMonth month = YearMonth.from(row.occurredOn());
+                Optional<Transaction> registeredMeanwhile = transactionRepository
+                        .findByUserIdAndOccurredOnBetween(userId, month.atDay(1), month.atEndOfMonth())
+                        .stream()
+                        .filter(t -> t.getExpenseReminder() != null
+                                && t.getExpenseReminder().getId().equals(reminder.getId()))
+                        .filter(this::isUnreplacedOccurrence)
+                        .findFirst();
+                if (registeredMeanwhile.isPresent()) {
+                    rewrite(registeredMeanwhile.get(), row, fingerprint, source, categories);
+                    known.add(fingerprint);
+                    updated++;
+                    continue;
+                }
+
+                // Legata al promemoria: il job e la previsione, che controllano se il mese
+                // ha già una transazione del promemoria, la trovano e non lo contano più.
+                // La scadenza non si sposta: la fa avanzare il job del promemoria, che
+                // serve anche alle notifiche.
+                transactionRepository.save(Transaction.builder()
+                        .user(user)
+                        .category(row.categoryId() != null
+                                ? requireCategory(categories, row.categoryId())
+                                : reminder.getCategory())
+                        .expenseReminder(reminder)
+                        .amount(row.amount())
+                        .type(row.type())
+                        .occurredOn(row.occurredOn())
+                        .description(row.description())
+                        .importSource(source)
+                        .importFingerprint(fingerprint)
+                        .importProvisional(row.provisional())
+                        .build());
+                known.add(fingerprint);
+                imported++;
                 continue;
             }
 

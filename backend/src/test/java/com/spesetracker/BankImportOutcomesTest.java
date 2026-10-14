@@ -3,6 +3,7 @@ package com.spesetracker;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.spesetracker.job.ExpenseReminderGenerationService;
 import com.spesetracker.support.AbstractIntegrationTest;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -10,6 +11,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MvcResult;
@@ -20,6 +22,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * qui si prova quello che succede quando qualcosa non torna.
  */
 class BankImportOutcomesTest extends AbstractIntegrationTest {
+
+    @Autowired
+    private ExpenseReminderGenerationService reminderGeneration;
 
     // Nel futuro di proposito: creare una regola ricorrente con scadenza passata la fa
     // recuperare subito (create -> processDueRule), e la scadenza scapperebbe via dalla
@@ -484,6 +490,98 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------
+    // La spesa fissa dei promemoria
+    //
+    // Il promemoria registra la sua spesa il primo del mese, come segnaposto, e la
+    // banca la addebita il giorno vero: il condominio il 15. La finestra di pochi
+    // giorni delle regole non li accostava mai, e la riga entrava accanto al
+    // segnaposto. La chiave qui è il mese di calendario, quella del job.
+    // ------------------------------------------------------------------
+
+    private Movimento condominio(LocalDate data, double importo) {
+        return new Movimento(data, "Addebito diretto", "ADDEBITO SDD CONDOMINIO VIA ROMA", true, "Casa", -importo);
+    }
+
+    /**
+     * Il segnaposto del primo del mese (120 €) e la riga della banca del 15 con un
+     * importo diverso (135 €, il conguaglio): la riga lo riscrive, e in archivio resta
+     * una sola spesa del condominio per quel mese, con la data e l'importo veri.
+     */
+    @Test
+    void laSpesaFissaDiUnPromemoriaVieneRiscrittaDallaRigaDellaBanca() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        YearMonth mese = YearMonth.now().minusMonths(1);
+        String promemoria = api.createReminder(token, casa, "Condominio", mese.atDay(15), "MONTH", 1, null, null, "120.00");
+        reminderGeneration.generateForMonth(UUID.fromString(promemoria), mese);
+        mappa(token, "Casa", casa);
+
+        JsonNode preview = analyze(token, workbook(List.of(condominio(mese.atDay(15), 135.00))));
+
+        assertThat(esiti(preview)).containsExactly("SOSTITUISCE_RICORRENTE");
+        // Il segnaposto stesso, non il promemoria: il file comincia il 15, e il segnaposto
+        // del primo del mese va cercato fuori dalla finestra dei giorni del file.
+        assertThat(preview.get("rows").get(0).get("matchedTransactionId").isNull()).isFalse();
+        assertThat(preview.get("rows").get(0).get("matchedReminderId").isNull()).isTrue();
+        commit(token, righeDaImportare(preview, null), objectMapper.createArrayNode(), objectMapper.createArrayNode());
+
+        List<JsonNode> delMese = new ArrayList<>();
+        api.listTransactions(token).forEach(t -> {
+            if (t.get("occurredOn").asText().startsWith(mese.toString())) delMese.add(t);
+        });
+        assertThat(delMese).hasSize(1);
+        assertThat(delMese.get(0).get("amount").decimalValue()).isEqualByComparingTo("135.00");
+        assertThat(delMese.get(0).get("occurredOn").asText()).isEqualTo(mese.atDay(15).toString());
+    }
+
+    /**
+     * Il promemoria creato a metà mese non ha ancora registrato niente: il job passa
+     * solo il primo. La riga entra legata a lui, e la prova che il legame c'è è il job
+     * stesso — passato dopo l'import, non registra una seconda spesa per quel mese.
+     * Un invio ripetuto della stessa riga non ne aggiunge un'altra.
+     */
+    @Test
+    void unPromemoriaNonAncoraRegistratoSiLegaAllaRigaEIlJobNonLoRipete() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        String promemoria = api.createReminder(token, casa, "Condominio", DATA, "MONTH", 1, null, null, "120.00");
+        mappa(token, "Casa", casa);
+
+        JsonNode preview = analyze(token, workbook(List.of(condominio(DATA, 120.00))));
+        assertThat(esiti(preview)).containsExactly("SOSTITUISCE_RICORRENTE");
+        assertThat(preview.get("rows").get(0).get("matchedReminderId").asText()).isEqualTo(promemoria);
+
+        ArrayNode righe = righeDaImportare(preview, null);
+        commit(token, righe, objectMapper.createArrayNode(), objectMapper.createArrayNode());
+        commit(token, righe, objectMapper.createArrayNode(), objectMapper.createArrayNode());
+        reminderGeneration.generateForMonth(UUID.fromString(promemoria), YearMonth.from(DATA));
+
+        assertThat(api.listTransactions(token)).hasSize(1);
+    }
+
+    /**
+     * Con indizi deboli — categoria diversa, importo vicino — la riga non sostituisce da
+     * sola il segnaposto: lo segnala, e decide l'utente. Entrata come nuova sarebbe
+     * stata un doppione senza che nessuno lo vedesse.
+     */
+    @Test
+    void conUnAltraCategoriaLaSpesaFissaVieneSoloSegnalata() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        String altro = api.createExpenseCategory(token);
+        YearMonth mese = YearMonth.now().minusMonths(1);
+        String promemoria = api.createReminder(token, casa, "Condominio", mese.atDay(15), "MONTH", 1, null, null, "120.00");
+        reminderGeneration.generateForMonth(UUID.fromString(promemoria), mese);
+        mappa(token, "Casa", altro);
+
+        JsonNode preview = analyze(token, workbook(List.of(condominio(mese.atDay(15), 121.00))));
+
+        assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");
+        assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
+                .contains("promemoria ha gia' registrato");
+    }
+
+    // ------------------------------------------------------------------
     // Le guardie del commit
     // ------------------------------------------------------------------
 
@@ -643,6 +741,7 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
             else r.set("categoryId", row.get("categoryId"));
             r.set("updateTransactionId", row.get("matchedTransactionId"));
             r.set("recurringTransactionId", row.get("matchedRecurringId"));
+            r.set("expenseReminderId", row.get("matchedReminderId"));
         }
         return rows;
     }

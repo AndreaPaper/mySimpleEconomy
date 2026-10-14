@@ -61,10 +61,10 @@ const SECTIONS: {
   },
   {
     outcome: 'SOSTITUISCE_RICORRENTE',
-    title: 'Dalle tue regole ricorrenti',
-    hint: 'Sono le scadenze di una regola ricorrente, come lo stipendio: prendono il posto della transazione della regola con l’importo vero della banca, anche quando è diverso (un mese con il bonus).',
-    checked: 'prende il posto della transazione della regola, già creata o in arrivo — non ne crea una seconda',
-    unchecked: 'resta la transazione della regola, con il suo importo; questa te la riproporrò al prossimo import',
+    title: 'Dalle tue regole ricorrenti e dai promemoria',
+    hint: 'Sono le scadenze di una regola ricorrente, come lo stipendio, o la spesa fissa di un promemoria, come il condominio: prendono il posto della transazione già prevista con l’importo vero della banca, anche quando è diverso (un mese con il bonus, un conguaglio).',
+    checked: 'prende il posto della transazione della regola o del promemoria, già creata o in arrivo — non ne crea una seconda',
+    unchecked: 'resta la transazione prevista, con il suo importo; questa te la riproporrò al prossimo import',
     tone: 'text-sky-700 dark:text-sky-400',
   },
   {
@@ -272,6 +272,7 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
             categoryId: r.categoryId,
             updateTransactionId: r.matchedTransactionId,
             recurringTransactionId: r.matchedRecurringId,
+            expenseReminderId: r.matchedReminderId,
           })),
           mappings,
           exclusions,

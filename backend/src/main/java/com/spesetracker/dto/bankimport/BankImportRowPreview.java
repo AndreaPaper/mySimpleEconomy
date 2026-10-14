@@ -31,6 +31,9 @@ public record BankImportRowPreview(
         // Valorizzato su SOSTITUISCE_RICORRENTE quando la regola non ha ancora
         // generato la sua transazione: la regola di cui la riga prende il posto.
         UUID matchedRecurringId,
+        // Valorizzato su SOSTITUISCE_RICORRENTE quando un promemoria non ha ancora
+        // registrato la spesa fissa del mese: il promemoria a cui la riga si lega.
+        UUID matchedReminderId,
         // Per i due SOSPETTO_*: cosa cozza con questa riga, da mostrare accanto
         // così la decisione si prende avendo il confronto sotto gli occhi.
         String conflictDescription,

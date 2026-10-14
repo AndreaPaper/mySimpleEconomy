@@ -25,6 +25,9 @@ public record BankImportCommitRow(
         UUID updateTransactionId,
         // Valorizzato quando la riga prende il posto di un'occorrenza che la regola
         // non ha ancora generato: la regola, che passa alla scadenza dopo.
-        UUID recurringTransactionId
+        UUID recurringTransactionId,
+        // Valorizzato quando la riga è la spesa fissa di un promemoria che non l'ha
+        // ancora registrata per quel mese: la riga entra legata a lui.
+        UUID expenseReminderId
 ) {
 }

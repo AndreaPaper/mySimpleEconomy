@@ -55,6 +55,7 @@ const riga = (overrides: Partial<BankImportRowPreview> = {}): BankImportRowPrevi
   categoryId: 'cat-salute',
   matchedTransactionId: null,
   matchedRecurringId: null,
+  matchedReminderId: null,
   conflictDescription: null,
   selectedByDefault: true,
   ...overrides,
@@ -160,7 +161,7 @@ describe('il carico mandato al commit', () => {
    * La scadenza di una regola ricorrente: entra senza bisogno di spuntarla, e porta
    * con sé cosa sostituire. La transazione già generata dalla regola, se c'è, che il
    * backend riscrive; altrimenti la regola, che il backend fa passare alla scadenza
-   * dopo. Perso uno dei due id, la riga entrerebbe come nuova accanto alla
+   * dopo, o il promemoria a cui legare la riga. Perso uno dei due id, la riga entrerebbe come nuova accanto alla
    * transazione della regola: lo stipendio due volte.
    */
   it('la scadenza di una regola entra da sola e porta cosa sostituire', async () => {
@@ -169,17 +170,19 @@ describe('il carico mandato al commit', () => {
         rows: [
           riga({ rowNumber: 1, outcome: 'SOSTITUISCE_RICORRENTE', matchedTransactionId: 'tx-generata' }),
           riga({ rowNumber: 2, outcome: 'SOSTITUISCE_RICORRENTE', matchedRecurringId: 'regola-stipendio' }),
+          riga({ rowNumber: 3, outcome: 'SOSTITUISCE_RICORRENTE', matchedReminderId: 'promemoria-condominio' }),
         ],
-        summary: { ...anteprima().summary, rowsInFile: 2, nuove: 0, daAggiornare: 2 },
+        summary: { ...anteprima().summary, rowsInFile: 3, nuove: 0, daAggiornare: 3 },
       }),
     )
 
-    await userEvent.click(await screen.findByRole('button', { name: /Importa 2 movimenti/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /Importa 3 movimenti/i }))
 
     await waitFor(() => expect(commit).toHaveBeenCalled())
-    const [riscritta, alPostoDellaRegola] = commit.mock.calls[0][0].rows
-    expect(riscritta).toMatchObject({ updateTransactionId: 'tx-generata', recurringTransactionId: null })
-    expect(alPostoDellaRegola).toMatchObject({ updateTransactionId: null, recurringTransactionId: 'regola-stipendio' })
+    const [riscritta, alPostoDellaRegola, legataAlPromemoria] = commit.mock.calls[0][0].rows
+    expect(riscritta).toMatchObject({ updateTransactionId: 'tx-generata', recurringTransactionId: null, expenseReminderId: null })
+    expect(alPostoDellaRegola).toMatchObject({ updateTransactionId: null, recurringTransactionId: 'regola-stipendio', expenseReminderId: null })
+    expect(legataAlPromemoria).toMatchObject({ updateTransactionId: null, recurringTransactionId: null, expenseReminderId: 'promemoria-condominio' })
   })
 
   // Quello che l'utente ha tolto dalla selezione non deve entrare: e' il modo

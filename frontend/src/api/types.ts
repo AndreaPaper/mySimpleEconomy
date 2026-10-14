@@ -272,6 +272,9 @@ export interface BankImportRowPreview {
   // Su SOSTITUISCE_RICORRENTE, quando la regola non ha ancora generato la sua
   // transazione: la regola di cui la riga prende il posto.
   matchedRecurringId: string | null
+  // Su SOSTITUISCE_RICORRENTE, quando un promemoria non ha ancora registrato la
+  // spesa fissa del mese: il promemoria a cui la riga si lega.
+  matchedReminderId: string | null
   conflictDescription: string | null
   selectedByDefault: boolean
 }
@@ -325,6 +328,8 @@ export interface BankImportCommitRow {
   // La regola di cui la riga prende il posto, se non ha ancora generato la sua
   // transazione: il backend la fa passare alla scadenza dopo.
   recurringTransactionId: string | null
+  // Il promemoria a cui legare la riga, se non ha ancora registrato la spesa del mese.
+  expenseReminderId: string | null
 }
 
 export interface BankImportResult {

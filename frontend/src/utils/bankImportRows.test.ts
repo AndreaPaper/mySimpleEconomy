@@ -39,6 +39,7 @@ function riga(
     categoryId: null,
     matchedTransactionId: null,
     matchedRecurringId: null,
+    matchedReminderId: null,
     conflictDescription: null,
     selectedByDefault: true,
     ...overrides,
