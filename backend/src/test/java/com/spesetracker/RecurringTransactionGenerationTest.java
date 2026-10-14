@@ -95,6 +95,24 @@ class RecurringTransactionGenerationTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Una regola del 31: a febbraio scade il 28, e da marzo torna al 31 (il 30 ad aprile).
+     * Scivolava al 28 per sempre — la scadenza si calcolava dalla precedente, già
+     * accorciata — e un affitto del 31 finiva per essere registrato tre giorni prima,
+     * ogni mese, nel periodo di stipendio sbagliato.
+     */
+    @Test
+    void unaRegolaDel31NonScivolaDopoFebbraio() throws Exception {
+        Scenario s = scenario();
+        UUID id = regola(s, LocalDate.of(2026, 1, 31), "500.00", null).getId();
+
+        generationService.processDueRule(id, LocalDate.of(2026, 5, 1));
+
+        assertThat(dateDelleTransazioni(s.token()))
+                .containsExactly("2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30");
+        assertThat(ricarica(id).getNextDueDate()).isEqualTo(LocalDate.of(2026, 5, 31));
+    }
+
+    /**
      * Il caso per cui il ciclo esiste: il server è stato fermo (o la regola è rimasta indietro)
      * e all'esecuzione successiva vanno recuperate tutte le occorrenze mancate, non solo
      * l'ultima.

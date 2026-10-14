@@ -46,6 +46,30 @@ class ProfileSalaryApiTest extends AbstractIntegrationTest {
         assertThat(rules.get(0).get("defaultAmount").decimalValue()).isEqualByComparingTo("2000.00");
     }
 
+    /**
+     * La data di inizio della regola porta il giorno di accredito: è da lì che la regola
+     * ricava il giorno voluto quando un mese corto accorcia una scadenza (il 31 al 30
+     * novembre). Restava quella del primo stipendio anche cambiando giorno, e con
+     * l'accredito spostato dal 27 al 31 la regola sarebbe rimasta, dopo il primo mese
+     * corto, sul 30. Vale anche alla creazione, in un mese che il 31 non ce l'ha.
+     */
+    @Test
+    void ilGiornoDiAccreditoDiventaIlGiornoDellaRegola() throws Exception {
+        String token = api.registerAndLogin();
+        updateProfile(token, """
+                {"nickname":"Andrea","defaultSalaryAmount":1800.00,"salaryDay":27}
+                """);
+        assertThat(LocalDate.parse(recurringRules(token).get(0).get("startDate").asText()).getDayOfMonth())
+                .isEqualTo(27);
+
+        updateProfile(token, """
+                {"nickname":"Andrea","defaultSalaryAmount":1800.00,"salaryDay":31}
+                """);
+
+        assertThat(LocalDate.parse(recurringRules(token).get(0).get("startDate").asText()).getDayOfMonth())
+                .isEqualTo(31);
+    }
+
     @Test
     void changingOnlyTheNicknameDoesNotRecreateTheSalaryRule() throws Exception {
         String token = api.registerAndLogin();

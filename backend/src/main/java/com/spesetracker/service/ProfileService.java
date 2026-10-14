@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -109,7 +110,7 @@ public class ProfileService {
                     .defaultAmount(amount)
                     .intervalUnit(IntervalUnit.MONTH)
                     .intervalValue((short) 1)
-                    .startDate(nextDueDate)
+                    .startDate(anchorForDay(day, nextDueDate))
                     .nextDueDate(nextDueDate)
                     .build();
             recurringTransactionRepository.save(created);
@@ -120,6 +121,7 @@ public class ProfileService {
 
         rule.setDefaultAmount(amount);
         rule.setNextDueDate(nextDueDate);
+        rule.setStartDate(anchorForDay(day, nextDueDate));
         rule.setActive(true);
         generationService.processDueRule(rule.getId(), today);
     }
@@ -138,6 +140,22 @@ public class ProfileService {
     // Prossima occorrenza del giorno del mese indicato, a partire da oggi
     // (oggi compreso). Il giorno viene troncato alla lunghezza del mese, per
     // i mesi più corti di 31 giorni.
+    /**
+     * La data di inizio della regola dello stipendio: deve portare il giorno di accredito,
+     * perché è da lì che RecurrenceSchedule ricava il giorno voluto quando un mese corto
+     * accorcia una scadenza. Restava quella del primo stipendio anche cambiando giorno, e
+     * con l'accredito spostato al 31 la regola, accorciata al 30 novembre, sarebbe poi
+     * rimasta sul 30. Se il giorno non esiste nel mese della scadenza (il 31 a novembre),
+     * l'ultimo mese che ce l'ha.
+     */
+    private LocalDate anchorForDay(short day, LocalDate nextDueDate) {
+        YearMonth month = YearMonth.from(nextDueDate);
+        while (month.lengthOfMonth() < day) {
+            month = month.minusMonths(1);
+        }
+        return month.atDay(day);
+    }
+
     private LocalDate nextOccurrenceOfDay(short day, LocalDate today) {
         LocalDate candidate = today.withDayOfMonth(Math.min(day, today.lengthOfMonth()));
         if (!candidate.isBefore(today)) {
