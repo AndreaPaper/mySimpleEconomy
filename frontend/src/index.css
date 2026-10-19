@@ -635,3 +635,24 @@ html.mixed-case body {
     display: none;
   }
 }
+
+/* Il fondo della pagina vera e propria, sotto il Layout: si vede solo dove il
+   Layout non arriva, cioè sotto la barra di navigazione mobile (la striscia
+   della barra di sistema, quella del gesto home) e nel rimbalzo quando si
+   scorre oltre il bordo. Senza un colore era il bianco del browser, che col
+   tema scuro stonava sotto la barra. Prende lo stesso colore della barra
+   (bg-brand-300 dark:bg-black, rimappato per palette qui sopra), così le due
+   si leggono come una cosa sola. color-scheme dice al browser che la pagina
+   è scura, così anche quello che disegna lui (barre di sistema, scrollbar)
+   segue il tema. */
+html {
+  background-color: var(--color-brand-300);
+}
+html.dark {
+  background-color: #000;
+  color-scheme: dark;
+}
+html.dark:not([data-palette="vividkpi"]):not([data-palette="brezza"]):not([data-palette="lavanda"]),
+html.dark[data-palette="vividkpi"] {
+  background-color: var(--color-brand-300);
+}
