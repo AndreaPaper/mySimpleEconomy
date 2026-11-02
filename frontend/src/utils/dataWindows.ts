@@ -9,7 +9,12 @@ import { lastPeriodKeys } from './savingsPeriods'
 // per far precaricare una chiave di cache che la pagina non legge mai — senza
 // nessun errore, solo un prefetch inutile.
 
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+// La data locale, non quella UTC. toISOString() converte in UTC, e in Italia
+// (fuso sempre positivo) una mezzanotte locale diventa le 23 del giorno prima:
+// la finestra partiva da un giorno sbagliato, e fra mezzanotte e le due il
+// periodo in corso poteva risultare quello precedente.
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 // Le durate offerte dai chip del grafico su mobile, al posto dei due campi data.
 export const DEFAULT_MOBILE_RANGE_MONTHS = 6
@@ -50,17 +55,23 @@ export function initialRangeStart(isMobile: boolean): string {
 }
 
 /**
- * Quanti mesi di previsione servono per coprire `rangeEnd` partendo dal mese
- * corrente: il motore di previsione parte sempre da oggi, mai da rangeStart.
+ * Quanti periodi di previsione servono per coprire `rangeEnd` partendo da
+ * quello in corso: il motore di previsione parte sempre da oggi, mai da
+ * rangeStart.
+ *
+ * Si contano periodi e non mesi di calendario perché è per periodi che il
+ * backend prevede. Il periodo prende il nome dal mese in cui finisce, quindi la
+ * distanza fra due periodi è la distanza fra le loro chiavi "YYYY-MM".
  */
-export function forecastWindow(rangeEnd: string, today: Date): { monthsDiff: number; months: number } {
-  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const rangeEndDate = new Date(rangeEnd)
-  const endMonthStart = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth(), 1)
-  const monthsDiff =
-    (endMonthStart.getFullYear() - currentMonthStart.getFullYear()) * 12 +
-    (endMonthStart.getMonth() - currentMonthStart.getMonth())
-  return { monthsDiff, months: Math.min(24, Math.max(1, monthsDiff + 1)) }
+export function forecastWindow(
+  rangeEnd: string,
+  today: Date,
+  salaryDay: number | null,
+): { periodsDiff: number; periods: number } {
+  const [annoOra, meseOra] = periodKeyOf(iso(today), salaryDay).split('-').map(Number)
+  const [annoFine, meseFine] = periodKeyOf(rangeEnd, salaryDay).split('-').map(Number)
+  const periodsDiff = (annoFine - annoOra) * 12 + (meseFine - meseOra)
+  return { periodsDiff, periods: Math.min(24, Math.max(1, periodsDiff + 1)) }
 }
 
 /**

@@ -58,9 +58,15 @@ class RecurringTransactionApiTest extends AbstractIntegrationTest {
 
         JsonNode transactions = api.listTransactions(token);
         assertThat(transactions).hasSize(4);
-        // Le occorrenze sono prenotate a inizio mese, non alla data di scadenza reale.
+        // Le occorrenze sono registrate alla data di scadenza reale (erano retrodatate al
+        // primo del mese): le quattro scadenze, una al mese a partire da start. Ognuna è
+        // start più k mesi, non la precedente più uno: una regola nata il 31 torna al 31
+        // dopo un mese corto invece di scivolare (vedi RecurrenceSchedule). Calcolate a
+        // catena, come facevo prima, le attese copiavano lo scivolamento.
+        assertThat(transactions.findValuesAsText("occurredOn").stream().sorted().toList())
+                .containsExactly(start.toString(), start.plusMonths(1).toString(),
+                        start.plusMonths(2).toString(), start.plusMonths(3).toString());
         for (JsonNode t : transactions) {
-            assertThat(LocalDate.parse(t.get("occurredOn").asText()).getDayOfMonth()).isEqualTo(1);
             assertThat(t.get("recurringTransactionId").asText()).isNotBlank();
         }
     }

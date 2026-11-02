@@ -72,8 +72,15 @@ export interface CategoryAmountNode extends CategoryAmount {
   children: CategoryAmount[]
 }
 
-export interface MonthlyForecast {
-  yearMonth: string
+// Un periodo da stipendio a stipendio, non un mese di calendario: con il
+// giorno di accredito configurato i due non coincidono, e tutto il resto
+// dell'app (budget, risparmio, export) contava già per periodi.
+// periodStart/periodEnd arrivano dal backend per non ricalcolare qui dei
+// confini che là sono già stati decisi.
+export interface PeriodForecast {
+  period: string
+  periodStart: string
+  periodEnd: string
   projectedIncome: number
   projectedExpense: number
   netBalance: number
@@ -85,7 +92,18 @@ export interface ForecastResponse {
   startingBalanceDate: string | null
   startingBalance: number
   currentBalance: number
-  months: MonthlyForecast[]
+  periods: PeriodForecast[]
+  // Il mese di CALENDARIO la cui fine mostra la card "Saldo previsto a fine …":
+  // quello in cui arriva il prossimo stipendio, così la card lo contiene
+  // sempre. Passato l'accredito del mese è il mese prossimo, prima è questo;
+  // senza giorno di accredito è sempre il mese in corso. Il resto della pagina
+  // conta da un accredito al successivo; la card no.
+  monthEndForecast: PeriodForecast
+  // L'ipotesi della previsione di `periods`, da scrivere sotto il grafico: la
+  // media delle spese variabili aggiunta a ogni periodo futuro, e su quanti
+  // periodi di storico è calcolata (0-6). Con 0 non c'è niente da cui stimare.
+  variableExpenseAverage: number
+  historyPeriods: number
 }
 
 export interface BalanceCheckpoint {
@@ -233,6 +251,7 @@ export type BankImportOutcome =
   | 'NUOVA'
   | 'GIA_IMPORTATA'
   | 'AGGIORNA_PROVVISORIA'
+  | 'SOSTITUISCE_RICORRENTE'
   | 'SOSPETTO_MANUALE'
   | 'SOSPETTO_RICORRENTE'
   | 'ESCLUSA'
@@ -250,6 +269,12 @@ export interface BankImportRowPreview {
   outcome: BankImportOutcome
   categoryId: string | null
   matchedTransactionId: string | null
+  // Su SOSTITUISCE_RICORRENTE, quando la regola non ha ancora generato la sua
+  // transazione: la regola di cui la riga prende il posto.
+  matchedRecurringId: string | null
+  // Su SOSTITUISCE_RICORRENTE, quando un promemoria non ha ancora registrato la
+  // spesa fissa del mese: il promemoria a cui la riga si lega.
+  matchedReminderId: string | null
   conflictDescription: string | null
   selectedByDefault: boolean
 }
@@ -300,6 +325,11 @@ export interface BankImportCommitRow {
   description: string
   categoryId: string | null
   updateTransactionId: string | null
+  // La regola di cui la riga prende il posto, se non ha ancora generato la sua
+  // transazione: il backend la fa passare alla scadenza dopo.
+  recurringTransactionId: string | null
+  // Il promemoria a cui legare la riga, se non ha ancora registrato la spesa del mese.
+  expenseReminderId: string | null
 }
 
 export interface BankImportResult {

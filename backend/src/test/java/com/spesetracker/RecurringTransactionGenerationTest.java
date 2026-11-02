@@ -95,6 +95,24 @@ class RecurringTransactionGenerationTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Una regola del 31: a febbraio scade il 28, e da marzo torna al 31 (il 30 ad aprile).
+     * Scivolava al 28 per sempre — la scadenza si calcolava dalla precedente, già
+     * accorciata — e un affitto del 31 finiva per essere registrato tre giorni prima,
+     * ogni mese, nel periodo di stipendio sbagliato.
+     */
+    @Test
+    void unaRegolaDel31NonScivolaDopoFebbraio() throws Exception {
+        Scenario s = scenario();
+        UUID id = regola(s, LocalDate.of(2026, 1, 31), "500.00", null).getId();
+
+        generationService.processDueRule(id, LocalDate.of(2026, 5, 1));
+
+        assertThat(dateDelleTransazioni(s.token()))
+                .containsExactly("2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30");
+        assertThat(ricarica(id).getNextDueDate()).isEqualTo(LocalDate.of(2026, 5, 31));
+    }
+
+    /**
      * Il caso per cui il ciclo esiste: il server è stato fermo (o la regola è rimasta indietro)
      * e all'esecuzione successiva vanno recuperate tutte le occorrenze mancate, non solo
      * l'ultima.
@@ -108,10 +126,11 @@ class RecurringTransactionGenerationTest extends AbstractIntegrationTest {
         // arretrate, aprile non è ancora dovuta.
         generationService.processDueRule(id, LocalDate.of(2026, 4, 14));
 
-        // Le occorrenze si registrano al primo del mese, non alla data di scadenza reale:
-        // servono a dare subito la stima del saldo residuo del mese.
+        // Le occorrenze si registrano alla data di scadenza reale. Erano retrodatate al primo
+        // del mese, e lo stipendio del 27 importato dalla banca non veniva riconosciuto come
+        // lo stesso movimento: entrava una seconda volta.
         assertThat(dateDelleTransazioni(s.token()))
-                .containsExactly("2026-01-01", "2026-02-01", "2026-03-01");
+                .containsExactly("2026-01-15", "2026-02-15", "2026-03-15");
         assertThat(ricarica(id).getNextDueDate()).isEqualTo(LocalDate.of(2026, 4, 15));
         assertThat(ricarica(id).getActive()).isTrue();
     }
@@ -151,7 +170,7 @@ class RecurringTransactionGenerationTest extends AbstractIntegrationTest {
 
         generationService.processDueRule(id, GENNAIO);
 
-        assertThat(dateDelleTransazioni(s.token())).containsExactly("2026-01-01");
+        assertThat(dateDelleTransazioni(s.token())).containsExactly("2026-01-15");
         assertThat(ricarica(id).getActive()).isTrue();
     }
 
@@ -186,11 +205,9 @@ class RecurringTransactionGenerationTest extends AbstractIntegrationTest {
     }
 
     /**
-     * L'eccezione di importo su una singola occorrenza, mai coperta finora. Il punto delicato
-     * è che le due date <em>non coincidono</em>: l'eccezione si cerca sulla data di scadenza
-     * reale (15 gennaio), ma la transazione si registra al primo del mese. Cercarla sulla data
-     * di registrazione la renderebbe inefficace e l'importo tornerebbe a quello di base, senza
-     * che nulla lo segnali.
+     * L'eccezione di importo su una singola occorrenza, mai coperta finora: si cerca sulla
+     * data di scadenza reale (15 gennaio), che da quando la transazione non è più retrodatata
+     * al primo del mese è anche la sua data di registrazione.
      */
     @Test
     void unEccezioneDiImportoValeSullaSuaOccorrenza() throws Exception {
@@ -207,11 +224,11 @@ class RecurringTransactionGenerationTest extends AbstractIntegrationTest {
         JsonNode transazioni = api.listTransactions(s.token());
         assertThat(transazioni).hasSize(2);
         assertThat(transazioni).anySatisfy(t -> {
-            assertThat(t.get("occurredOn").asText()).isEqualTo("2026-01-01");
+            assertThat(t.get("occurredOn").asText()).isEqualTo("2026-01-15");
             assertThat(t.get("amount").decimalValue()).isEqualByComparingTo("230.00");
         });
         assertThat(transazioni).anySatisfy(t -> {
-            assertThat(t.get("occurredOn").asText()).isEqualTo("2026-02-01");
+            assertThat(t.get("occurredOn").asText()).isEqualTo("2026-02-15");
             assertThat(t.get("amount").decimalValue()).isEqualByComparingTo("80.00");
         });
     }

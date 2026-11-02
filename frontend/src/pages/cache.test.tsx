@@ -118,7 +118,7 @@ describe('dopo una scrittura', () => {
     server.use(
       http.get('*/api/forecast', () => {
         previsioni.n++
-        return HttpResponse.json({ currentBalance: 0, months: [] })
+        return HttpResponse.json({ currentBalance: 0, periods: [] })
       }),
       http.get('*/api/debts', () => HttpResponse.json([debito({ id: 'd-1', name: 'Prestito auto' })])),
       http.delete('*/api/debts/:id', () => new HttpResponse(null, { status: 204 })),
@@ -171,7 +171,7 @@ describe('i dati prima del clic', () => {
     server.use(
       http.get('*/api/forecast', () => {
         conta.previsione++
-        return HttpResponse.json({ currentBalance: 0, months: [] })
+        return HttpResponse.json({ currentBalance: 0, periods: [] })
       }),
       http.get('*/api/transactions', ({ request }) => {
         if (new URL(request.url).searchParams.has('from')) conta.storico++

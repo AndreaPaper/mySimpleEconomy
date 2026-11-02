@@ -116,7 +116,7 @@ export const checkpointsApi = {
 }
 
 export const forecastApi = {
-  get: (months = 6) => client.get<ForecastResponse>('/forecast', { params: { months } }).then((r) => r.data),
+  get: (periods = 6) => client.get<ForecastResponse>('/forecast', { params: { periods } }).then((r) => r.data),
 }
 
 export const excelExportApi = {

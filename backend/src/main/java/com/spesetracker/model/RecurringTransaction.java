@@ -86,12 +86,9 @@ public class RecurringTransaction {
      * di previsione per proiettare le occorrenze future senza mutare la regola.
      */
     public LocalDate addInterval(LocalDate date) {
-        return switch (this.intervalUnit) {
-            case DAY -> date.plusDays(this.intervalValue);
-            case WEEK -> date.plusWeeks(this.intervalValue);
-            case MONTH -> date.plusMonths(this.intervalValue);
-            case YEAR -> date.plusYears(this.intervalValue);
-        };
+        // Il giorno lo decide la data di inizio quando un mese corto l'ha accorciato:
+        // vedi RecurrenceSchedule.
+        return RecurrenceSchedule.next(date, this.startDate, this.intervalUnit, this.intervalValue);
     }
 
     /**

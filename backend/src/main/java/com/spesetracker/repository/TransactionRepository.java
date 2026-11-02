@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,6 +49,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     // somma (in Java, coerente con lo stile del resto del progetto) tutte le
     // transazioni di questo tipo nella categoria collegata al debito.
     List<Transaction> findByUserIdAndCategoryIdAndType(UUID userId, UUID categoryId, TransactionType type);
+
+    // Gli stessi pagamenti per più debiti in una volta: la previsione ne ha bisogno
+    // per tutti i debiti con una rata, e una query per debito sarebbe un viaggio
+    // verso il database per ciascuno.
+    List<Transaction> findByUserIdAndCategoryIdInAndType(UUID userId, Collection<UUID> categoryIds, TransactionType type);
 
     long countByRecurringTransactionId(UUID recurringTransactionId);
 

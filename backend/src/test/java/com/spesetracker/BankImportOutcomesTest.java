@@ -3,6 +3,7 @@ package com.spesetracker;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.spesetracker.job.ExpenseReminderGenerationService;
 import com.spesetracker.support.AbstractIntegrationTest;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -10,6 +11,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MvcResult;
@@ -17,8 +19,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * qui si prova quello che succede quando qualcosa non torna.
  */
 class BankImportOutcomesTest extends AbstractIntegrationTest {
+
+    @Autowired
+    private ExpenseReminderGenerationService reminderGeneration;
 
     // Nel futuro di proposito: creare una regola ricorrente con scadenza passata la fa
     // recuperare subito (create -> processDueRule), e la scadenza scapperebbe via dalla
@@ -101,6 +108,49 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         JsonNode preview = analyze(token, file);
 
         assertThat(esiti(preview)).containsExactly("ESCLUSA");
+    }
+
+    // ------------------------------------------------------------------
+    // Le corrispondenze restano da un import all'altro
+    // ------------------------------------------------------------------
+
+    /**
+     * Ogni import cancellava le corrispondenze decise in quelli precedenti. Il frontend
+     * manda solo le categorie della banca che l'analisi non conosceva ancora, e il
+     * salvataggio buttava via tutto il resto: l'app tornava a chiedere categorie a cui
+     * si era già risposto. Qui due import decidono due categorie della banca diverse, e
+     * la prima deve esserci ancora dopo la seconda.
+     */
+    @Test
+    void leCorrispondenzeDiUnImportRestanoDopoQuelloSuccessivo() throws Exception {
+        String token = api.registerAndLogin();
+        String salute = api.createExpenseCategory(token);
+        String spesa = api.createExpenseCategory(token);
+        mappa(token, "Salute", salute);
+        mappa(token, "Supermercato", spesa);
+
+        JsonNode preview = analyze(token, workbook(List.of(spesa(57.40))));
+
+        assertThat(preview.get("unmappedCategories")).isEmpty();
+        assertThat(preview.get("rows").get(0).get("categoryId").asText()).isEqualTo(salute);
+    }
+
+    /**
+     * Decisa di nuovo, una corrispondenza si aggiorna invece di aggiungersi: c'è un
+     * vincolo di unicità su (utente, banca, categoria della banca, tipo), e un secondo
+     * inserimento farebbe fallire l'intero import.
+     */
+    @Test
+    void unaCorrispondenzaDecisaDiNuovoSiAggiorna() throws Exception {
+        String token = api.registerAndLogin();
+        String prima = api.createExpenseCategory(token);
+        String dopo = api.createExpenseCategory(token);
+        mappa(token, "Salute", prima);
+        mappa(token, "Salute", dopo);
+
+        JsonNode preview = analyze(token, workbook(List.of(spesa(57.40))));
+
+        assertThat(preview.get("rows").get(0).get("categoryId").asText()).isEqualTo(dopo);
     }
 
     // ------------------------------------------------------------------
@@ -202,16 +252,32 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
      * data futura — perché una regola genera l'occorrenza solo quando la
      * scadenza è arrivata: alla creazione la regola recupera l'arretrato, e da
      * lì in archivio c'è una transazione legata a una regola.
+     *
+     * <p>È il caso dello stipendio contato due volte. L'occorrenza generata era
+     * retrodatata al primo del mese: lo stipendio del 27 importato dalla banca
+     * cadeva a 26 giorni da lei, fuori dalla finestra di cinque, ed entrava come
+     * nuovo. Ora è datata alla scadenza reale, e la riga della banca cade di
+     * solito lo stesso giorno e con lo stesso importo — che è esattamente quello
+     * che questo test riproduce.
+     *
+     * <p>Lo stesso giorno e lo stesso importo sono anche il caso in cui il
+     * controllo del doppione scritto a mano, che viene prima, la chiamava "scritta
+     * a mano". Le transazioni generate da una regola ne sono escluse, e l'esito
+     * deve dire che è stata una regola.
      */
     @Test
     void unaSpesaGiaGenerataDaUnaRegolaRendeLaRigaSospetta() throws Exception {
         String token = api.registerAndLogin();
         String categoria = api.createExpenseCategory(token);
-        LocalDate passata = LocalDate.now().minusDays(5);
-        creaRicorrente(token, categoria, "Bolletta luce", "57.40", passata);
+        // Il 20 del mese scorso: già scaduta, quindi generata alla creazione, e lontana
+        // dal primo del mese qualunque sia oggi. Con "tre giorni fa" il test non
+        // distingueva le due date nei primi giorni del mese, quando anche il primo
+        // cade dentro la finestra di cinque.
+        LocalDate scadenza = LocalDate.now().minusMonths(1).withDayOfMonth(20);
+        creaRicorrente(token, categoria, "Bolletta luce", "57.40", scadenza);
 
         JsonNode preview = analyze(token, workbook(List.of(
-                new Movimento(passata, "Farmacia Economica", "FARMACIA ECONOMICA Carta n.5397",
+                new Movimento(scadenza, "Farmacia Economica", "FARMACIA ECONOMICA Carta n.5397",
                         true, "Salute", -57.40))));
 
         assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");
@@ -243,6 +309,276 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         creaRicorrente(token, categoria, "Bolletta luce", "60.00", DATA.plusDays(20));
 
         assertThat(esiti(analyze(token, workbook(List.of(spesa(57.40)))))).containsExactly("NUOVA");
+    }
+
+    // La categoria della riga, quando è già nota, decide quanto devono somigliarsi gli
+    // importi. Il caso segnalato: una spesa da 8,61 € da In's Mercato, categoria
+    // Supermercato, accostata all'abbonamento Apple TV da 9,99 € della stessa settimana
+    // — dentro il 20%, e con una spesa che con l'abbonamento non c'entra niente.
+
+    private Movimento supermercato(double importo) {
+        return new Movimento(DATA, "In's Mercato Spa", "IN'S MERCATO SPA CDC 519 Carta n.5397",
+                true, "Supermercato", -importo);
+    }
+
+    @Test
+    void unaSpesaDiUnAltraCategoriaNonVieneAccostataAUnaRicorrenteSimile() throws Exception {
+        String token = api.registerAndLogin();
+        String abbonamenti = api.createExpenseCategory(token);
+        String spesa = api.createExpenseCategory(token);
+        creaRicorrente(token, abbonamenti, "Apple TV", "9.99", DATA.plusDays(5));
+        mappa(token, "Supermercato", spesa);
+
+        assertThat(esiti(analyze(token, workbook(List.of(supermercato(8.61)))))).containsExactly("NUOVA");
+    }
+
+    /**
+     * Il verso opposto, che impedisce alla correzione di diventare un buco: con
+     * categorie diverse un importo <em>identico</em> viene ancora segnalato. Un
+     * abbonamento costa sempre uguale, e la banca può classificarlo a modo suo, in una
+     * categoria che non è quella in cui l'utente ha messo la regola.
+     */
+    @Test
+    void conCategorieDiverseLImportoIdenticoVieneAncoraSegnalato() throws Exception {
+        String token = api.registerAndLogin();
+        String abbonamenti = api.createExpenseCategory(token);
+        String spesa = api.createExpenseCategory(token);
+        creaRicorrente(token, abbonamenti, "Apple TV", "9.99", DATA.plusDays(5));
+        mappa(token, "Supermercato", spesa);
+
+        assertThat(esiti(analyze(token, workbook(List.of(supermercato(9.99))))))
+                .containsExactly("SOSPETTO_RICORRENTE");
+    }
+
+    /**
+     * Il buco che una prima versione della correzione apriva, pretendendo l'importo
+     * identico con categorie diverse. Chi scrive una regola arrotonda ("Iliad Casa",
+     * 20,00 €), la banca addebita il prezzo vero (19,99 €), e la banca può classificarla
+     * in un'altra categoria: era un doppione vero, e passava. Con categorie diverse la
+     * tolleranza è stretta, non nulla.
+     */
+    @Test
+    void conCategorieDiverseUnImportoArrotondatoVieneAncoraSegnalato() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        String bollette = api.createExpenseCategory(token);
+        creaRicorrente(token, casa, "Iliad Casa", "20.00", DATA.plusDays(2));
+        mappa(token, "Supermercato", bollette);
+
+        assertThat(esiti(analyze(token, workbook(List.of(supermercato(19.99))))))
+                .containsExactly("SOSPETTO_RICORRENTE");
+    }
+
+    // ------------------------------------------------------------------
+    // SOSTITUISCE_RICORRENTE
+    //
+    // Una riga della banca con la stessa categoria di una regola, a pochi giorni dalla
+    // sua scadenza, è l'occorrenza di quella regola: ne prende il posto, qualunque sia
+    // l'importo. Prima veniva segnalata (con un importo simile) o entrava come nuova
+    // (con un importo diverso, il mese del bonus): in entrambi i casi chi la importava
+    // si ritrovava due stipendi.
+    // ------------------------------------------------------------------
+
+    /**
+     * Con la stessa categoria della regola la riga ne prende il posto anche con un
+     * importo simile: è la stessa bolletta. Era SOSPETTO_RICORRENTE, e lasciata non
+     * spuntata restava l'importo della regola invece di quello vero.
+     */
+    @Test
+    void conLaStessaCategoriaDellaRegolaLaRigaNePrendeIlPosto() throws Exception {
+        String token = api.registerAndLogin();
+        String utenze = api.createExpenseCategory(token);
+        creaRicorrente(token, utenze, "Bolletta luce", "60.00", DATA.plusDays(2));
+        mappa(token, "Salute", utenze);
+
+        assertThat(esiti(analyze(token, workbook(List.of(spesa(57.40))))))
+                .containsExactly("SOSTITUISCE_RICORRENTE");
+    }
+
+    private Movimento stipendio(LocalDate data, double importo) {
+        return new Movimento(data, "Accredito stipendio", "STIPENDIO ACME SPA", true, "Stipendi e pensioni", importo);
+    }
+
+    /**
+     * Il caso segnalato: lo stipendio già generato dalla regola (1.800) e la riga della
+     * banca del giorno dopo con il bonus (2.300, il 28% in più: fuori da qualunque
+     * tolleranza). La riga riscrive la transazione della regola, e in archivio resta
+     * una sola entrata — con l'importo e la data della banca, e ancora legata alla
+     * regola, così la previsione continua a non contarla nella media.
+     */
+    @Test
+    void loStipendioConIlBonusRiscriveQuelloGeneratoDallaRegola() throws Exception {
+        String token = api.registerAndLogin();
+        String stipendi = api.createIncomeCategory(token);
+        LocalDate scadenza = LocalDate.now().minusMonths(1).withDayOfMonth(20);
+        creaRicorrente(token, stipendi, "Stipendio", "1800.00", scadenza);
+        mappa(token, "Stipendi e pensioni", "INCOME", stipendi);
+
+        JsonNode preview = analyze(token, workbook(List.of(stipendio(scadenza.plusDays(1), 2300.00))));
+
+        assertThat(esiti(preview)).containsExactly("SOSTITUISCE_RICORRENTE");
+        assertThat(preview.get("rows").get(0).get("matchedTransactionId").isNull()).isFalse();
+
+        commit(token, righeDaImportare(preview, null), objectMapper.createArrayNode(), objectMapper.createArrayNode());
+
+        List<JsonNode> entrate = new ArrayList<>();
+        api.listTransactions(token).forEach(t -> {
+            if (t.get("type").asText().equals("INCOME")
+                    && !t.get("occurredOn").asText().startsWith(YearMonth.now().toString())) {
+                entrate.add(t);
+            }
+        });
+        assertThat(entrate).hasSize(1);
+        assertThat(entrate.get(0).get("amount").decimalValue()).isEqualByComparingTo("2300.00");
+        assertThat(entrate.get(0).get("occurredOn").asText()).isEqualTo(scadenza.plusDays(1).toString());
+        assertThat(entrate.get(0).get("recurringTransactionId").asText()).isNotBlank();
+    }
+
+    /**
+     * Lo stipendio pagato prima della scadenza (il venerdì, se il 27 è domenica): la
+     * regola non l'ha ancora generato, quindi non c'è niente da riscrivere. La riga entra
+     * al posto dell'occorrenza e la regola passa al mese dopo: senza, il giorno della
+     * scadenza il job ne genererebbe un secondo.
+     *
+     * <p>E un invio ripetuto (doppio clic, pagina riaperta) non deve né duplicare la riga
+     * né far avanzare la regola una seconda volta, saltando lo stipendio del mese dopo.
+     */
+    @Test
+    void loStipendioPagatoPrimaDellaScadenzaPrendeIlPostoDellOccorrenza() throws Exception {
+        String token = api.registerAndLogin();
+        String stipendi = api.createIncomeCategory(token);
+        creaRicorrente(token, stipendi, "Stipendio", "1800.00", DATA.plusDays(2));
+        mappa(token, "Stipendi e pensioni", "INCOME", stipendi);
+
+        JsonNode preview = analyze(token, workbook(List.of(stipendio(DATA, 1807.17))));
+        assertThat(esiti(preview)).containsExactly("SOSTITUISCE_RICORRENTE");
+
+        ArrayNode righe = righeDaImportare(preview, null);
+        commit(token, righe, objectMapper.createArrayNode(), objectMapper.createArrayNode());
+        commit(token, righe, objectMapper.createArrayNode(), objectMapper.createArrayNode());
+
+        JsonNode transazioni = api.listTransactions(token);
+        assertThat(transazioni).hasSize(1);
+        assertThat(transazioni.get(0).get("amount").decimalValue()).isEqualByComparingTo("1807.17");
+        assertThat(transazioni.get(0).get("recurringTransactionId").asText()).isNotBlank();
+
+        JsonNode regola = api.json(mockMvc.perform(MockMvcRequestBuilders.get("/api/recurring-transactions")
+                        .header("Authorization", "Bearer " + token))
+                .andReturn()).get(0);
+        assertThat(regola.get("nextDueDate").asText()).isEqualTo(DATA.plusDays(2).plusMonths(1).toString());
+    }
+
+    /**
+     * Due righe che potrebbero essere la stessa occorrenza: la prende una sola, e
+     * l'altra non entra da sola come nuova — chiede. Sono lo stipendio e un secondo
+     * accredito nella stessa categoria a pochi giorni; indovinare quale dei due sia
+     * l'altra entrata, o un doppione, non spetta all'import.
+     */
+    @Test
+    void unaSecondaRigaPerLaStessaOccorrenzaChiedeInvece() throws Exception {
+        String token = api.registerAndLogin();
+        String stipendi = api.createIncomeCategory(token);
+        LocalDate scadenza = LocalDate.now().minusMonths(1).withDayOfMonth(20);
+        creaRicorrente(token, stipendi, "Stipendio", "1800.00", scadenza);
+        mappa(token, "Stipendi e pensioni", "INCOME", stipendi);
+
+        JsonNode preview = analyze(token, workbook(List.of(
+                stipendio(scadenza, 1800.00),
+                stipendio(scadenza.plusDays(1), 1790.00))));
+
+        assertThat(esiti(preview)).containsExactlyInAnyOrder("SOSTITUISCE_RICORRENTE", "SOSPETTO_RICORRENTE");
+    }
+
+    // ------------------------------------------------------------------
+    // La spesa fissa dei promemoria
+    //
+    // Il promemoria registra la sua spesa il primo del mese, come segnaposto, e la
+    // banca la addebita il giorno vero: il condominio il 15. La finestra di pochi
+    // giorni delle regole non li accostava mai, e la riga entrava accanto al
+    // segnaposto. La chiave qui è il mese di calendario, quella del job.
+    // ------------------------------------------------------------------
+
+    private Movimento condominio(LocalDate data, double importo) {
+        return new Movimento(data, "Addebito diretto", "ADDEBITO SDD CONDOMINIO VIA ROMA", true, "Casa", -importo);
+    }
+
+    /**
+     * Il segnaposto del primo del mese (120 €) e la riga della banca del 15 con un
+     * importo diverso (135 €, il conguaglio): la riga lo riscrive, e in archivio resta
+     * una sola spesa del condominio per quel mese, con la data e l'importo veri.
+     */
+    @Test
+    void laSpesaFissaDiUnPromemoriaVieneRiscrittaDallaRigaDellaBanca() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        YearMonth mese = YearMonth.now().minusMonths(1);
+        String promemoria = api.createReminder(token, casa, "Condominio", mese.atDay(15), "MONTH", 1, null, null, "120.00");
+        reminderGeneration.generateForMonth(UUID.fromString(promemoria), mese);
+        mappa(token, "Casa", casa);
+
+        JsonNode preview = analyze(token, workbook(List.of(condominio(mese.atDay(15), 135.00))));
+
+        assertThat(esiti(preview)).containsExactly("SOSTITUISCE_RICORRENTE");
+        // Il segnaposto stesso, non il promemoria: il file comincia il 15, e il segnaposto
+        // del primo del mese va cercato fuori dalla finestra dei giorni del file.
+        assertThat(preview.get("rows").get(0).get("matchedTransactionId").isNull()).isFalse();
+        assertThat(preview.get("rows").get(0).get("matchedReminderId").isNull()).isTrue();
+        commit(token, righeDaImportare(preview, null), objectMapper.createArrayNode(), objectMapper.createArrayNode());
+
+        List<JsonNode> delMese = new ArrayList<>();
+        api.listTransactions(token).forEach(t -> {
+            if (t.get("occurredOn").asText().startsWith(mese.toString())) delMese.add(t);
+        });
+        assertThat(delMese).hasSize(1);
+        assertThat(delMese.get(0).get("amount").decimalValue()).isEqualByComparingTo("135.00");
+        assertThat(delMese.get(0).get("occurredOn").asText()).isEqualTo(mese.atDay(15).toString());
+    }
+
+    /**
+     * Il promemoria creato a metà mese non ha ancora registrato niente: il job passa
+     * solo il primo. La riga entra legata a lui, e la prova che il legame c'è è il job
+     * stesso — passato dopo l'import, non registra una seconda spesa per quel mese.
+     * Un invio ripetuto della stessa riga non ne aggiunge un'altra.
+     */
+    @Test
+    void unPromemoriaNonAncoraRegistratoSiLegaAllaRigaEIlJobNonLoRipete() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        String promemoria = api.createReminder(token, casa, "Condominio", DATA, "MONTH", 1, null, null, "120.00");
+        mappa(token, "Casa", casa);
+
+        JsonNode preview = analyze(token, workbook(List.of(condominio(DATA, 120.00))));
+        assertThat(esiti(preview)).containsExactly("SOSTITUISCE_RICORRENTE");
+        assertThat(preview.get("rows").get(0).get("matchedReminderId").asText()).isEqualTo(promemoria);
+
+        ArrayNode righe = righeDaImportare(preview, null);
+        commit(token, righe, objectMapper.createArrayNode(), objectMapper.createArrayNode());
+        commit(token, righe, objectMapper.createArrayNode(), objectMapper.createArrayNode());
+        reminderGeneration.generateForMonth(UUID.fromString(promemoria), YearMonth.from(DATA));
+
+        assertThat(api.listTransactions(token)).hasSize(1);
+    }
+
+    /**
+     * Con indizi deboli — categoria diversa, importo vicino — la riga non sostituisce da
+     * sola il segnaposto: lo segnala, e decide l'utente. Entrata come nuova sarebbe
+     * stata un doppione senza che nessuno lo vedesse.
+     */
+    @Test
+    void conUnAltraCategoriaLaSpesaFissaVieneSoloSegnalata() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        String altro = api.createExpenseCategory(token);
+        YearMonth mese = YearMonth.now().minusMonths(1);
+        String promemoria = api.createReminder(token, casa, "Condominio", mese.atDay(15), "MONTH", 1, null, null, "120.00");
+        reminderGeneration.generateForMonth(UUID.fromString(promemoria), mese);
+        mappa(token, "Casa", altro);
+
+        JsonNode preview = analyze(token, workbook(List.of(condominio(mese.atDay(15), 121.00))));
+
+        assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");
+        assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
+                .contains("promemoria ha gia' registrato");
     }
 
     // ------------------------------------------------------------------
@@ -390,7 +726,8 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         ArrayNode rows = objectMapper.createArrayNode();
         for (JsonNode row : preview.get("rows")) {
             String outcome = row.get("outcome").asText();
-            if (!outcome.equals("NUOVA") && !outcome.equals("AGGIORNA_PROVVISORIA")) continue;
+            if (!outcome.equals("NUOVA") && !outcome.equals("AGGIORNA_PROVVISORIA")
+                    && !outcome.equals("SOSTITUISCE_RICORRENTE")) continue;
             ObjectNode r = rows.addObject();
             r.put("occurredOn", row.get("occurredOn").asText());
             r.put("rawOperation", row.get("rawOperation").asText());
@@ -400,9 +737,11 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
             r.put("type", row.get("type").asText());
             r.put("provisional", row.get("provisional").asBoolean());
             r.put("description", row.get("description").asText());
-            if (categoriaId == null) r.putNull("categoryId");
-            else r.put("categoryId", categoriaId);
+            if (categoriaId != null) r.put("categoryId", categoriaId);
+            else r.set("categoryId", row.get("categoryId"));
             r.set("updateTransactionId", row.get("matchedTransactionId"));
+            r.set("recurringTransactionId", row.get("matchedRecurringId"));
+            r.set("expenseReminderId", row.get("matchedReminderId"));
         }
         return rows;
     }
@@ -413,6 +752,23 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         JsonNode preview = analyze(token, file);
         commit(token, righeDaImportare(preview, categoria),
                 objectMapper.createArrayNode(), objectMapper.createArrayNode());
+    }
+
+    /** Mappa una categoria della banca su una categoria dell'app, come al commit di un import. */
+    private void mappa(String token, String categoriaBanca, String categoriaId) throws Exception {
+        mappa(token, categoriaBanca, "EXPENSE", categoriaId);
+    }
+
+    private void mappa(String token, String categoriaBanca, String tipo, String categoriaId) throws Exception {
+        ArrayNode mappature = objectMapper.createArrayNode();
+        ObjectNode m = mappature.addObject();
+        m.put("bankCategory", categoriaBanca);
+        m.put("transactionType", tipo);
+        m.put("categoryId", categoriaId);
+        m.put("doNotImport", false);
+        m.put("rowCount", 1);
+        m.putNull("sampleDescription");
+        commit(token, objectMapper.createArrayNode(), mappature, objectMapper.createArrayNode());
     }
 
     private void creaRicorrente(String token, String categoria, String nome, String importo, LocalDate scadenza)

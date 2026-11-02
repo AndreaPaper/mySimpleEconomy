@@ -155,8 +155,8 @@ describe('la serie completa', () => {
       1000,
       '2026-02-15',
       [
-        { yearMonth: '2026-03', runningBalance: 1200 },
-        { yearMonth: '2026-04', runningBalance: 1400 },
+        { period: '2026-03', runningBalance: 1200 },
+        { period: '2026-04', runningBalance: 1400 },
       ],
       27,
       etichetta,
@@ -172,7 +172,7 @@ describe('la serie completa', () => {
       [],
       1000,
       '2026-02-15',
-      [{ yearMonth: '2026-03', runningBalance: 1200 }],
+      [{ period: '2026-03', runningBalance: 1200 }],
       27,
       etichetta,
     )
@@ -181,5 +181,63 @@ describe('la serie completa', () => {
     expect(futuro.periodKey).toBeNull()
     expect(futuro.actual).toBeNull()
     expect(futuro.projected).toBe(1200)
+  })
+})
+
+describe('i punti sono periodi, non mesi di calendario', () => {
+  /**
+   * Con l'accredito il 27, una spesa del 28 gennaio appartiene al periodo che
+   * finisce a febbraio, non a gennaio. Raggruppando per mese finirebbe nel
+   * punto di gennaio: un punto sbagliato, e un saldo di fine gennaio che
+   * nessuna riga dell'estratto conto conferma.
+   */
+  it('una spesa dopo l accredito cade nel periodo successivo', () => {
+    const serie = punti([t('2026-01-28', 100, 'EXPENSE')], 1000, '2026-03')
+
+    expect(serie.map((p) => p.key)).toEqual(['2026-02'])
+  })
+
+  it('il periodo in corso è escluso, non il mese in corso', () => {
+    // Il 28 gennaio sta nel periodo di febbraio: se il periodo in corso è
+    // febbraio, quel movimento non deve produrre nessun punto.
+    expect(punti([t('2026-01-28', 100, 'EXPENSE')], 1000, '2026-02')).toEqual([])
+  })
+
+  /**
+   * Il click su un punto apre la card "Spese per categoria" di quel periodo.
+   * Da quando il grafico ragiona per periodi le due chiavi coincidono: prima il
+   * periodo andava ricavato dalla metà del mese, perché la chiave del punto era
+   * un mese e il periodo omonimo poteva cadere quasi tutto in quello prima.
+   */
+  it('il punto rimanda al proprio periodo', () => {
+    const serie = punti([t('2026-01-28', 100, 'EXPENSE')], 1000, '2026-03')
+
+    expect(serie[0].periodKey).toBe(serie[0].key)
+  })
+})
+
+describe('il primo punto previsto', () => {
+  /**
+   * La segnalazione che ha fatto nascere questo lavoro: la card "Saldo previsto
+   * a fine periodo" mostra il primo periodo della previsione, e il grafico
+   * partiva dal secondo. Il numero della card non compariva da nessuna parte
+   * sulla curva, che cominciava a prevedere solo da un periodo e mezzo in
+   * avanti — di qui l'impressione che non fosse predittiva.
+   */
+  it('è il periodo in corso, con lo stesso numero che mostra la card', () => {
+    const periodoInCorso = { period: '2026-03', runningBalance: 1150 }
+
+    const serie = buildBalanceSeries(
+      [],
+      1000,
+      '2026-03-10',
+      [periodoInCorso, { period: '2026-04', runningBalance: 1300 }],
+      27,
+      etichetta,
+    )
+
+    expect(serie.map((p) => p.label)).toEqual(['Ora', '2026-03', '2026-04'])
+    // Il punto subito dopo "Ora" è la previsione di fine periodo corrente.
+    expect(serie[1].projected).toBe(periodoInCorso.runningBalance)
   })
 })

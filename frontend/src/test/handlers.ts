@@ -44,7 +44,19 @@ export const previsioneVuota: ForecastResponse = {
   startingBalanceDate: null,
   startingBalance: 0,
   currentBalance: 0,
-  months: [],
+  periods: [],
+  monthEndForecast: {
+    period: '2026-03',
+    periodStart: '2026-03-01',
+    periodEnd: '2026-03-31',
+    projectedIncome: 0,
+    projectedExpense: 0,
+    netBalance: 0,
+    runningBalance: 0,
+    categoryBreakdown: [],
+  },
+  variableExpenseAverage: 0,
+  historyPeriods: 0,
 }
 
 export const paginaVuota: TransactionPage = { content: [], hasNext: false }

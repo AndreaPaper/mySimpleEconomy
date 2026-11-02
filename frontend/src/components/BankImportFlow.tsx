@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { bankImportApi } from '../api/endpoints'
+import { bankImportApi, categoriesApi } from '../api/endpoints'
 import { useInvalidateAll } from '../api/queries'
 import FilePicker from './FilePicker'
 import CategoryCombobox from './CategoryCombobox'
+import CategoryForm from './CategoryForm'
+import Modal from './Modal'
 import {
   activeExclusions,
   applyDecisions,
@@ -20,6 +22,7 @@ import type {
   BankImportRowPreview,
   BankSource,
   Category,
+  CategoryType,
 } from '../api/types'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
@@ -57,6 +60,14 @@ const SECTIONS: {
     tone: 'text-sky-700 dark:text-sky-400',
   },
   {
+    outcome: 'SOSTITUISCE_RICORRENTE',
+    title: 'Dalle tue regole ricorrenti e dai promemoria',
+    hint: 'Sono le scadenze di una regola ricorrente, come lo stipendio, o la spesa fissa di un promemoria, come il condominio: prendono il posto della transazione già prevista con l’importo vero della banca, anche quando è diverso (un mese con il bonus, un conguaglio).',
+    checked: 'prende il posto della transazione della regola o del promemoria, già creata o in arrivo — non ne crea una seconda',
+    unchecked: 'resta la transazione prevista, con il suo importo; questa te la riproporrò al prossimo import',
+    tone: 'text-sky-700 dark:text-sky-400',
+  },
+  {
     outcome: 'SOSPETTO_MANUALE',
     title: 'Da controllare — forse già inserite a mano',
     hint: 'Coincidono per data e importo con qualcosa che hai già. Potrebbero essere due spese diverse davvero uguali: decidi tu.',
@@ -87,7 +98,23 @@ interface BankImportFlowProps {
   onCategoriesChanged: () => void
 }
 
-export default function BankImportFlow({ categories, onCategoriesChanged }: BankImportFlowProps) {
+export default function BankImportFlow({ categories: loadedCategories, onCategoriesChanged }: BankImportFlowProps) {
+  // Le categorie create da qui dentro, finché la lista del chiamante non le
+  // riporta: senza, il selettore che l'ha chiesta mostrerebbe "Scegli..." per
+  // il tempo del ricaricamento, come se la scelta non fosse stata fatta.
+  const [createdCategories, setCreatedCategories] = useState<Category[]>([])
+  const categories = useMemo(
+    () => [...loadedCategories, ...createdCategories.filter((c) => !loadedCategories.some((l) => l.id === c.id))],
+    [loadedCategories, createdCategories],
+  )
+  // Il selettore che ha chiesto una categoria nuova, per assegnargliela appena
+  // creata: la categoria della banca, un movimento dentro di lei, o un movimento
+  // dell'anteprima.
+  const [newCategoryFor, setNewCategoryFor] = useState<
+    | { kind: 'mapping'; index: number; type: CategoryType }
+    | { kind: 'mappingRow' | 'previewRow'; rowNumber: number; type: CategoryType }
+    | null
+  >(null)
   const source: BankSource = 'INTESA_SANPAOLO'
   const invalidateAll = useInvalidateAll()
   const [file, setFile] = useState<File | null>(null)
@@ -244,6 +271,8 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
             description: r.description,
             categoryId: r.categoryId,
             updateTransactionId: r.matchedTransactionId,
+            recurringTransactionId: r.matchedRecurringId,
+            expenseReminderId: r.matchedReminderId,
           })),
           mappings,
           exclusions,
@@ -273,6 +302,41 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
 
   const categoryName = (id: string | null) =>
     id ? (categories.find((c) => c.id === id)?.name ?? '—') : '—'
+
+  // La categoria si crea subito, non al commit: è una categoria come le altre,
+  // e deve esistere anche se poi l'import si annulla — chi l'ha creata se la
+  // ritrova in Categorie, invece di vederla sparire.
+  const handleNewCategory = async (data: {
+    name: string
+    type: CategoryType
+    color: string | null
+    icon: string | null
+    parentId: string | null
+  }) => {
+    if (!newCategoryFor) return
+    const created = await categoriesApi.create(data)
+    setCreatedCategories((prev) => [...prev, created])
+    onCategoriesChanged()
+    // Assegnata solo se del tipo giusto: il modulo lascia cambiare il tipo, e una
+    // categoria di entrata su una riga di uscita il backend la rifiuterebbe.
+    if (created.type === newCategoryFor.type) {
+      if (newCategoryFor.kind === 'mapping') setMapping(newCategoryFor.index, { doNotImport: false, categoryId: created.id })
+      else if (newCategoryFor.kind === 'mappingRow') setRowCategory(newCategoryFor.rowNumber, created.id)
+      else setPreviewRowCategory(newCategoryFor.rowNumber, created.id)
+    }
+    setNewCategoryFor(null)
+  }
+
+  const newCategoryModal = newCategoryFor && (
+    <Modal title="Nuova categoria" onClose={() => setNewCategoryFor(null)}>
+      <CategoryForm
+        categories={categories}
+        defaultType={newCategoryFor.type}
+        onSubmit={handleNewCategory}
+        onCancel={() => setNewCategoryFor(null)}
+      />
+    </Modal>
+  )
 
   if (result) {
     return (
@@ -378,7 +442,18 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                         })
                       }
                       placeholder="Scegli..."
-                      extraOptions={[{ value: 'skip', label: 'Non importare' }]}
+                      onCreateNew={() =>
+                        setNewCategoryFor({ kind: 'mapping', index: i, type: m.transactionType === 'INCOME' ? 'INCOME' : 'EXPENSE' })
+                      }
+                      // "Nessuna categoria" riporta la scelta al vuoto. Senza, una
+                      // categoria scelta qui non si toglieva più: aprendo i movimenti
+                      // per dare a ciascuno la sua, quelli non toccati la ereditavano.
+                      // Vuota, la categoria della banca è decisa quando lo è ognuno
+                      // dei suoi movimenti, e non viene ricordata per gli import futuri.
+                      extraOptions={[
+                        { value: '', label: 'Nessuna categoria', hint: 'Decidi movimento per movimento' },
+                        { value: 'skip', label: 'Non importare' },
+                      ]}
                     />
                   </div>
                 </div>
@@ -423,6 +498,9 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                               categories={categoryOptions}
                               value={rowCategories.get(row.rowNumber) ?? ''}
                               onChange={(value) => setRowCategory(row.rowNumber, value || null)}
+                              onCreateNew={() =>
+                                setNewCategoryFor({ kind: 'mappingRow', rowNumber: row.rowNumber, type: row.type })
+                              }
                               extraOptions={[
                                 {
                                   value: '',
@@ -463,6 +541,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
             Manca ancora una scelta per {mappings.filter((m) => !mappingResolved(m)).length} categorie.
           </p>
         )}
+        {newCategoryModal}
       </div>
     )
   }
@@ -472,7 +551,10 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-brand-300 dark:bg-black p-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Movimenti nel file" value={preview.summary.rowsInFile} />
         <Stat label="Da importare" value={rows.filter((r) => r.outcome === 'NUOVA').length} />
-        <Stat label="Da aggiornare" value={rows.filter((r) => r.outcome === 'AGGIORNA_PROVVISORIA').length} />
+        <Stat
+          label="Da aggiornare"
+          value={rows.filter((r) => r.outcome === 'AGGIORNA_PROVVISORIA' || r.outcome === 'SOSTITUISCE_RICORRENTE').length}
+        />
         <Stat
           label="Da controllare"
           value={rows.filter((r) => r.outcome === 'SOSPETTO_MANUALE' || r.outcome === 'SOSPETTO_RICORRENTE').length}
@@ -576,6 +658,10 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
                           categories={categories.filter((c) => c.type === row.type)}
                           value={rowCategories.get(row.rowNumber) ?? ''}
                           onChange={(value) => setPreviewRowCategory(row.rowNumber, value || null)}
+                          onCreateNew={() =>
+                            setNewCategoryFor({ kind: 'previewRow', rowNumber: row.rowNumber, type: row.type })
+                          }
+                          extraOptions={[{ value: '', label: 'Nessuna categoria' }]}
                           placeholder="Scegli una categoria"
                           ariaLabel={`Categoria per ${row.description}`}
                         />
@@ -617,6 +703,7 @@ export default function BankImportFlow({ categories, onCategoriesChanged }: Bank
           {missingCategory.length} movimenti selezionati non hanno una categoria.
         </p>
       )}
+      {newCategoryModal}
     </div>
   )
 }

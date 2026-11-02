@@ -93,10 +93,10 @@ class SecurityEdgeCasesTest extends AbstractIntegrationTest {
     void unParametroFuoriIntervalloDa400ENon500() throws Exception {
         String token = api.registerAndLogin();
 
-        mockMvc.perform(get("/api/forecast").param("months", "0")
+        mockMvc.perform(get("/api/forecast").param("periods", "0")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/api/forecast").param("months", "99")
+        mockMvc.perform(get("/api/forecast").param("periods", "99")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest());
     }
@@ -105,7 +105,7 @@ class SecurityEdgeCasesTest extends AbstractIntegrationTest {
     void unParametroNonNumericoDa400() throws Exception {
         String token = api.registerAndLogin();
 
-        mockMvc.perform(get("/api/forecast").param("months", "molti")
+        mockMvc.perform(get("/api/forecast").param("periods", "molti")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest());
     }

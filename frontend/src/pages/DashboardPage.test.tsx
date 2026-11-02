@@ -61,24 +61,24 @@ describe('saldo e previsione', () => {
   })
 
   /**
-   * La finestra di previsione: il motore parte sempre da oggi, quindi i mesi
-   * richiesti coprono da questo mese fino alla fine dell'intervallo del grafico.
-   * Con l'intervallo predefinito (che arriva a fine anno) sono i mesi da marzo a
-   * dicembre. Un errore qui dà un grafico troncato o troppo lungo, non un errore.
+   * La finestra di previsione: il motore parte sempre da oggi, quindi i periodi
+   * richiesti coprono da quello in corso fino alla fine dell'intervallo del
+   * grafico. Un errore qui dà un grafico troncato o troppo lungo, non un errore.
    */
-  it('chiede alla previsione i mesi che coprono l intervallo', async () => {
-    let mesiRichiesti: string | null = null
+  it('chiede alla previsione i periodi che coprono l intervallo', async () => {
+    let periodiRichiesti: string | null = null
     server.use(
       http.get('*/api/forecast', ({ request }) => {
-        mesiRichiesti = new URL(request.url).searchParams.get('months')
+        periodiRichiesti = new URL(request.url).searchParams.get('periods')
         return HttpResponse.json(previsioneVuota)
       }),
     )
     mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
 
-    // L'intervallo predefinito arriva a oggi + 6 mesi (set 2026): da marzo a
-    // settembre sono 7 mesi, mese corrente compreso.
-    await waitFor(() => expect(mesiRichiesti).toBe('7'))
+    // Oggi è il 15 marzo e l'accredito è il 27: il periodo in corso è quello
+    // che finisce a marzo. L'intervallo predefinito arriva a oggi + 6 mesi
+    // (15 settembre, ancora nel periodo di settembre): sette periodi in tutto.
+    await waitFor(() => expect(periodiRichiesti).toBe('7'))
   })
 })
 
@@ -183,5 +183,218 @@ describe('aggiunta rapida', () => {
     await waitFor(() =>
       expect(JSON.parse(localStorage.getItem('offline_pending_transactions') ?? '[]')).toHaveLength(1),
     )
+  })
+})
+
+describe('la card del saldo previsto', () => {
+  const previsione = (over: Record<string, unknown> = {}) => ({
+    ...previsioneVuota,
+    currentBalance: 1000,
+    periods: [
+      {
+        period: '2026-04',
+        periodStart: '2026-03-27',
+        periodEnd: '2026-04-26',
+        projectedIncome: 1800,
+        projectedExpense: 650,
+        netBalance: 1150,
+        runningBalance: 2150,
+        categoryBreakdown: [],
+      },
+    ],
+    monthEndForecast: {
+      period: '2026-03',
+      periodStart: '2026-03-01',
+      periodEnd: '2026-03-31',
+      projectedIncome: 1800,
+      projectedExpense: 900,
+      netBalance: 900,
+      runningBalance: 1900,
+      categoryBreakdown: [],
+    },
+    ...over,
+  })
+
+  /**
+   * La card conta il mese di CALENDARIO, mentre il resto della pagina conta da
+   * un accredito al successivo: chi la guarda vuole sapere quanti soldi avrà a
+   * fine mese, stipendio nuovo compreso.
+   *
+   * La previsione di prova mette due cifre diverse nei due campi apposta: 1.900
+   * per il mese, 2.150 per il periodo in corso. Leggendo il campo sbagliato la
+   * card mostrerebbe comunque un numero plausibile, ed è il modo peggiore di
+   * sbagliare — quindi il test controlla anche che l'altro NON compaia.
+   */
+  it('mostra il saldo di fine mese di calendario, non quello di fine periodo', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText(/1\.?900,00\s*€/)).toBeInTheDocument()
+    expect(screen.queryByText(/2\.?150,00\s*€/)).not.toBeInTheDocument()
+  })
+
+  /**
+   * L'etichetta nomina il mese, preso dalla previsione. Passato lo stipendio la
+   * card guarda al mese prossimo, e "fine mese" lascerebbe intendere quello in
+   * corso. Sotto il numero non va nessuna data: "fine marzo" dice già da sé qual
+   * è l'ultimo giorno.
+   */
+  it('nomina il mese di cui mostra la fine, senza data sotto', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('Saldo previsto a fine marzo')).toBeInTheDocument()
+    expect(screen.queryByText(/^al /)).not.toBeInTheDocument()
+  })
+
+  /**
+   * Il caso segnalato: il 15 marzo con accredito il 27 lo stipendio di marzo non
+   * è ancora arrivato, ma quando il backend guarda già al mese prossimo — com'è
+   * dal 27 in poi — l'etichetta lo deve dire. Il mese lo decide il backend; qui si
+   * prova che la pagina non lo riscrive per conto suo come "mese in corso".
+   */
+  it('quando il backend guarda al mese prossimo, lo nomina', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json(
+          previsione({
+            monthEndForecast: {
+              period: '2026-04',
+              periodStart: '2026-04-01',
+              periodEnd: '2026-04-30',
+              projectedIncome: 1800,
+              projectedExpense: 900,
+              netBalance: 900,
+              runningBalance: 2800,
+              categoryBreakdown: [],
+            },
+          }),
+        ),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('Saldo previsto a fine aprile')).toBeInTheDocument()
+    expect(screen.getByText(/2\.?800,00\s*€/)).toBeInTheDocument()
+  })
+
+  /**
+   * Le tre card dei totali, il sottotitolo del grafico e il vuoto della card
+   * "Spese per categoria" contavano gia' per periodo ma dicevano "mese": con
+   * l'accredito il 27, "Uscite (mese corrente)" somma anche le spese dei primi
+   * giorni del mese successivo, che di quel mese non sono. La parola ora segue
+   * il numero.
+   */
+  it('anche le card dei totali e il grafico dicono periodo', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('Uscite (periodo corrente)')).toBeInTheDocument()
+    expect(screen.getByText('Entrate (periodo corrente)')).toBeInTheDocument()
+    expect(screen.getByText('Saldo netto (periodo corrente)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Clicca un periodo per vederne le spese per categoria'),
+    ).toBeInTheDocument()
+  })
+
+  // Senza accredito il periodo e' il mese di calendario, e li' "mese" e' esatto.
+  it('senza accredito le stesse card restano al mese', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json(previsione())))
+    mountPage(<DashboardPage />, { profile: { salaryDay: null } })
+
+    expect(await screen.findByText('Uscite (mese corrente)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Clicca un mese per vederne le spese per categoria'),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('il grafico "Andamento saldo"', () => {
+  /**
+   * La segnalazione da cui è nato questo lavoro: il primo punto previsto della
+   * curva era il periodo <em>successivo</em> a quello in corso, quindi il
+   * numero della card non compariva da nessuna parte sul grafico e la
+   * previsione cominciava con un periodo di ritardo.
+   *
+   * Oggi è il 15 marzo con accredito il 27: il periodo in corso è quello che
+   * finisce a marzo, e la sua etichetta sull'asse è "mar 26". Sull'asse non può
+   * arrivarci da nessun'altra parte — i punti storici sono periodi conclusi,
+   * cioè precedenti — quindi trovarla è la prova che il grafico parte dal
+   * periodo in corso.
+   */
+  it('il primo punto previsto è il periodo in corso, quello della card', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json({
+          ...previsioneVuota,
+          currentBalance: 1000,
+          periods: [
+            { period: '2026-03', periodStart: '2026-02-27', periodEnd: '2026-03-26', projectedIncome: 0, projectedExpense: 0, netBalance: 0, runningBalance: 1150, categoryBreakdown: [] },
+            { period: '2026-04', periodStart: '2026-03-27', periodEnd: '2026-04-26', projectedIncome: 0, projectedExpense: 0, netBalance: 0, runningBalance: 1300, categoryBreakdown: [] },
+          ],
+        }),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('mar 26')).toBeInTheDocument()
+    expect(screen.getByText('apr 26')).toBeInTheDocument()
+  })
+})
+
+describe("l'ipotesi sotto il grafico", () => {
+  /**
+   * La curva tratteggiata sale o scende per ragioni che il grafico da solo non
+   * dice. La riga sotto scrive quanto toglie di spese variabili e su quanto
+   * storico lo ha calcolato: quando la previsione sembra strana, la causa si
+   * legge lì invece che nel codice.
+   */
+  it('scrive la media delle spese variabili e su quanti periodi è calcolata', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json({ ...previsioneVuota, variableExpenseAverage: 850, historyPeriods: 3 }),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(
+      await screen.findByText(
+        'Oltre a entrate, spese fisse e rate dei debiti, la previsione toglie 850,00 € a periodo di spese variabili: la media degli ultimi 3 periodi.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  // Senza accredito il periodo è il mese, e con un solo mese di storico la frase
+  // va al singolare.
+  it('senza accredito parla di mesi, e al singolare con un mese solo', async () => {
+    server.use(
+      http.get('*/api/forecast', () =>
+        HttpResponse.json({ ...previsioneVuota, variableExpenseAverage: 120, historyPeriods: 1 }),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: null } })
+
+    expect(
+      await screen.findByText(
+        "Oltre a entrate, spese fisse e rate dei debiti, la previsione toglie 120,00 € a mese di spese variabili: la media dell'ultimo mese.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  /**
+   * Con lo storico a zero non c'è media da togliere, e una curva costruita solo
+   * su entrate e spese fisse sale quasi sempre: la riga lo dice, invece di
+   * lasciare che la curva finga di sapere.
+   */
+  it('senza storico dice che non ce n è abbastanza', async () => {
+    server.use(http.get('*/api/forecast', () => HttpResponse.json({ ...previsioneVuota, historyPeriods: 0 })))
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(
+      await screen.findByText(
+        "Non c'è ancora abbastanza storico per stimare le spese variabili: la previsione conta solo entrate, spese fisse e rate dei debiti.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/la previsione toglie/)).not.toBeInTheDocument()
   })
 })

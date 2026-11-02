@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import ConfirmDialog from './ConfirmDialog'
 import Modal from './Modal'
 
@@ -8,33 +8,7 @@ import Modal from './Modal'
 // che contengono non sono estetiche: proteggono da due modi diversi di perdere
 // lavoro — un form chiuso per sbaglio, e un'eliminazione mandata due volte.
 
-// In jsdom getBoundingClientRect restituisce sempre zeri, quindi ogni punto
-// risulterebbe "dentro" il pannello e la regola dei 24px non verrebbe mai
-// esercitata: il pannello va messo in un rettangolo dichiarato.
-//
-// Il rettangolo comprende l'origine di proposito. userEvent riporta le
-// coordinate del click a (0, 0), e con un pannello spostato più in là ogni
-// click su un pulsante interno risulterebbe "lontano": la modale si
-// chiuderebbe due volte, per un artefatto del finto e non per un comportamento
-// vero. I click che devono cadere fuori usano quindi punti oltre il bordo.
-const PANNELLO = { left: 0, right: 600, top: 0, bottom: 400 }
-
-beforeEach(() => {
-  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-    // Solo il pannello ha un rettangolo: il fondo resta a zero, come in jsdom.
-    return (this as HTMLElement).classList.contains('max-w-md')
-      ? ({ ...PANNELLO, width: 600, height: 400, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
-      : ({ left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
-  })
-})
-
 const fondo = () => document.querySelector('.fixed.inset-0')!
-
-/** Una pressione e un rilascio nello stesso punto, come un click vero. */
-const clickIn = (x: number, y: number) => {
-  fireEvent.mouseDown(fondo(), { clientX: x, clientY: y })
-  fireEvent.click(fondo(), { clientX: x, clientY: y })
-}
 
 describe('Modal', () => {
   it('mostra titolo e contenuto', () => {
@@ -62,63 +36,17 @@ describe('Modal', () => {
     expect(chiudi).toHaveBeenCalledTimes(1)
   })
 
-  it('un click ben fuori dal pannello chiude', () => {
-    const chiudi = vi.fn()
-    render(<Modal title="T" onClose={chiudi}>corpo</Modal>)
-
-    clickIn(700, 500)
-
-    expect(chiudi).toHaveBeenCalledTimes(1)
-  })
-
-  // Il margine di tolleranza: 24px oltre il bordo si è ancora "vicini", e il
-  // click vale come un errore di mira, non come volontà di chiudere.
-  it('un click di poco fuori dal bordo non chiude', () => {
-    const chiudi = vi.fn()
-    render(<Modal title="T" onClose={chiudi}>corpo</Modal>)
-
-    clickIn(PANNELLO.right + 10, 200)
-
-    expect(chiudi).not.toHaveBeenCalled()
-  })
-
   /**
-   * La regola che vale il file. Selezionare del testo dentro un campo e
-   * trascinare oltre il bordo produce un click sul fondo: guardando solo il
-   * click, la modale si chiuderebbe e il form scritto a metà sparirebbe.
-   * Servono quindi <em>entrambi</em> gli estremi lontani dal pannello.
+   * La regola che vale il file: le modali contengono form, e un tocco sul fondo
+   * (su un telefono basta sfiorare il bordo) butterebbe via quello che si stava
+   * scrivendo. Si chiudono solo dalla X, dai pulsanti o con Escape.
    */
-  it('trascinare una selezione da dentro a fuori non chiude', () => {
+  it('un click sul fondo non chiude', () => {
     const chiudi = vi.fn()
     render(<Modal title="T" onClose={chiudi}>corpo</Modal>)
 
-    fireEvent.mouseDown(fondo(), { clientX: 300, clientY: 200 }) // dentro
-    fireEvent.click(fondo(), { clientX: 700, clientY: 500 }) // rilasciato fuori
-
-    expect(chiudi).not.toHaveBeenCalled()
-  })
-
-  // E il verso opposto: pressione fuori, rilascio dentro. Stesso trattamento.
-  it('premere fuori e rilasciare dentro non chiude', () => {
-    const chiudi = vi.fn()
-    render(<Modal title="T" onClose={chiudi}>corpo</Modal>)
-
-    fireEvent.mouseDown(fondo(), { clientX: 700, clientY: 500 })
-    fireEvent.click(fondo(), { clientX: 300, clientY: 200 })
-
-    expect(chiudi).not.toHaveBeenCalled()
-  })
-
-  // Dopo un tentativo non riuscito lo stato va azzerato, altrimenti il click
-  // successivo erediterebbe la pressione di quello prima.
-  it('un tentativo non riuscito non lascia strascichi', () => {
-    const chiudi = vi.fn()
-    render(<Modal title="T" onClose={chiudi}>corpo</Modal>)
-
-    fireEvent.mouseDown(fondo(), { clientX: 700, clientY: 500 })
-    fireEvent.click(fondo(), { clientX: 300, clientY: 200 })
-    // Ora un click tutto dentro: non deve chiudere per via del precedente.
-    fireEvent.click(fondo(), { clientX: 300, clientY: 200 })
+    fireEvent.mouseDown(fondo())
+    fireEvent.click(fondo())
 
     expect(chiudi).not.toHaveBeenCalled()
   })
