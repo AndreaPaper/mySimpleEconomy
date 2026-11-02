@@ -133,9 +133,9 @@ export function mountApp(
  * se la larghezza è zero non rende <em>nulla</em> dei figli. Il grafico interno
  * riceve invece numeri dal contesto e non misura niente.
  *
- * Quindi si fa mentire `getBoundingClientRect` solo per quel div: `Modal` e
- * `CategoryCombobox`, che si posizionano misurando, continuano a vedere quello
- * che vedevano prima. Lo stub lo disfa il `vi.restoreAllMocks()` che setup.ts
+ * Quindi si fa mentire `getBoundingClientRect` solo per quel div:
+ * `CategoryCombobox`, che si posiziona misurando, continua a vedere quello che
+ * vedeva prima. Lo stub lo disfa il `vi.restoreAllMocks()` che setup.ts
  * fa già in `afterEach`.
  */
 export function stubChartSize({ width, height }: { width: number; height: number }): void {
