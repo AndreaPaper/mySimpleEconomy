@@ -12,6 +12,23 @@ import {
 import { listCheckpoints, upsertCheckpoint } from './services/checkpoints'
 import { cleanupData } from './services/dataCleanup'
 import { getProfile, updateProfile } from './services/profile'
+import {
+  createOverride,
+  createRecurring,
+  deleteOverride,
+  deleteRecurring,
+  listOverrides,
+  listRecurring,
+  setRecurringActive,
+  updateRecurring,
+} from './services/recurring'
+import {
+  createReminder,
+  listReminders,
+  setReminderActive,
+  upcomingReminders,
+  updateReminder,
+} from './services/reminders'
 import { createTransaction, deleteTransaction, listTransactions, updateTransaction } from './services/transactions'
 
 /**
@@ -50,6 +67,27 @@ export function registerRoutes(router: Router): Router {
 
   // DataCleanupController
   router.delete('/data-cleanup', ({ db, query }) => cleanupData(db, query))
+
+  // RecurringTransactionController
+  router.get('/recurring-transactions', ({ db }) => listRecurring(db))
+  router.post('/recurring-transactions', ({ db, body }) => createRecurring(db, body))
+  router.put('/recurring-transactions/{id}', ({ db, params, body }) => updateRecurring(db, params.id, body))
+  router.post('/recurring-transactions/{id}/deactivate', ({ db, params }) => setRecurringActive(db, params.id, false))
+  router.post('/recurring-transactions/{id}/reactivate', ({ db, params }) => setRecurringActive(db, params.id, true))
+  router.delete('/recurring-transactions/{id}', ({ db, params }) => deleteRecurring(db, params.id))
+  router.get('/recurring-transactions/{id}/overrides', ({ db, params }) => listOverrides(db, params.id))
+  router.post('/recurring-transactions/{id}/overrides', ({ db, params, body }) => createOverride(db, params.id, body))
+  router.delete('/recurring-transactions/{id}/overrides/{overrideId}', ({ db, params }) =>
+    deleteOverride(db, params.id, params.overrideId),
+  )
+
+  // ExpenseReminderController
+  router.get('/expense-reminders', ({ db }) => listReminders(db))
+  router.get('/expense-reminders/upcoming', ({ db, query }) => upcomingReminders(db, query))
+  router.post('/expense-reminders', ({ db, body }) => createReminder(db, body))
+  router.put('/expense-reminders/{id}', ({ db, params, body }) => updateReminder(db, params.id, body))
+  router.post('/expense-reminders/{id}/deactivate', ({ db, params }) => setReminderActive(db, params.id, false))
+  router.post('/expense-reminders/{id}/reactivate', ({ db, params }) => setReminderActive(db, params.id, true))
 
   return router
 }

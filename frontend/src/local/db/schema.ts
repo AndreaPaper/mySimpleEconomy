@@ -144,4 +144,12 @@ export const MIGRATIONS: string[] = [
       UNIQUE (source, pattern)
   );
   `,
+  // 2: impostazioni interne dell'app, chiave → valore. La prima è l'ultimo giorno in
+  // cui sono girati i job (src/local/jobs.ts).
+  `
+  CREATE TABLE meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+  );
+  `,
 ]

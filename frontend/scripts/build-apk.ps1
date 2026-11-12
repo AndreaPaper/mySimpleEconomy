@@ -7,7 +7,10 @@
 # (npm run build:android), poi lancia Gradle.
 param([switch]$Release)
 
-$ErrorActionPreference = 'Stop'
+# Non 'Stop': PowerShell 5.1 tratta come errore ogni riga che un programma esterno
+# scrive su stderr, anche un semplice avviso di Vite. Gli errori veri si riconoscono
+# dal codice di uscita, che lo script controlla a ogni passo.
+$ErrorActionPreference = 'Continue'
 $frontend = Split-Path -Parent $PSScriptRoot
 $android = Join-Path $frontend 'android'
 

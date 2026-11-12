@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createQueryClient } from './api/queryClient'
@@ -60,11 +61,22 @@ export function AppRoutes() {
 // un altro vuoto.
 const queryClient = createQueryClient()
 
+// Solo nell'app sul telefono: rilancia i job al ritorno nell'app (src/local). Pigro e
+// dietro la variabile di build scritta per intero, così nella build web sparisce con
+// tutto il backend locale.
+const LocalLifecycle =
+  import.meta.env.VITE_DATA_MODE === 'local' ? lazy(() => import('./local/LocalLifecycle')) : null
+
 function App() {
   return (
     // Il più esterno: OfflineSyncProvider e AuthProvider lo usano (invalidare
     // a fine sincronizzazione, svuotare all'uscita), quindi deve stare sopra.
     <QueryClientProvider client={queryClient}>
+      {LocalLifecycle && (
+        <Suspense fallback={null}>
+          <LocalLifecycle />
+        </Suspense>
+      )}
       <ThemeProvider>
         <CaseStyleProvider>
           <PaletteProvider>

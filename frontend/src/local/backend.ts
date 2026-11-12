@@ -1,5 +1,6 @@
 import { LocalDatabase, type DatabaseStorage } from './db/database'
 import { runDueJobs } from './jobs'
+import { syncNotifications } from './notifications'
 import { registerRoutes } from './routes'
 import { ApiError, Router } from './router'
 
@@ -39,7 +40,10 @@ export class LocalBackend {
    * quanti giorni l'app non veniva aperta.
    */
   async runJobs(today?: string): Promise<void> {
-    if (runDueJobs(this.db, today)) await this.db.save()
+    const changed = runDueJobs(this.db, today)
+    // Dopo i job: le scadenze dei promemoria possono essere avanzate.
+    const notified = await syncNotifications(this.db)
+    if (changed || notified) await this.db.save()
   }
 
   async handle(
@@ -57,7 +61,13 @@ export class LocalBackend {
     const data = await route.handler({ db: this.db, params: route.params, query, body })
     // Ogni modifica va subito su disco: il telefono può chiudere l'app in qualunque
     // momento, e un salvataggio rimandato andrebbe perso.
-    if (method.toUpperCase() !== 'GET') await this.db.save()
+    if (method.toUpperCase() !== 'GET') {
+      // Un promemoria nuovo o modificato cambia il suo preavviso.
+      if (path.startsWith('/expense-reminders') || path.startsWith('/data-cleanup')) {
+        await syncNotifications(this.db)
+      }
+      await this.db.save()
+    }
     return { status: data === undefined ? 204 : 200, data: data ?? '' }
   }
 }
