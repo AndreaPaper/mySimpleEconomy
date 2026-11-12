@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import { isLocalMode } from './local/mode'
 import DashboardPage from './pages/DashboardPage'
 import TransactionsPage from './pages/TransactionsPage'
 import CategoriesPage from './pages/CategoriesPage'
@@ -28,8 +29,10 @@ import SectionsPage from './pages/SectionsPage'
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      {/* Nella modalità locale non c'è un account: accesso e registrazione portano
+          direttamente all'app. */}
+      <Route path="/login" element={isLocalMode ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/register" element={isLocalMode ? <Navigate to="/" replace /> : <RegisterPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />

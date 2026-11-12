@@ -4,6 +4,7 @@ import client from '../api/client'
 import { transactionsApi } from '../api/endpoints'
 import type { TransactionType } from '../api/types'
 import { count, dequeue, enqueue, getQueue, type QueuedTransaction } from '../offline/queue'
+import { isLocalMode } from '../local/mode'
 
 // Ogni quanto ricontrollare se il backend è tornato raggiungibile, una volta
 // rilevato un timeout (vedi api/client.ts).
@@ -25,7 +26,27 @@ interface OfflineSyncContextValue {
 
 const OfflineSyncContext = createContext<OfflineSyncContextValue | undefined>(undefined)
 
+// Nella modalità locale non c'è un server da aspettare: i dati sono sul telefono e
+// ogni operazione riesce anche senza rete. Coda, polling e avvisi "offline" non
+// servono, e mostrarli farebbe credere che i dati vadano da qualche parte.
+const LOCAL_VALUE: OfflineSyncContextValue = {
+  isOnline: true,
+  backendReachable: true,
+  pendingCount: 0,
+  addOfflineTransaction: () => {
+    throw new Error("Nella modalità locale non c'è una coda offline")
+  },
+  syncPending: async () => {},
+}
+
 export function OfflineSyncProvider({ children }: { children: ReactNode }) {
+  if (isLocalMode) {
+    return <OfflineSyncContext.Provider value={LOCAL_VALUE}>{children}</OfflineSyncContext.Provider>
+  }
+  return <ServerOfflineSyncProvider>{children}</ServerOfflineSyncProvider>
+}
+
+function ServerOfflineSyncProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [backendReachable, setBackendReachable] = useState(true)

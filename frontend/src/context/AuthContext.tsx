@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { authApi, profileApi } from '../api/endpoints'
+import { isLocalMode } from '../local/mode'
+
+const LOCAL_TOKEN = 'locale'
+const LOCAL_EMAIL = 'Su questo telefono'
 
 // Impostazioni della sezione risparmio più i dati del profilo che servono a
 // calcolare il budget disponibile (stipendio stimato e categoria dello
@@ -39,8 +43,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
-  const [email, setEmail] = useState<string | null>(localStorage.getItem('email'))
+  // Nella modalità locale non c'è accesso: un solo utente, e il telefono è suo. Un
+  // token fisso tiene in piedi le rotte protette senza toccarle.
+  const [token, setToken] = useState<string | null>(isLocalMode ? LOCAL_TOKEN : localStorage.getItem('token'))
+  const [email, setEmail] = useState<string | null>(isLocalMode ? LOCAL_EMAIL : localStorage.getItem('email'))
   const [nickname, setNickname] = useState<string | null>(null)
   const [avatarKey, setAvatarKey] = useState<string | null>(null)
   const [salaryDay, setSalaryDay] = useState<number | null>(null)
@@ -83,6 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    // Uscire non ha senso senza un account, e lascerebbe davanti alla pagina di
+    // accesso, da cui in locale non si entra.
+    if (isLocalMode) return
     // L'uscita è una navigazione interna, non ricarica la pagina: senza questa
     // riga la cache sopravviverebbe, e chi entra dopo sullo stesso telefono
     // vedrebbe per un attimo i conti di chi è uscito. (Il reindirizzamento su

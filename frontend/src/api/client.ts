@@ -18,6 +18,14 @@ const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 // aspettare l'utente per un minuto prima di poter usare l'app offline.
 const client = axios.create({ baseURL, timeout: 10000 })
 
+// Nell'app Android senza server (src/local/mode.ts) le richieste non vanno in rete:
+// le riceve il backend locale, che risponde come quello Spring. L'import è dinamico e
+// il test è sulla variabile di build scritta per intero, così nella build web il
+// ramo sparisce e con lui il motore SQLite (~1 MB) che si porta dietro.
+if (import.meta.env.VITE_DATA_MODE === 'local') {
+  client.defaults.adapter = async (config) => (await import('../local/adapter')).localAdapter(config)
+}
+
 // Una volta scoperto che il backend è giù, le chiamate successive falliscono
 // subito invece di aspettare ognuna il proprio timeout: le pagine renderizzano
 // immediatamente coi dati offline mentre il polling continua in background.
