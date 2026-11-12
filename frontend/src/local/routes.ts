@@ -11,6 +11,8 @@ import {
 } from './services/categories'
 import { listCheckpoints, upsertCheckpoint } from './services/checkpoints'
 import { cleanupData } from './services/dataCleanup'
+import { createDebt, deleteDebt, listDebts, updateDebt } from './services/debts'
+import { forecast } from './services/forecast'
 import { getProfile, updateProfile } from './services/profile'
 import {
   createOverride,
@@ -88,6 +90,15 @@ export function registerRoutes(router: Router): Router {
   router.put('/expense-reminders/{id}', ({ db, params, body }) => updateReminder(db, params.id, body))
   router.post('/expense-reminders/{id}/deactivate', ({ db, params }) => setReminderActive(db, params.id, false))
   router.post('/expense-reminders/{id}/reactivate', ({ db, params }) => setReminderActive(db, params.id, true))
+
+  // ForecastController
+  router.get('/forecast', ({ db, query }) => forecast(db, query))
+
+  // DebtController
+  router.get('/debts', ({ db }) => listDebts(db))
+  router.post('/debts', ({ db, body }) => createDebt(db, body))
+  router.put('/debts/{id}', ({ db, params, body }) => updateDebt(db, params.id, body))
+  router.delete('/debts/{id}', ({ db, params }) => deleteDebt(db, params.id))
 
   return router
 }
