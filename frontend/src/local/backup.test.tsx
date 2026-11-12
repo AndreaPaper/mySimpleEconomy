@@ -208,7 +208,8 @@ describe('la scheda Backup', () => {
     const dialog = await screen.findByText('Ripristinare questo backup?')
     expect(dialog).toBeInTheDocument()
     expect(screen.getByText('Nel backup del 12/11/2026:')).toBeInTheDocument()
-    expect(screen.getAllByText('1 categorie')).toHaveLength(1)
+    expect(screen.getByText('1 categoria')).toBeInTheDocument()
+    expect(screen.getAllByText('2 transazioni (dal 03/10/2026 al 02/11/2026)')).toHaveLength(2)
     expect(screen.getByText('2 categorie')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Sostituisci i dati' }))
 

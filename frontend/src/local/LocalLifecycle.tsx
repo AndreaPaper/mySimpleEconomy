@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { App } from '@capacitor/app'
 import { localBackend } from './adapter'
+import { requestNotificationPermission } from './notifications'
 
 /**
  * Il ritorno nell'app, nella modalità locale. Sul telefono l'app resta aperta in
@@ -18,6 +19,13 @@ export default function LocalLifecycle() {
       await queryClient.invalidateQueries()
     }
     const listener = App.addListener('resume', () => void refresh())
+    // Il permesso delle notifiche si chiede qui, senza che nulla lo aspetti: l'app è già
+    // aperta e usabile. Quando arriva, i preavvisi dei promemoria si programmano.
+    void requestNotificationPermission()
+      .then(async (granted) => {
+        if (granted) await (await localBackend()).runJobs()
+      })
+      .catch((error) => console.error('Permesso notifiche non chiesto', error))
     return () => {
       void listener.then((l) => l.remove())
     }

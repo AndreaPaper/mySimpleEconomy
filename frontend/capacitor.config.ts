@@ -9,6 +9,12 @@ const config: CapacitorConfig = {
   appId: 'it.mysimpleeconomy.locale',
   appName: 'MyEconomy',
   webDir: 'dist',
+  android: {
+    // Da Android 15 le app disegnano anche sotto la barra di stato e quella di
+    // navigazione: senza margini l'ora e la batteria finiscono sopra la prima card.
+    // 'auto' aggiunge i margini solo dove Android impone il disegno a tutto schermo.
+    adjustMarginsForEdgeToEdge: 'auto',
+  },
 }
 
 export default config

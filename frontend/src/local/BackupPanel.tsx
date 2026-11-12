@@ -19,18 +19,20 @@ const buttonClass =
 
 const formatDay = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '')
 
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
 function SummaryList({ summary }: { summary: BackupSummary }) {
   return (
     <ul className="space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
       <li>
-        {summary.transactions} transazioni
+        {count(summary.transactions, 'transazione', 'transazioni')}
         {summary.firstTransactionDate &&
           ` (dal ${formatDay(summary.firstTransactionDate)} al ${formatDay(summary.lastTransactionDate)})`}
       </li>
-      <li>{summary.categories} categorie</li>
-      <li>{summary.recurringTransactions} regole ricorrenti</li>
-      <li>{summary.reminders} promemoria</li>
-      <li>{summary.debts} debiti</li>
+      <li>{count(summary.categories, 'categoria', 'categorie')}</li>
+      <li>{count(summary.recurringTransactions, 'regola ricorrente', 'regole ricorrenti')}</li>
+      <li>{count(summary.reminders, 'promemoria', 'promemoria')}</li>
+      <li>{count(summary.debts, 'debito', 'debiti')}</li>
     </ul>
   )
 }

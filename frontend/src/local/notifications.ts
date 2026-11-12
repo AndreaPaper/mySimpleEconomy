@@ -73,11 +73,12 @@ export function planNotifications(
 export async function syncNotifications(db: LocalDatabase): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false
   const { LocalNotifications } = await import('@capacitor/local-notifications')
+  // Solo il controllo, mai la richiesta: questa funzione gira all'apertura dell'app,
+  // e aspettare la risposta a un dialogo (che su qualche Android non arriva mai)
+  // lascerebbe l'app bloccata sul caricamento. La richiesta la fa LocalLifecycle, a
+  // parte, e quando arriva il permesso riallinea.
   const permission = await LocalNotifications.checkPermissions()
-  if (permission.display !== 'granted') {
-    const asked = await LocalNotifications.requestPermissions()
-    if (asked.display !== 'granted') return false
-  }
+  if (permission.display !== 'granted') return false
 
   const pending = await LocalNotifications.getPending()
   if (pending.notifications.length > 0) await LocalNotifications.cancel({ notifications: pending.notifications })
@@ -114,6 +115,19 @@ export async function syncNotifications(db: LocalDatabase): Promise<boolean> {
     db.run('UPDATE expense_reminders SET last_notified_due_date = :due WHERE id = :id', { id: n.reminderId, due: n.dueDate })
   }
   return true
+}
+
+/**
+ * Chiede il permesso delle notifiche, se non c'è e se si può ancora chiedere. Vero se
+ * alla fine c'è. Da non aspettare dove l'app attende per mostrarsi.
+ */
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false
+  const { LocalNotifications } = await import('@capacitor/local-notifications')
+  const permission = await LocalNotifications.checkPermissions()
+  if (permission.display === 'granted') return true
+  if (permission.display === 'denied') return false
+  return (await LocalNotifications.requestPermissions()).display === 'granted'
 }
 
 function readScheduled(db: LocalDatabase): ScheduledMap {

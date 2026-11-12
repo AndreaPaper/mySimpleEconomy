@@ -41,8 +41,14 @@ export class LocalBackend {
    */
   async runJobs(today?: string): Promise<void> {
     const changed = runDueJobs(this.db, today)
-    // Dopo i job: le scadenze dei promemoria possono essere avanzate.
-    const notified = await syncNotifications(this.db)
+    // Dopo i job: le scadenze dei promemoria possono essere avanzate. Un problema con le
+    // notifiche non deve impedire di aprire l'app: i dati contano di più del preavviso.
+    let notified = false
+    try {
+      notified = await syncNotifications(this.db)
+    } catch (error) {
+      console.error('Notifiche non riallineate', error)
+    }
     if (changed || notified) await this.db.save()
   }
 
