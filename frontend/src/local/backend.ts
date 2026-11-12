@@ -46,6 +46,15 @@ export class LocalBackend {
     if (changed || notified) await this.db.save()
   }
 
+  /**
+   * Ripristina un backup: il database diventa quello del backup, e i job recuperano
+   * quello che è scaduto da quando è stato fatto (stipendi, promemoria, preavvisi).
+   */
+  async restore(bytes: Uint8Array, today?: string): Promise<void> {
+    await this.db.replaceWith(bytes)
+    await this.runJobs(today)
+  }
+
   async handle(
     method: string,
     path: string,

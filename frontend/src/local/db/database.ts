@@ -33,7 +33,8 @@ export type Params = Record<string, SqlValue | boolean | undefined>
 export class LocalDatabase {
   private saving: Promise<void> = Promise.resolve()
 
-  private readonly db: SqlJsDatabase
+  // Non readonly: il ripristino di un backup lo sostituisce (replaceWith).
+  private db: SqlJsDatabase
   private readonly storage: DatabaseStorage
 
   private constructor(db: SqlJsDatabase, storage: DatabaseStorage) {
@@ -42,31 +43,37 @@ export class LocalDatabase {
   }
 
   static async open(storage: DatabaseStorage): Promise<LocalDatabase> {
-    const SQL = await initSqlJs()
     const saved = await storage.load()
-    const db = saved ? new SQL.Database(saved) : new SQL.Database()
-    // Le chiavi esterne in SQLite sono spente di default: senza, una categoria con
-    // transazioni si cancellerebbe lasciandole orfane, invece di essere rifiutata
-    // come sul server.
-    db.run('PRAGMA foreign_keys = ON')
+    const db = await openSqlite(saved)
     const local = new LocalDatabase(db, storage)
-    if (local.migrate()) {
+    if (migrate(db)) {
       await local.save()
     }
     return local
   }
 
-  /** Applica le migrazioni mancanti. Vero se ne ha applicata almeno una. */
-  private migrate(): boolean {
-    const current = Number(this.db.exec('PRAGMA user_version')[0].values[0][0])
-    if (current >= MIGRATIONS.length) return false
-    this.transaction(() => {
-      for (let version = current; version < MIGRATIONS.length; version++) {
-        this.db.exec(MIGRATIONS[version])
-      }
-      this.db.run(`PRAGMA user_version = ${MIGRATIONS.length}`)
-    })
-    return true
+  /**
+   * Sostituisce tutto il database con un altro (il ripristino di un backup), lo porta
+   * alla versione dello schema di quest'app e lo salva. Chi chiama ha già controllato
+   * che sia un database dell'app (vedi backup.ts).
+   */
+  async replaceWith(bytes: Uint8Array): Promise<void> {
+    // Tutto o niente: il database nuovo si migra e si scrive su disco prima di prendere
+    // il posto di quello attuale. Se un passo fallisce, i dati di prima restano, in
+    // memoria e su disco.
+    const incoming = await openSqlite(bytes)
+    try {
+      migrate(incoming)
+      // Dopo i salvataggi in corso: uno che finisse dopo riscriverebbe i dati vecchi.
+      await this.saving
+      await this.storage.save(incoming.export())
+    } catch (error) {
+      incoming.close()
+      throw error
+    }
+    const previous = this.db
+    this.db = incoming
+    previous.close()
   }
 
   all<T>(sql: string, params: Params = {}): T[] {
@@ -125,6 +132,34 @@ export class LocalDatabase {
   export(): Uint8Array {
     return this.db.export()
   }
+}
+
+/** Applica le migrazioni mancanti, tutte o nessuna. Vero se ne ha applicata almeno una. */
+function migrate(db: SqlJsDatabase): boolean {
+  const current = Number(db.exec('PRAGMA user_version')[0].values[0][0])
+  if (current >= MIGRATIONS.length) return false
+  db.exec('BEGIN')
+  try {
+    for (let version = current; version < MIGRATIONS.length; version++) {
+      db.exec(MIGRATIONS[version])
+    }
+    db.run(`PRAGMA user_version = ${MIGRATIONS.length}`)
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+  return true
+}
+
+async function openSqlite(bytes: Uint8Array | null): Promise<SqlJsDatabase> {
+  const SQL = await initSqlJs()
+  const db = bytes ? new SQL.Database(bytes) : new SQL.Database()
+  // Le chiavi esterne in SQLite sono spente di default: senza, una categoria con
+  // transazioni si cancellerebbe lasciandole orfane, invece di essere rifiutata
+  // come sul server.
+  db.run('PRAGMA foreign_keys = ON')
+  return db
 }
 
 function bind(params: Params): Record<string, SqlValue> {

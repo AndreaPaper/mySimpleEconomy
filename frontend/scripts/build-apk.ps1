@@ -24,6 +24,12 @@ $tmp = Join-Path $android '.gradle-tmp'
 New-Item -ItemType Directory -Force $tmp | Out-Null
 $env:JAVA_TOOL_OPTIONS = "-Djdk.net.unixdomain.tmpdir=$tmp"
 
+# Un APK di rilascio senza chiave Gradle lo produrrebbe non firmato, e Android non lo
+# installa: meglio fermarsi subito e dire cosa manca.
+if ($Release -and -not (Test-Path (Join-Path $android 'keystore.properties'))) {
+  throw "Manca android\keystore.properties con la chiave di firma: vedi frontend\ANDROID.md, 'La chiave di firma'."
+}
+
 Push-Location $frontend
 try {
   npm run build:android

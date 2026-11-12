@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { lazy, Suspense, useRef, useState, type KeyboardEvent } from 'react'
 import { dataCleanupApi } from '../api/endpoints'
 import { useInvalidateAll } from '../api/queries'
 import type { DataCleanupResult } from '../api/types'
@@ -8,6 +8,12 @@ import { useTheme } from '../context/ThemeContext'
 import { useCaseStyle } from '../context/CaseStyleContext'
 import { usePalette } from '../context/PaletteContext'
 import { UI_PALETTES } from '../constants/uiPalettes'
+import { isLocalMode } from '../local/mode'
+
+// Il backup esiste solo nell'app per il telefono, dove i dati non stanno su un server.
+// Caricato a parte e solo lì: la versione web non contiene il suo codice.
+const BackupPanel =
+  import.meta.env.VITE_DATA_MODE === 'local' ? lazy(() => import('../local/BackupPanel')) : null
 
 const CONFIRM_WORD = 'ELIMINA'
 
@@ -15,12 +21,13 @@ const CONFIRM_WORD = 'ELIMINA'
 // l'eliminazione di tutti i dati stavano a poche righe di distanza. Divise per
 // area si vede una cosa alla volta, e le due azioni distruttive stanno insieme
 // dove uno va apposta.
-type SettingsTab = 'aspetto' | 'importa' | 'transazioni'
+type SettingsTab = 'aspetto' | 'importa' | 'transazioni' | 'backup'
 
 const SETTINGS_TABS: { key: SettingsTab; label: string }[] = [
   { key: 'aspetto', label: 'Aspetto' },
   { key: 'importa', label: 'Importa' },
   { key: 'transazioni', label: 'Transazioni' },
+  ...(isLocalMode ? [{ key: 'backup' as const, label: 'Backup' }] : []),
 ]
 
 function ResultSummary({ result }: { result: DataCleanupResult }) {
@@ -241,8 +248,9 @@ export default function SettingsPage() {
             esiste per fare quella cosa, e una card che descrive un'altra
             pagina era solo un passaggio in più. */}
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Il tuo diario spese, oppure la lista movimenti scaricata da Intesa Sanpaolo. L'estratto conto puoi
-          ripassarlo ogni volta che vuoi: le transazioni già registrate vengono riconosciute e non raddoppiate.
+          {isLocalMode
+            ? 'Il tuo diario spese in formato Excel.'
+            : "Il tuo diario spese, oppure la lista movimenti scaricata da Intesa Sanpaolo. L'estratto conto puoi ripassarlo ogni volta che vuoi: le transazioni già registrate vengono riconosciute e non raddoppiate."}
         </p>
         <ImportPanel />
       </div>
@@ -318,6 +326,20 @@ export default function SettingsPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
+
+      {BackupPanel && (
+        <div
+          role="tabpanel"
+          id="panel-backup"
+          aria-labelledby="tab-backup"
+          hidden={tab !== 'backup'}
+          className="space-y-6"
+        >
+          <Suspense fallback={null}>
+            <BackupPanel />
+          </Suspense>
+        </div>
+      )}
 
       {fullWipeOpen && (
         <Modal title="Conferma eliminazione totale" onClose={closeFullWipe}>
