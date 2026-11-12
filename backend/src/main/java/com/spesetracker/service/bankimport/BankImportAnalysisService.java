@@ -42,15 +42,10 @@ public class BankImportAnalysisService {
     private static final int PROVISIONAL_MATCH_DAYS = 5;
 
     // Sotto questo scarto una spesa e una ricorrente si somigliano abbastanza da
-    // meritare una segnalazione: bollette e rate variano poco. Vale solo quando la
-    // categoria della riga è quella della regola, o non è ancora nota: vedi
+    // meritare una segnalazione: bollette e rate variano poco. Con una categoria
+    // diversa serve anche il nome della regola nella descrizione: vedi
     // looksLikeRecurring.
     private static final BigDecimal RECURRING_TOLERANCE = new BigDecimal("0.20");
-
-    // La tolleranza quando la categoria della riga è nota e diversa da quella della
-    // regola: abbastanza per un importo arrotondato nella regola, non per una spesa
-    // qualsiasi che gli somiglia. Vedi looksLikeRecurring.
-    private static final BigDecimal RECURRING_TOLERANCE_OTHER_CATEGORY = new BigDecimal("0.05");
 
     // Una ricorrente mensile non cade mai al giorno esatto (weekend, festivi),
     // ma nemmeno a due settimane di distanza.
@@ -171,7 +166,8 @@ public class BankImportAnalysisService {
                             : findManualDuplicate(inRange, row.date(), amount, type);
                     String recurringConflict = occurrence != null || manual.isPresent()
                             ? null
-                            : findRecurringConflict(inRange, recurring, row.date(), amount, type, categoryId);
+                            : findRecurringConflict(inRange, recurring, row.date(), amount, type, categoryId,
+                                    row.searchableText());
                     if (occurrence != null) {
                         outcome = BankImportOutcome.SOSTITUISCE_RICORRENTE;
                         if (occurrence.generated() != null) {
@@ -425,12 +421,13 @@ public class BankImportAnalysisService {
     // simile (un bonifico da 87 euro alla "Bolletta luce" da 95).
     private String findRecurringConflict(
             List<Transaction> inRange, List<RecurringTransaction> rules,
-            LocalDate date, BigDecimal amount, TransactionType type, UUID rowCategoryId) {
+            LocalDate date, BigDecimal amount, TransactionType type, UUID rowCategoryId, String rowText) {
         Optional<Transaction> generated = inRange.stream()
                 .filter(t -> t.getRecurringTransaction() != null)
                 .filter(t -> t.getType() == type)
                 .filter(t -> Math.abs(ChronoUnit.DAYS.between(t.getOccurredOn(), date)) <= RECURRING_MATCH_DAYS)
-                .filter(t -> looksLikeRecurring(amount, rowCategoryId, t.getAmount(), t.getCategory().getId()))
+                .filter(t -> looksLikeRecurring(amount, rowCategoryId, rowText,
+                        t.getAmount(), t.getCategory().getId(), t.getRecurringTransaction().getName()))
                 .findFirst();
         if (generated.isPresent()) {
             return "L'app l'ha gia' generata da una regola ricorrente: " + describeTransaction(generated.get());
@@ -443,7 +440,8 @@ public class BankImportAnalysisService {
                 .filter(t -> t.getExpenseReminder() != null)
                 .filter(t -> t.getType() == type)
                 .filter(t -> YearMonth.from(t.getOccurredOn()).equals(YearMonth.from(date)))
-                .filter(t -> looksLikeRecurring(amount, rowCategoryId, t.getAmount(), t.getCategory().getId()))
+                .filter(t -> looksLikeRecurring(amount, rowCategoryId, rowText,
+                        t.getAmount(), t.getCategory().getId(), t.getExpenseReminder().getName()))
                 .findFirst();
         if (reminderPlaceholder.isPresent()) {
             return "Il promemoria ha gia' registrato questa spesa fissa: " + describeTransaction(reminderPlaceholder.get());
@@ -453,7 +451,8 @@ public class BankImportAnalysisService {
         return rules.stream()
                 .filter(r -> r.getCategory().getType() == categoryType)
                 .filter(r -> Math.abs(ChronoUnit.DAYS.between(r.getNextDueDate(), date)) <= RECURRING_MATCH_DAYS)
-                .filter(r -> looksLikeRecurring(amount, rowCategoryId, r.getDefaultAmount(), r.getCategory().getId()))
+                .filter(r -> looksLikeRecurring(amount, rowCategoryId, rowText,
+                        r.getDefaultAmount(), r.getCategory().getId(), r.getName()))
                 .findFirst()
                 .map(r -> "Sta per generarla la regola ricorrente " + r.getName() + " · "
                         + r.getDefaultAmount() + " € del " + r.getNextDueDate())
@@ -463,26 +462,24 @@ public class BankImportAnalysisService {
     /**
      * Se una riga somiglia abbastanza a una ricorrente da poter essere la stessa spesa.
      *
-     * <p>Quando la categoria della riga è già nota (la categoria della banca è
-     * mappata) ed è <em>diversa</em> da quella della regola, il 20% di tolleranza è
-     * troppo largo: su importi piccoli copre mezzo scaffale del supermercato. Una
-     * spesa da 8,61 € da In's Mercato, categoria Supermercato, veniva accostata
-     * all'abbonamento Apple TV da 9,99 € della stessa settimana (14% di scarto).
-     * Con categorie diverse la tolleranza scende al 5%: un abbonamento fisso che la
-     * banca classifica a modo suo viene ancora segnalato, la spesa che gli somiglia
-     * no.
+     * <p>Con la stessa categoria della regola, o con la riga ancora senza categoria,
+     * basta un importo entro il 20%: è il caso delle bollette, che variano di mese in mese.
      *
-     * <p>Non l'importo identico, come in una prima versione: chi scrive una regola
-     * arrotonda ("Iliad Casa", 20,00 €) e la banca addebita il prezzo vero (19,99 €).
-     * Con l'identità quel doppione vero passava, ed entrava due volte.
-     *
-     * <p>Con la stessa categoria, o con la riga ancora senza categoria, resta la
-     * tolleranza piena: è il caso delle bollette, che variano di mese in mese.
+     * <p>Con una categoria <em>diversa</em> l'importo da solo non dice niente: su cifre
+     * piccole, in una settimana, mezzo scaffale del supermercato costa quanto un
+     * abbonamento. Venivano segnalate come possibili doppioni una spesa Coop da 10,35 €
+     * accanto ad Apple TV da 9,99 € (lo stesso giorno: la data esatta non l'avrebbe
+     * evitato), un pranzo da 11,50 € accanto a Disney+ da 10,99 €, e Iliad da 9,99 €
+     * accanto ad Apple TV da 9,99 € — importo identico, ed erano comunque due spese
+     * diverse. Una tolleranza ridotta (5%) e prima ancora l'importo identico non
+     * bastavano. Il segnale che distingue è il nome: serve che la descrizione della banca
+     * contenga il nome della regola o del promemoria ("ILIAD MANDATO…" per "Iliad Casa").
      */
-    private boolean looksLikeRecurring(
-            BigDecimal amount, UUID rowCategoryId, BigDecimal reference, UUID recurringCategoryId) {
+    private boolean looksLikeRecurring(BigDecimal amount, UUID rowCategoryId, String rowText,
+                                       BigDecimal reference, UUID recurringCategoryId, String recurringName) {
         if (rowCategoryId != null && !rowCategoryId.equals(recurringCategoryId)) {
-            return withinTolerance(amount, reference, RECURRING_TOLERANCE_OTHER_CATEGORY);
+            return BankDescriptions.mentions(rowText, recurringName)
+                    && withinTolerance(amount, reference, RECURRING_TOLERANCE);
         }
         return withinTolerance(amount, reference, RECURRING_TOLERANCE);
     }

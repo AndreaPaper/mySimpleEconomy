@@ -71,6 +71,32 @@ public final class BankDescriptions {
         return out.replaceAll("\\s{2,}", " ").trim();
     }
 
+    // Parole troppo comuni per dire di chi è una spesa: compaiono nei nomi delle regole
+    // ("Iliad Casa", "Bolletta luce") e nei testi della banca ("Addebito diretto…"),
+    // e farebbero combaciare cose che non c'entrano.
+    private static final List<String> COMMON_WORDS = List.of(
+            "casa", "spesa", "spese", "pagamento", "addebito", "bonifico", "mensile",
+            "abbonamento", "bolletta", "rata", "conto", "carta", "favore", "disposto");
+
+    /**
+     * Se il testo della banca nomina una regola o un promemoria: almeno una parola
+     * significativa del nome (quattro lettere o più, non fra quelle comuni) apre una
+     * parola del testo. "Iliad Casa" in "Addebito diretto a favore di ILIAD MANDATO…"
+     * sì, "Disney+" in "DISNEYPLUS" sì; "Apple TV" in "Coop Genova Gastaldi" no, e
+     * nemmeno "Coop" in "Ecoop": il nome deve aprire la parola, non stare a metà.
+     */
+    public static boolean mentions(String bankText, String name) {
+        if (bankText == null || name == null) return false;
+        List<String> textWords = words(bankText);
+        return words(name).stream()
+                .filter(w -> w.length() >= 4 && !COMMON_WORDS.contains(w))
+                .anyMatch(w -> textWords.stream().anyMatch(t -> t.startsWith(w)));
+    }
+
+    private static List<String> words(String value) {
+        return List.of(value.toLowerCase(Locale.ITALIAN).split("[^\\p{L}\\p{N}]+"));
+    }
+
     private static String truncate(String value) {
         return value.length() <= MAX_LENGTH ? value : value.substring(0, MAX_LENGTH);
     }

@@ -311,8 +311,8 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         assertThat(esiti(analyze(token, workbook(List.of(spesa(57.40)))))).containsExactly("NUOVA");
     }
 
-    // La categoria della riga, quando è già nota, decide quanto devono somigliarsi gli
-    // importi. Il caso segnalato: una spesa da 8,61 € da In's Mercato, categoria
+    // La categoria della riga, quando è già nota e diversa da quella della regola, chiede
+    // che la descrizione nomini la regola: l'importo da solo non basta. Il caso segnalato: una spesa da 8,61 € da In's Mercato, categoria
     // Supermercato, accostata all'abbonamento Apple TV da 9,99 € della stessa settimana
     // — dentro il 20%, e con una spesa che con l'abbonamento non c'entra niente.
 
@@ -333,39 +333,95 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Il verso opposto, che impedisce alla correzione di diventare un buco: con
-     * categorie diverse un importo <em>identico</em> viene ancora segnalato. Un
-     * abbonamento costa sempre uguale, e la banca può classificarlo a modo suo, in una
-     * categoria che non è quella in cui l'utente ha messo la regola.
+     * Con categorie diverse l'importo da solo non basta, nemmeno identico: Iliad da 9,99 €
+     * veniva accostato ad Apple TV da 9,99 € di due giorni prima, ed erano due spese
+     * diverse. Senza il nome della regola nella descrizione la riga è nuova.
      */
     @Test
-    void conCategorieDiverseLImportoIdenticoVieneAncoraSegnalato() throws Exception {
+    void conCategorieDiverseNemmenoLImportoIdenticoBastaSenzaIlNome() throws Exception {
+        String token = api.registerAndLogin();
+        String abbonamenti = api.createExpenseCategory(token);
+        String utenze = api.createExpenseCategory(token);
+        creaRicorrente(token, abbonamenti, "Apple TV", "9.99", DATA.minusDays(2));
+        mappa(token, "Utenze", utenze);
+
+        assertThat(esiti(analyze(token, workbook(List.of(new Movimento(DATA,
+                "Addebito diretto disposto a favore di ILIAD MANDATO ILIADBD9LDO1", "ILIAD", true, "Utenze", -9.99))))))
+                .containsExactly("NUOVA");
+    }
+
+    /**
+     * Le righe dello screenshot che ha fatto nascere la regola del nome: la Coop lo stesso
+     * giorno di Apple TV (una data esatta non l'avrebbe evitata), Ekom e un ristorante a
+     * pochi giorni da Disney+, tutte dentro il 5% che la regola precedente tollerava.
+     */
+    @Test
+    void speseQualsiasiDentroLoScartoNonVengonoAccostateAgliAbbonamenti() throws Exception {
         String token = api.registerAndLogin();
         String abbonamenti = api.createExpenseCategory(token);
         String spesa = api.createExpenseCategory(token);
-        creaRicorrente(token, abbonamenti, "Apple TV", "9.99", DATA.plusDays(5));
+        String ristoranti = api.createExpenseCategory(token);
+        creaRicorrente(token, abbonamenti, "Apple TV", "9.99", DATA);
+        creaRicorrente(token, abbonamenti, "Disney+", "10.99", DATA.plusDays(3));
         mappa(token, "Supermercato", spesa);
+        mappa(token, "Ristoranti", ristoranti);
 
-        assertThat(esiti(analyze(token, workbook(List.of(supermercato(9.99))))))
+        JsonNode preview = analyze(token, workbook(List.of(
+                new Movimento(DATA, "Coop Genova Gastaldi Genova", "COOP Carta n.5397", true, "Supermercato", -10.35),
+                new Movimento(DATA.plusDays(1), "Ekom Via San Martino", "EKOM Carta n.5397", true, "Supermercato", -10.66),
+                new Movimento(DATA.plusDays(4), "Ditta Chen Wangwei", "CHEN Carta n.5397", true, "Ristoranti", -11.50))));
+
+        assertThat(esiti(preview)).containsExactly("NUOVA", "NUOVA", "NUOVA");
+    }
+
+    /**
+     * Il verso opposto, che impedisce alla correzione di diventare un buco: con categorie
+     * diverse una riga che nomina la regola viene ancora segnalata, anche con un importo
+     * arrotondato nella regola ("Iliad Casa", 20,00 €, contro i 19,99 € veri). La banca
+     * può classificare un addebito in una categoria che non è quella della regola.
+     */
+    @Test
+    void conCategorieDiverseUnaRigaCheNominaLaRegolaVieneSegnalata() throws Exception {
+        String token = api.registerAndLogin();
+        String casa = api.createExpenseCategory(token);
+        String utenze = api.createExpenseCategory(token);
+        creaRicorrente(token, casa, "Iliad Casa", "20.00", DATA.plusDays(2));
+        mappa(token, "Utenze", utenze);
+
+        assertThat(esiti(analyze(token, workbook(List.of(new Movimento(DATA,
+                "Addebito diretto disposto a favore di ILIAD MANDATO ILIADASZFW01", "ILIAD", true, "Utenze", -19.99))))))
                 .containsExactly("SOSPETTO_RICORRENTE");
     }
 
     /**
-     * Il buco che una prima versione della correzione apriva, pretendendo l'importo
-     * identico con categorie diverse. Chi scrive una regola arrotonda ("Iliad Casa",
-     * 20,00 €), la banca addebita il prezzo vero (19,99 €), e la banca può classificarla
-     * in un'altra categoria: era un doppione vero, e passava. Con categorie diverse la
-     * tolleranza è stretta, non nulla.
+     * Le parole comuni dei nomi non contano: "Iliad Casa" non è nominata da un bar che si
+     * chiama "Casa del Caffè", e nemmeno "Apple TV" da qualunque testo che contenga "TV".
+     * Altrimenti il nome tornerebbe a combaciare con mezzo estratto conto.
      */
     @Test
-    void conCategorieDiverseUnImportoArrotondatoVieneAncoraSegnalato() throws Exception {
+    void leParoleComuniDelNomeNonBastano() throws Exception {
         String token = api.registerAndLogin();
         String casa = api.createExpenseCategory(token);
-        String bollette = api.createExpenseCategory(token);
-        creaRicorrente(token, casa, "Iliad Casa", "20.00", DATA.plusDays(2));
-        mappa(token, "Supermercato", bollette);
+        String bar = api.createExpenseCategory(token);
+        creaRicorrente(token, casa, "Iliad Casa", "20.00", DATA.plusDays(1));
+        mappa(token, "Ristoranti", bar);
 
-        assertThat(esiti(analyze(token, workbook(List.of(supermercato(19.99))))))
+        assertThat(esiti(analyze(token, workbook(List.of(new Movimento(DATA,
+                "Casa del Caffe Genova", "CASA DEL CAFFE Carta n.5397", true, "Ristoranti", -19.50))))))
+                .containsExactly("NUOVA");
+    }
+
+    // Il nome deve aprire una parola: "DISNEYPLUS" nomina "Disney+".
+    @Test
+    void ilNomeAttaccatoAdAltroTestoVieneRiconosciuto() throws Exception {
+        String token = api.registerAndLogin();
+        String abbonamenti = api.createExpenseCategory(token);
+        String svago = api.createExpenseCategory(token);
+        creaRicorrente(token, abbonamenti, "Disney+", "10.99", DATA.plusDays(1));
+        mappa(token, "Tempo libero", svago);
+
+        assertThat(esiti(analyze(token, workbook(List.of(new Movimento(DATA,
+                "DISNEYPLUS", "DISNEYPLUS Carta n.5397", true, "Tempo libero", -10.99))))))
                 .containsExactly("SOSPETTO_RICORRENTE");
     }
 
