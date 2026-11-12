@@ -12,6 +12,7 @@ import CategoryForm from './CategoryForm'
 import CategoryPicker from './CategoryPicker'
 import BankImportFlow from './BankImportFlow'
 import FilePicker from './FilePicker'
+import { isLocalMode } from '../local/mode'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -27,6 +28,10 @@ const FORMATS: { key: ImportFormat; label: string; hint: string; Icon: LucideIco
   { key: 'diary', label: 'Diario spese', hint: 'Una scheda per mese', Icon: NotebookText },
   { key: 'intesa', label: 'Intesa Sanpaolo', hint: 'Estratto conto', Icon: Landmark },
 ]
+
+// Nell'app sul telefono non c'è l'import Intesa Sanpaolo: chi la usa ha un'altra banca,
+// e il suo lettore arriverà a parte. Con un formato solo la scelta non si mostra.
+const AVAILABLE_FORMATS = isLocalMode ? FORMATS.filter((f) => f.key !== 'intesa') : FORMATS
 
 export default function ImportPanel() {
   const [format, setFormat] = useState<ImportFormat>('diary')
@@ -158,14 +163,14 @@ export default function ImportPanel() {
     <div className="space-y-6">
       {/* Nel ramo diario il selettore sparisce dopo l'analisi, perché lì
           cambiare formato butterebbe via il lavoro fatto senza dirlo. */}
-      {!preview && (
+      {!preview && AVAILABLE_FORMATS.length > 1 && (
         <fieldset>
           <legend className="mb-2 text-sm text-slate-600 dark:text-slate-300">Che file stai importando?</legend>
           {/* radio e non bottoni: è una scelta fra alternative che si escludono,
               e così le frecce ci si muovono dentro e un lettore di schermo
               annuncia "1 di 2" invece di due comandi slegati. */}
           <div className="grid grid-cols-2 gap-2.5">
-            {FORMATS.map(({ key, label, hint, Icon }) => {
+            {AVAILABLE_FORMATS.map(({ key, label, hint, Icon }) => {
               const active = format === key
               return (
                 <label

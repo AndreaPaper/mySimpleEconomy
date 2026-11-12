@@ -8,6 +8,7 @@ import type { BalanceCheckpoint, Profile } from '../api/types'
 import { useAuth } from '../context/AuthContext'
 import { ProfilePageSkeleton } from '../components/Skeleton'
 import { AVATAR_OPTIONS, getAvatarIcon } from '../constants/avatars'
+import { isLocalMode } from '../local/mode'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 const dateFormatter = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -526,13 +527,16 @@ export default function ProfilePage() {
             <span className={error ? 'text-red-600' : undefined}>{statusLabel}</span>
           </span>
           <div className="ml-auto flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded-full border border-slate-300 bg-brand-300 px-[17px] py-2.5 text-[13px] font-semibold text-slate-600 hover:bg-brand-100 dark:border-slate-700 dark:bg-black dark:text-slate-300 dark:hover:bg-zinc-900"
-            >
-              Esci dall'account
-            </button>
+            {/* Nell'app sul telefono non c'è un account da cui uscire. */}
+            {!isLocalMode && (
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-full border border-slate-300 bg-brand-300 px-[17px] py-2.5 text-[13px] font-semibold text-slate-600 hover:bg-brand-100 dark:border-slate-700 dark:bg-black dark:text-slate-300 dark:hover:bg-zinc-900"
+              >
+                Esci dall'account
+              </button>
+            )}
             <button
               type="submit"
               disabled={saving}

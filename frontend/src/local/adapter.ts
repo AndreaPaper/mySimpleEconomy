@@ -12,7 +12,7 @@ export function localBackend(): Promise<LocalBackend> {
 }
 
 /** Per i test: un backend già aperto su uno storage scelto da loro. */
-export function useLocalBackend(instance: Promise<LocalBackend> | null) {
+export function setLocalBackend(instance: Promise<LocalBackend> | null) {
   backend = instance
 }
 

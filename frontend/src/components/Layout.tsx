@@ -22,6 +22,7 @@ import { usePrefetchRoute } from '../api/prefetch'
 import { getAvatarIcon } from '../constants/avatars'
 import bankIcon from '../assets/mySimpleEconomyIcon.png'
 import BottomNav from './BottomNav'
+import { isLocalMode } from '../local/mode'
 
 const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -131,17 +132,20 @@ export default function Layout() {
                 <Settings className="h-4 w-4 shrink-0" />
                 Impostazioni
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileMenuOpen(false)
-                  logout()
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-black"
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                Esci
-              </button>
+              {/* Nell'app sul telefono non c'è un account da cui uscire. */}
+              {!isLocalMode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileMenuOpen(false)
+                    logout()
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-black"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  Esci
+                </button>
+              )}
             </div>
           )}
           <button

@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios'
 import { afterEach, describe, expect, it } from 'vitest'
-import { localAdapter, useLocalBackend } from './adapter'
+import { localAdapter, setLocalBackend } from './adapter'
 import { LocalBackend } from './backend'
 import { memoryStorage } from './db/database'
 
@@ -10,11 +10,11 @@ import { memoryStorage } from './db/database'
 
 const client = axios.create({ baseURL: '/api', adapter: localAdapter })
 
-afterEach(() => useLocalBackend(null))
+afterEach(() => setLocalBackend(null))
 
 describe("l'adattatore della modalità locale", () => {
   it('consegna la richiesta al backend locale e ne restituisce la risposta', async () => {
-    useLocalBackend(LocalBackend.open(memoryStorage))
+    setLocalBackend(LocalBackend.open(memoryStorage))
 
     const response = await client.get('/ping')
 
@@ -28,7 +28,7 @@ describe("l'adattatore della modalità locale", () => {
    * response.data.message.
    */
   it('una rotta che non esiste ancora risponde 501 con un messaggio leggibile', async () => {
-    useLocalBackend(LocalBackend.open(memoryStorage))
+    setLocalBackend(LocalBackend.open(memoryStorage))
 
     const error = await client.get('/qualcosa-che-non-ce').catch((e: unknown) => e)
 
