@@ -13,6 +13,7 @@ import { ListPageSkeleton } from '../components/Skeleton'
 import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { formatCadence, formatDay } from '../utils/cadence'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -133,9 +134,7 @@ export default function RecurringPage() {
 
   if (loading) return <ListPageSkeleton />
 
-  // Stessa resa della riga desktop: "ogni 2 month", non tradotta — non è
-  // qualcosa che introduco qui, la card larga fa lo stesso.
-  const cadenceLabel = (r: RecurringTransaction) => `ogni ${r.intervalValue} ${r.intervalUnit.toLowerCase()}`
+  const cadenceLabel = (r: RecurringTransaction) => formatCadence(r.intervalValue, r.intervalUnit)
 
   return (
     <div>
@@ -187,7 +186,7 @@ export default function RecurringPage() {
                   >
                     <p className="truncate text-[14.5px] font-semibold">{r.name}</p>
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                      {cadenceLabel(r)} · prossima {r.nextDueDate}
+                      {cadenceLabel(r)} · prossima {formatDay(r.nextDueDate)}
                     </p>
                   </button>
                   {/* Interruttore invece del pulsante "Disattiva"/"Riattiva":
@@ -265,7 +264,7 @@ export default function RecurringPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{r.name}</p>
                       <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                        {r.categoryName} · {cadenceLabel(r)} · prossima: {r.nextDueDate}
+                        {r.categoryName} · {cadenceLabel(r)} · prossima: {formatDay(r.nextDueDate)}
                       </p>
                     </div>
                     <span
@@ -386,9 +385,8 @@ export default function RecurringPage() {
           <p className="mt-2 rounded border border-slate-200 dark:border-slate-800 px-3 py-2">
             <span className="font-medium text-slate-900 dark:text-white">{pendingDelete.name}</span>
             <br />
-            {currency.format(pendingDelete.defaultAmount)} · {pendingDelete.categoryName} · ogni{' '}
-            {pendingDelete.intervalValue} {pendingDelete.intervalUnit.toLowerCase()} · prossima:{' '}
-            {pendingDelete.nextDueDate}
+            {currency.format(pendingDelete.defaultAmount)} · {pendingDelete.categoryName} ·{' '}
+            {cadenceLabel(pendingDelete)} · prossima: {formatDay(pendingDelete.nextDueDate)}
           </p>
         </ConfirmDialog>
       )}

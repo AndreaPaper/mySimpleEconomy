@@ -16,7 +16,7 @@ const LAST_RUN = 'jobs.lastRun'
  * all'apertura recupera quello che è successo nel frattempo, nello stesso ordine:
  *
  * 1. il primo di ogni mese passato da allora, la spesa fissa dei promemoria che
- *    scadono in quel mese (ExpenseReminderGenerationScheduler, il 1° alle 6);
+ *    scadono in quel mese (ExpenseReminderGenerationScheduler, il 1° alle 5:05);
  * 2. l'avanzamento delle scadenze dei promemoria già passate
  *    (ExpenseReminderScheduler, ogni giorno alle 5:10);
  * 3. le transazioni delle regole ricorrenti arrivate a scadenza
@@ -25,10 +25,8 @@ const LAST_RUN = 'jobs.lastRun'
  * Il primo passo va prima del secondo: avanzando, un promemoria rimasto indietro
  * salterebbe i mesi di cui deve ancora registrare la spesa.
  *
- * Una differenza voluta dal server: lì il 1° del mese l'avanzamento (5:10) gira prima
- * della generazione (6:00), e un promemoria che scade proprio il 1° ha già la scadenza
- * spostata al mese dopo quando la generazione lo cerca, quindi la sua spesa di quel
- * mese non viene mai registrata. Qui sì.
+ * Lo stesso ordine del server: lì la generazione del 1° gira alle 5:05, prima
+ * dell'avanzamento delle 5:10.
  *
  * Il quarto job del server, le email di preavviso, qui sono le notifiche Android:
  * vedi notifications.ts.

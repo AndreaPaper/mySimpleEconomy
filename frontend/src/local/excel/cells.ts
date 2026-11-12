@@ -63,31 +63,35 @@ export function roundToCents(value: number): Cents {
 }
 
 /**
- * La chiave di colore del riempimento di una cella, come colorKeyOf del parser Java:
- * il colore ARGB che POI restituisce con getARGBHex().
+ * La chiave di colore del riempimento di una cella, come colorKeyOf del parser Java: il
+ * colore che si vede, sfumatura compresa (XSSFColor.getRGBWithTint di POI).
  *
- * Per un colore del tema POI mette nella cella l'RGB del tema (inheritFromThemeAsRequired)
- * e getARGBHex lo restituisce senza applicare la sfumatura (tint). Qui si fa lo stesso,
- * risolvendo l'indice del tema sul file del tema: due celle con lo stesso colore, una in
- * RGB e una come colore del tema, devono avere la stessa chiave anche qui. I colori
- * indicizzati (rari nei riempimenti) restano con l'indice: la chiave serve solo a
- * confrontare celle dello stesso file.
+ * Un colore del tema si risolve sull'RGB del tema del file, poi si applica la sfumatura
+ * (tint) con la stessa formula di POI: due sfumature dello stesso colore del tema sono due
+ * categorie, e un colore del tema e lo stesso colore scritto in RGB sono la stessa. I
+ * colori indicizzati (la vecchia tavolozza, rara nei riempimenti) restano con l'indice:
+ * la chiave serve solo a confrontare celle dello stesso file.
  */
 export function colorKeyOf(cell: Cell | undefined, themeColors: string[]): string | null {
   const fill = cell?.style?.fill
   if (!fill || fill.type !== 'pattern') return null
-  const color = fill.fgColor as { argb?: string; theme?: number; indexed?: number } | undefined
+  const color = fill.fgColor as { argb?: string; theme?: number; indexed?: number; tint?: number } | undefined
   if (!color) return null
-  if (color.argb) {
-    const argb = color.argb.toUpperCase()
-    return `argb:${argb.length === 6 ? 'FF' + argb : argb}`
-  }
-  if (color.theme !== undefined) {
-    const rgb = themeColors[color.theme]
-    return rgb ? `argb:FF${rgb.toUpperCase()}` : null
-  }
-  if (color.indexed !== undefined) return `indexed:${color.indexed}`
-  return null
+  let rgb: string | undefined
+  if (color.argb) rgb = color.argb.slice(-6)
+  else if (color.theme !== undefined) rgb = themeColors[color.theme] || undefined
+  else if (color.indexed !== undefined) return `indexed:${color.indexed}`
+  if (!rgb) return null
+  const tint = color.tint ?? 0
+  const channels = [0, 2, 4].map((i) => applyTint(parseInt(rgb.slice(i, i + 2), 16), tint))
+  return 'rgb:' + channels.map((c) => c.toString(16).padStart(2, '0').toUpperCase()).join('')
+}
+
+/** ExtendedColor.applyTint di POI: verso il bianco se positiva, verso il nero se negativa. */
+function applyTint(lum: number, tint: number): number {
+  if (tint > 0) return Math.trunc(lum * (1 - tint) + (255 - 255 * (1 - tint)))
+  if (tint < 0) return Math.trunc(lum * (1 + tint))
+  return lum
 }
 
 /**

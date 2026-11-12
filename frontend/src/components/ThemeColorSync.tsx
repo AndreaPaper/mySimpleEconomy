@@ -28,6 +28,11 @@ export default function ThemeColorSync() {
       document
         .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
         .forEach((meta) => meta.setAttribute('content', color))
+      // Nell'app per il telefono la barra in cima è quella di Android, che il meta non
+      // tocca. Caricato solo in quella build: la versione web non contiene il plugin.
+      if (import.meta.env.VITE_DATA_MODE === 'local') {
+        void import('../local/statusBar').then(({ syncStatusBar }) => syncStatusBar(color)).catch(() => {})
+      }
     }
 
     sync()

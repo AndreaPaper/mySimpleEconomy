@@ -10,6 +10,7 @@ import { ListPageSkeleton } from '../components/Skeleton'
 import { categoryInk } from '../constants/colors'
 import { getCategoryIcon } from '../constants/icons'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { formatCadence, formatDay } from '../utils/cadence'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
 
@@ -121,7 +122,7 @@ export default function RemindersPage() {
                 <button type="button" onClick={() => openEdit(r)} className="min-w-0 flex-1 text-left">
                   <p className="truncate text-[14.5px] font-semibold">{r.name}</p>
                   <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                    ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · {r.nextDueDate}
+                    {formatCadence(r.intervalValue, r.intervalUnit)} · {formatDay(r.nextDueDate)}
                     {r.categoryName && ` · ${r.categoryName}`}
                     {r.amount != null && ` · ${currency.format(r.amount)}`}
                   </p>
@@ -182,7 +183,7 @@ export default function RemindersPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{r.name}</p>
                       <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                        ogni {r.intervalValue} {r.intervalUnit.toLowerCase()} · prossima: {r.nextDueDate}
+                        {formatCadence(r.intervalValue, r.intervalUnit)} · prossima: {formatDay(r.nextDueDate)}
                         {r.categoryName && ` · ${r.categoryName}`}
                         {r.amount != null && ` · ${currency.format(r.amount)}`}
                       </p>

@@ -20,9 +20,13 @@ public class ExpenseReminderGenerationScheduler {
     private final ExpenseReminderRepository expenseReminderRepository;
     private final ExpenseReminderGenerationService generationService;
 
-    // Il giorno 1 di ogni mese alle 06:00, dopo il job di avanzamento delle 05:10:
-    // genera la transazione riepilogativa per i promemoria con una scadenza in questo mese.
-    @Scheduled(cron = "0 0 6 1 * *")
+    // Il giorno 1 di ogni mese alle 05:05, PRIMA dell'avanzamento delle 05:10: genera la
+    // transazione riepilogativa per i promemoria con una scadenza in questo mese.
+    //
+    // L'ordine conta. Prima girava alle 06:00, dopo l'avanzamento: un promemoria che scade
+    // proprio il 1° aveva gia' la scadenza spostata al mese dopo, la ricerca qui sotto non lo
+    // trovava, e la sua spesa di quel mese non veniva registrata ne' prevista da nessuna parte.
+    @Scheduled(cron = "0 5 5 1 * *")
     public void generateForCurrentMonth() {
         LocalDate today = LocalDate.now();
         YearMonth currentMonth = YearMonth.from(today);

@@ -22,6 +22,8 @@ describe('Ricorrenti', () => {
     mountPage(<RecurringPage />, { route: '/ricorrenti' })
 
     expect(await screen.findByText('Affitto')).toBeInTheDocument()
+    // In italiano, non il valore grezzo dell'API ("ogni 1 month · 2026-04-01").
+    expect(screen.getByText(/ogni mese · prossima:? 01\/04\/2026/)).toBeInTheDocument()
   })
 
   /**
@@ -72,6 +74,7 @@ describe('Promemoria', () => {
     mountPage(<RemindersPage />, { route: '/promemoria' })
 
     expect(await screen.findByText('Bollo auto')).toBeInTheDocument()
+    expect(screen.getByText(/ogni anno · (prossima: )?10\/06\/2026/)).toBeInTheDocument()
   })
 
   it('l interruttore rispetta lo stato del promemoria', async () => {

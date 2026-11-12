@@ -15,6 +15,8 @@ import static com.spesetracker.support.XlsxFixtures.setColoredText;
 import static com.spesetracker.support.XlsxFixtures.setDate;
 import static com.spesetracker.support.XlsxFixtures.setNumeric;
 import static com.spesetracker.support.XlsxFixtures.setText;
+import static com.spesetracker.support.XlsxFixtures.setThemeColoredBlank;
+import static com.spesetracker.support.XlsxFixtures.setThemeColoredText;
 import static com.spesetracker.support.XlsxFixtures.toBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -148,6 +150,60 @@ class ExcelSheetParserTest {
         assertThat(parse(wb).nonFisseRows())
                 .extracting(ParsedWorkbook.NonFisseRow::matchedCategoryLabel)
                 .containsExactly("Spese cibo", "Salute");
+    }
+
+    /**
+     * I colori del tema: quelli che Excel propone per primi nella tavolozza, ognuno in sei
+     * sfumature. Due sfumature dello stesso colore si vedono diverse e nel diario possono
+     * essere due categorie; la stessa sfumatura nella legenda e nella riga e' la stessa.
+     *
+     * <p>Fino a novembre 2026 la chiave era getARGBHex(), che ignora la sfumatura: il blu
+     * chiaro e il blu scuro finivano nella stessa categoria, quella trovata per prima.
+     */
+    @Test
+    void dueSfumatureDelloStessoColoreDelTemaSonoDueCategorie() throws Exception {
+        XSSFWorkbook wb = cartella("Marzo");
+        Sheet sheet = wb.getSheetAt(0);
+        intestazioni(sheet, 1);
+        setDate(sheet, 2, 4, LocalDate.of(2026, 3, 7));
+        setThemeColoredText(sheet, 2, 5, "Bollette", 4, 0);
+        setNumeric(sheet, 2, 6, 80);
+        setDate(sheet, 3, 4, LocalDate.of(2026, 3, 8));
+        setThemeColoredText(sheet, 3, 5, "Tende", 4, 0.3999);
+        setNumeric(sheet, 3, 6, 30);
+        setDate(sheet, 4, 4, LocalDate.of(2026, 3, 9));
+        setThemeColoredText(sheet, 4, 5, "Lampada", 4, -0.5);
+        setNumeric(sheet, 4, 6, 25);
+
+        setThemeColoredBlank(sheet, 2, 15, 4, 0);
+        setText(sheet, 2, 16, "Utenze");
+        setThemeColoredBlank(sheet, 3, 15, 4, 0.3999);
+        setText(sheet, 3, 16, "Casa");
+        setThemeColoredBlank(sheet, 4, 15, 4, -0.5);
+        setText(sheet, 4, 16, "Arredo");
+
+        assertThat(parse(wb).nonFisseRows())
+                .extracting(ParsedWorkbook.NonFisseRow::matchedCategoryLabel)
+                .containsExactly("Utenze", "Casa", "Arredo");
+    }
+
+    // Lo stesso colore scritto in RGB nella legenda e scelto dal tema nella riga: chi
+    // guarda il foglio vede lo stesso colore, e la categoria deve essere la stessa.
+    @Test
+    void unColoreDelTemaEIlSuoRgbSonoLaStessaCategoria() throws Exception {
+        XSSFWorkbook wb = cartella("Marzo");
+        Sheet sheet = wb.getSheetAt(0);
+        intestazioni(sheet, 1);
+        setDate(sheet, 2, 4, LocalDate.of(2026, 3, 7));
+        // dk1 del tema predefinito di POI e' il nero di sistema (windowText).
+        setThemeColoredText(sheet, 2, 5, "Ekom", 1, 0);
+        setNumeric(sheet, 2, 6, 42.50);
+        setColoredBlank(sheet, 2, 15, "FF000000");
+        setText(sheet, 2, 16, "Spese cibo");
+
+        assertThat(parse(wb).nonFisseRows())
+                .extracting(ParsedWorkbook.NonFisseRow::matchedCategoryLabel)
+                .containsExactly("Spese cibo");
     }
 
     @Test

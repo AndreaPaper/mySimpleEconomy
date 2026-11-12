@@ -258,16 +258,28 @@ public class ExcelSheetParser {
         return PoiCells.readNumeric(cell, evaluator);
     }
 
-    // XSSFColor.getTheme() ritorna 0 (non null) anche per colori RGB diretti senza
-    // alcun tema impostato, quindi non è affidabile per distinguere i colori. getARGBHex()
-    // invece risolve sempre al colore finale effettivo, sia per RGB diretti sia per
-    // colori tema con tint applicato: è l'unica chiave di cui serve.
+    // La chiave del colore di riempimento: il colore che si vede, sfumatura compresa.
+    //
+    // Prima era getARGBHex(), che per un colore del tema restituisce il colore base e
+    // ignora la sfumatura (tint): "Blu, colore 1" e lo stesso blu schiarito del 40%
+    // avevano la stessa chiave, e due categorie distinte nel diario diventavano una.
+    // getRGBWithTint() applica la sfumatura; resta null per i colori indicizzati (la
+    // vecchia tavolozza a 56 colori), che tengono la chiave di prima.
+    //
+    // (XSSFColor.getTheme() ritorna 0 anche per i colori RGB diretti, quindi non serve a
+    // distinguerli: la chiave deve venire dal colore risolto.)
     private String colorKeyOf(Cell cell) {
         CellStyle style = cell.getCellStyle();
         if (style == null) return null;
         Color fg = style.getFillForegroundColorColor();
         if (!(fg instanceof XSSFColor xssfColor)) return null;
 
+        byte[] rgb = xssfColor.getRGBWithTint();
+        if (rgb != null) {
+            StringBuilder key = new StringBuilder("rgb:");
+            for (byte b : rgb) key.append(String.format("%02X", b & 0xFF));
+            return key.toString();
+        }
         String argb = xssfColor.getARGBHex();
         return argb != null ? "argb:" + argb : null;
     }

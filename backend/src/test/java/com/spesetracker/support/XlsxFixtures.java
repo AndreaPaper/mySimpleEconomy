@@ -6,7 +6,9 @@ import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.ByteArrayOutputStream;
@@ -83,6 +85,76 @@ public final class XlsxFixtures {
         style.setFillForegroundColor(new XSSFColor(rgb, null));
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         cell.setCellStyle(style);
+    }
+
+    /**
+     * Un riempimento con un colore del tema (indice di POI: 0 lt1, 1 dk1, 4 accent1…) e una
+     * sfumatura (tint, da -1 a 1; 0 = nessuna), come lo scrive Excel scegliendo il colore
+     * dalla tavolozza "Colori tema".
+     */
+    public static void applyThemeFill(Sheet sheet, Cell cell, int themeIndex, double tint) {
+        // Un workbook nuovo di POI non ha il tema, che Excel invece scrive sempre: senza,
+        // un colore del tema non si risolve in nessun colore.
+        ensureOfficeTheme((XSSFWorkbook) sheet.getWorkbook());
+        CTColor ct = CTColor.Factory.newInstance();
+        ct.setTheme(themeIndex);
+        if (tint != 0) ct.setTint(tint);
+        XSSFCellStyle style = (XSSFCellStyle) sheet.getWorkbook().createCellStyle();
+        style.setFillForegroundColor(XSSFColor.from(ct, null));
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        cell.setCellStyle(style);
+    }
+
+    // Lo schema colori del tema "Office" (quello che Excel mette in ogni file nuovo), il
+    // minimo che serve per risolvere un colore del tema. Il resto del tema non conta qui.
+    private static final String OFFICE_THEME = """
+            <a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office">
+              <a:themeElements>
+                <a:clrScheme name="Office">
+                  <a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
+                  <a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+                  <a:dk2><a:srgbClr val="44546A"/></a:dk2>
+                  <a:lt2><a:srgbClr val="E7E6E6"/></a:lt2>
+                  <a:accent1><a:srgbClr val="4472C4"/></a:accent1>
+                  <a:accent2><a:srgbClr val="ED7D31"/></a:accent2>
+                  <a:accent3><a:srgbClr val="A5A5A5"/></a:accent3>
+                  <a:accent4><a:srgbClr val="FFC000"/></a:accent4>
+                  <a:accent5><a:srgbClr val="5B9BD5"/></a:accent5>
+                  <a:accent6><a:srgbClr val="70AD47"/></a:accent6>
+                  <a:hlink><a:srgbClr val="0563C1"/></a:hlink>
+                  <a:folHlink><a:srgbClr val="954F72"/></a:folHlink>
+                </a:clrScheme>
+                <a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>
+                <a:fmtScheme name="Office"><a:fillStyleLst/><a:lnStyleLst/><a:effectStyleLst/><a:bgFillStyleLst/></a:fmtScheme>
+              </a:themeElements>
+            </a:theme>
+            """;
+
+    /** Un workbook nuovo di POI non ha il tema, che Excel scrive sempre: qui lo si aggiunge. */
+    private static void ensureOfficeTheme(XSSFWorkbook workbook) {
+        try {
+            if (workbook.getStylesSource().getTheme() != null
+                    && workbook.getStylesSource().getTheme().getThemeColor(0) != null) return;
+        } catch (RuntimeException emptyTheme) {
+            // un tema senza schema colori: lo si riempie qui sotto
+        }
+        workbook.getStylesSource().ensureThemesTable();
+        try {
+            workbook.getStylesSource().getTheme()
+                    .readFrom(new java.io.ByteArrayInputStream(OFFICE_THEME.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+    }
+
+    public static void setThemeColoredText(Sheet sheet, int r, int c, String value, int themeIndex, double tint) {
+        Cell cell = row(sheet, r).createCell(c);
+        cell.setCellValue(value);
+        applyThemeFill(sheet, cell, themeIndex, tint);
+    }
+
+    public static void setThemeColoredBlank(Sheet sheet, int r, int c, int themeIndex, double tint) {
+        applyThemeFill(sheet, row(sheet, r).createCell(c), themeIndex, tint);
     }
 
     /** Un workbook nuovo con un solo foglio del nome indicato. */

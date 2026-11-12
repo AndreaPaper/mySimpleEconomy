@@ -230,29 +230,53 @@ describe('il parser del diario (ExcelSheetParser)', () => {
   })
 
   /**
-   * I colori del tema. POI risolve l'indice del tema sul suo RGB e ignora la sfumatura
-   * (getARGBHex non applica il tint): una cella "Blu, Colore 1" e la stessa più chiara
-   * hanno la stessa chiave, ed è la stessa di una cella con quel blu scritto in RGB.
+   * I colori del tema, come ExcelSheetParserTest: due sfumature dello stesso colore sono
+   * due categorie; lo stesso colore dal tema e in RGB è la stessa.
    */
-  it('un colore del tema vale il suo RGB, sfumatura compresa', async () => {
+  it('due sfumature dello stesso colore del tema sono due categorie', async () => {
+    const wb = workbook('Marzo')
+    const s = wb.worksheets[0]
+    intestazioni(s, 1)
+    const rows: [string, number][] = [['Bollette', 0], ['Tende', 0.3999], ['Lampada', -0.5]]
+    rows.forEach(([name, tint], i) => {
+      setDate(s, 2 + i, 4, `2026-03-0${7 + i}`)
+      setColoredText(s, 2 + i, 5, name, { theme: 4, tint })
+      setNumeric(s, 2 + i, 6, 10)
+    })
+    ;[['Utenze', 0], ['Casa', 0.3999], ['Arredo', -0.5]].forEach(([label, tint], i) => {
+      setColoredBlank(s, 2 + i, 15, { theme: 4, tint: tint as number })
+      setText(s, 2 + i, 16, label as string)
+    })
+
+    expect((await parse(wb)).nonFisseRows.map((r) => r.matchedCategoryLabel)).toEqual(['Utenze', 'Casa', 'Arredo'])
+  })
+
+  it('un colore del tema e il suo RGB sono la stessa categoria', async () => {
     const wb = workbook('Marzo')
     const s = wb.worksheets[0]
     const accent1 = themeColorsOf(await reload(wb))[4]
     expect(accent1).toMatch(/^[0-9A-F]{6}$/i)
     intestazioni(s, 1)
     setDate(s, 2, 4, '2026-03-07')
-    setColoredText(s, 2, 5, 'In RGB', `FF${accent1}`)
-    setNumeric(s, 2, 6, 1)
-    setDate(s, 3, 4, '2026-03-08')
-    setColoredText(s, 3, 5, 'Dal tema', { theme: 4 })
-    setNumeric(s, 3, 6, 2)
-    setDate(s, 4, 4, '2026-03-09')
-    setColoredText(s, 4, 5, 'Dal tema, più chiaro', { theme: 4, tint: 0.3999 })
-    setNumeric(s, 4, 6, 3)
-    setColoredBlank(s, 2, 15, { theme: 4 })
+    setColoredText(s, 2, 5, 'Dal tema', { theme: 4 })
+    setNumeric(s, 2, 6, 2)
+    setColoredBlank(s, 2, 15, `FF${accent1}`)
     setText(s, 2, 16, 'Casa')
 
-    expect((await parse(wb)).nonFisseRows.map((r) => r.matchedCategoryLabel)).toEqual(['Casa', 'Casa', 'Casa'])
+    expect((await parse(wb)).nonFisseRows.map((r) => r.matchedCategoryLabel)).toEqual(['Casa'])
+  })
+
+  // La formula di POI (ExtendedColor.applyTint), su valori calcolati a mano.
+  it('la sfumatura si applica come in POI', async () => {
+    const wb = await reload(workbook('Foglio'))
+    const s = wb.worksheets[0]
+    s.getCell(1, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4', tint: 0.4 } as ExcelJS.Color }
+    s.getCell(1, 2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4', tint: -0.5 } as ExcelJS.Color }
+
+    // 0x44=68: 68*0.6 + (255-153) = 142.8 → 142 = 8E; 0x72=114 → 170.4 → AA; 0xC4=196 → 219.6 → DB
+    expect(colorKeyOf(s.getCell(1, 1), [])).toBe('rgb:8EAADB')
+    // 68*0.5=34 → 22; 114*0.5=57 → 39; 196*0.5=98 → 62
+    expect(colorKeyOf(s.getCell(1, 2), [])).toBe('rgb:223962')
   })
 
   // L'ordine degli indici di POI scambia le prime due coppie del file: 0 è lt1 (lo sfondo
@@ -265,8 +289,8 @@ describe('il parser del diario (ExcelSheetParser)', () => {
     s.getCell(1, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { theme: 0 } as ExcelJS.Color }
     s.getCell(1, 2).fill = { type: 'pattern', pattern: 'solid', fgColor: { theme: 1 } as ExcelJS.Color }
 
-    expect(colorKeyOf(s.getCell(1, 1), colors)).toBe('argb:FFFFFFFF')
-    expect(colorKeyOf(s.getCell(1, 2), colors)).toBe('argb:FF000000')
+    expect(colorKeyOf(s.getCell(1, 1), colors)).toBe('rgb:FFFFFF')
+    expect(colorKeyOf(s.getCell(1, 2), colors)).toBe('rgb:000000')
   })
 
   it('legge saldo di inizio mese e stipendio, con la data dello stipendio', async () => {

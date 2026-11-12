@@ -149,11 +149,30 @@ class SchedulingTest extends AbstractIntegrationTest {
 
         assertThat(prossima.getDayOfMonth()).isEqualTo(1);
         assertThat(prossima.getMonthValue()).isEqualTo(4);
-        // E dopo i job giornalieri dello stesso giorno, cosi' i promemoria sono gia' avanzati.
-        assertThat(prossima.toLocalTime())
-                .isAfter(primaEsecuzioneDopo(
-                        cronDi(ExpenseReminderScheduler.class, "advanceDueReminders"),
-                        LocalDateTime.of(2026, 4, 1, 0, 0)).toLocalTime());
+    }
+
+    /**
+     * La generazione delle spese fisse gira PRIMA dell'avanzamento dei promemoria, il primo del
+     * mese.
+     *
+     * <p>Fino a novembre 2026 questo test chiedeva il contrario ("dopo, cosi' i promemoria sono
+     * gia' avanzati"), ed era proprio quell'ordine a perdere una spesa: un promemoria che scade
+     * il 1° alle 05:10 passa al mese dopo, e alle 06:00 la generazione, che cerca i promemoria
+     * con scadenza in questo mese, non lo trova piu'. Niente spesa segnaposto per quel mese, e
+     * la previsione, che proietta il promemoria dalla nuova scadenza, non la conta nemmeno lei.
+     * Con la generazione prima, il promemoria e' ancora sul mese giusto quando lo si cerca.
+     */
+    @Test
+    void ilPrimoDelMeseLeSpeseFisseSiGeneranoPrimaDiAvanzareIPromemoria() throws Exception {
+        LocalDateTime primoAprile = LocalDateTime.of(2026, 4, 1, 0, 0);
+
+        LocalDateTime generazione = primaEsecuzioneDopo(
+                cronDi(ExpenseReminderGenerationScheduler.class, "generateForCurrentMonth"), primoAprile);
+        LocalDateTime avanzamento = primaEsecuzioneDopo(
+                cronDi(ExpenseReminderScheduler.class, "advanceDueReminders"), primoAprile);
+
+        assertThat(generazione.toLocalDate()).isEqualTo(avanzamento.toLocalDate());
+        assertThat(generazione).isBefore(avanzamento);
     }
 
     @Test
