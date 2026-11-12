@@ -12,6 +12,8 @@ import {
 import { listCheckpoints, upsertCheckpoint } from './services/checkpoints'
 import { cleanupData } from './services/dataCleanup'
 import { createDebt, deleteDebt, listDebts, updateDebt } from './services/debts'
+import { analyzeExcelImport, commitExcelImport } from './services/excelImport'
+import { exportExcel } from './services/excelExport'
 import { forecast } from './services/forecast'
 import { getProfile, updateProfile } from './services/profile'
 import {
@@ -99,6 +101,11 @@ export function registerRoutes(router: Router): Router {
   router.post('/debts', ({ db, body }) => createDebt(db, body))
   router.put('/debts/{id}', ({ db, params, body }) => updateDebt(db, params.id, body))
   router.delete('/debts/{id}', ({ db, params }) => deleteDebt(db, params.id))
+
+  // ExcelImportController ed ExcelExportController
+  router.post('/import/excel/analyze', ({ db, body }) => analyzeExcelImport(db, body))
+  router.post('/import/excel/commit', ({ db, body }) => commitExcelImport(db, body))
+  router.get('/export/excel', ({ db, query }) => exportExcel(db, query))
 
   return router
 }

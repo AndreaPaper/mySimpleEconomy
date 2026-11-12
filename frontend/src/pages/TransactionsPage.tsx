@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Download, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
+import { saveBlob } from '../utils/saveBlob'
 import { queries, useCategories, useInvalidateAll } from '../api/queries'
 import type { Transaction, TransactionType } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
@@ -190,14 +191,7 @@ export default function TransactionsPage() {
       // Esporta quello che stai guardando: senza filtri impostati activeFilters
       // è vuoto e scarica tutto, come prima.
       const blob = await excelExportApi.download(activeFilters)
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = hasActiveFilters ? 'transazioni-filtrate.xlsx' : 'transazioni.xlsx'
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
+      await saveBlob(blob, hasActiveFilters ? 'transazioni-filtrate.xlsx' : 'transazioni.xlsx')
     } finally {
       setExporting(false)
     }
