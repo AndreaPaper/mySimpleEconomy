@@ -35,7 +35,9 @@ $tag = "android-v$versionCode"
 gh release view $tag -R $repo *> $null
 if ($LASTEXITCODE -eq 0) { throw "La versione $versionCode e' gia' pubblicata: serve almeno un commit nuovo per una versione nuova." }
 
-# Le novita': i titoli dei commit dall'aggiornamento precedente.
+# Le novita': i titoli dei commit dall'aggiornamento precedente. Git li scrive in UTF-8;
+# senza dirlo a PowerShell 5.1, le lettere accentate arriverebbero storpiate.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $previous = git -C $frontend describe --tags --match 'android-v*' --abbrev=0 2>$null
 $range = if ($previous) { "$previous..HEAD" } else { 'HEAD~10..HEAD' }
 $notes = (git -C $frontend log --pretty='- %s' $range) -join "`n"
@@ -44,9 +46,11 @@ if (-not $notes) { $notes = '- Correzioni minori' }
 $upload = Join-Path $env:TEMP 'myeconomy.apk'
 Copy-Item $apk $upload -Force
 $notesFile = Join-Path $env:TEMP 'myeconomy-notes.md'
-Set-Content -Path $notesFile -Value $notes -Encoding utf8
+# UTF-8 senza BOM: Set-Content -Encoding utf8 di PowerShell 5.1 lo aggiunge, e finirebbe
+# come carattere invisibile in testa alle note.
+[System.IO.File]::WriteAllText($notesFile, $notes, (New-Object System.Text.UTF8Encoding $false))
 
 gh release create $tag $upload -R $repo --target $head --title "App Android 1.0.$versionCode" --notes-file $notesFile
 if ($LASTEXITCODE -ne 0) { throw 'Pubblicazione su GitHub non riuscita' }
 git -C $frontend fetch -q --tags origin
-"Pubblicata la versione 1.0.$versionCode: il telefono la proporra' alla prossima apertura."
+"Pubblicata la versione 1.0.${versionCode}: il telefono la proporra' alla prossima apertura."
