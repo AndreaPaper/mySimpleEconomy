@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatDay } from '../utils/cadence'
 import { Download, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { categoriesApi, excelExportApi, transactionsApi } from '../api/endpoints'
@@ -446,7 +447,7 @@ export default function TransactionsPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[15px] font-semibold">{t.description || t.categoryName}</p>
                           <p className="truncate text-[12.5px] text-slate-500 dark:text-slate-400">
-                            {t.occurredOn} · {t.categoryName}
+                            {formatDay(t.occurredOn)} · {t.categoryName}
                             {t.recurringTransactionId && (
                               <span className="ml-1 text-slate-400 dark:text-slate-500">(ricorrente)</span>
                             )}
@@ -492,7 +493,7 @@ export default function TransactionsPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[14.5px] font-bold">{t.description || t.categoryName}</p>
                           <p className="truncate text-[12.5px] text-slate-500 dark:text-slate-400">
-                            {t.occurredOn} · {t.categoryName}
+                            {formatDay(t.occurredOn)} · {t.categoryName}
                             {t.recurringTransactionId && <span className="ml-1 text-slate-400 dark:text-slate-500">· ricorrente</span>}
                             {t.pending && <span className="ml-1 text-amber-600">(in attesa di sincronizzazione)</span>}
                           </p>
@@ -666,7 +667,7 @@ export default function TransactionsPage() {
               {pendingDelete.description || pendingDelete.categoryName}
             </span>
             <br />
-            {pendingDelete.occurredOn}
+            {formatDay(pendingDelete.occurredOn)}
             {pendingDelete.description ? ` · ${pendingDelete.categoryName}` : ''} ·{' '}
             {pendingDelete.type === 'EXPENSE' ? '-' : '+'}
             {currency.format(pendingDelete.amount)}

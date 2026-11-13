@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatDay } from '../utils/cadence'
 import { Landmark, NotebookText, type LucideIcon } from 'lucide-react'
 import { excelImportApi } from '../api/endpoints'
 import { useCategories, useInvalidateAll } from '../api/queries'
@@ -250,7 +251,7 @@ export default function ImportPanel() {
                 {preview.balanceCheckpoints.map((c) => (
                   <li key={c.checkpointDate}>
                     <span className="font-medium">{currency.format(c.balance)}</span>{' '}
-                    <span className="text-slate-500 dark:text-slate-400">al {c.checkpointDate}</span>
+                    <span className="text-slate-500 dark:text-slate-400">al {formatDay(c.checkpointDate)}</span>
                   </li>
                 ))}
               </ul>
@@ -289,7 +290,7 @@ export default function ImportPanel() {
               {preview.oneOffTransactions.map((t, i) => (
                 <li key={i} className="flex items-center justify-between gap-2">
                   <span className="truncate">
-                    {t.occurredOn} · {t.name} · {currency.format(t.amount)}
+                    {formatDay(t.occurredOn)} · {t.name} · {currency.format(t.amount)}
                   </span>
                   <CategoryPicker
                     existingCategories={existingCategories}

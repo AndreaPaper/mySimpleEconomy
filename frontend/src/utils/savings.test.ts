@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPeriodSavings, computeBudget } from './savings'
+import { buildPeriodSavings, computeBudget, describeDaysLeft } from './savings'
 import type { SavingsSettings } from '../context/AuthContext'
 import type { Transaction, TransactionType } from '../api/types'
 
@@ -315,5 +315,24 @@ describe('buildPeriodSavings', () => {
     const periodi = buildPeriodSavings([], chiaveDelPeriodo, ['2026-06', '2026-07', '2026-08'])
 
     expect(periodi.map((p) => p.periodKey)).toEqual(['2026-06', '2026-07', '2026-08'])
+  })
+})
+
+describe('la riga dei giorni allo stipendio', () => {
+  // Il 13 con lo stipendio il 27: il periodo finisce il 26, dopo oggi restano 13 giorni
+  // del periodo, e allo stipendio ne mancano 14 (D6 del test end-to-end del 13/11/2026).
+  it('conta i giorni fino allo stipendio, non quelli rimasti nel periodo', () => {
+    expect(describeDaysLeft(13, true)).toBe('14 giorni al prossimo stipendio')
+  })
+
+  it("l'ultimo giorno del periodo lo stipendio arriva domani", () => {
+    expect(describeDaysLeft(0, true)).toBe('Domani arriva lo stipendio')
+    expect(describeDaysLeft(1, true)).toBe('2 giorni al prossimo stipendio')
+  })
+
+  it('senza giorno di accredito conta i giorni rimasti nel periodo', () => {
+    expect(describeDaysLeft(0, false)).toBe('Ultimo giorno del periodo')
+    expect(describeDaysLeft(1, false)).toBe('1 giorno rimasto nel periodo')
+    expect(describeDaysLeft(13, false)).toBe('13 giorni rimasti nel periodo')
   })
 })

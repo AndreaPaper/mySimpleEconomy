@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { formatDay } from '../utils/cadence'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, PiggyBank, Plus, Wallet } from 'lucide-react'
 import angryHusky from '../assets/husky/angry-husky.png'
@@ -38,7 +39,7 @@ import {
   UPCOMING_REMINDER_MONTHS,
 } from '../utils/dataWindows'
 import { buildBalanceSeries, buildHistoricalPoints, type ChartPoint } from '../utils/balanceSeries'
-import { buildPeriodSavings, computeBudget } from '../utils/savings'
+import { buildPeriodSavings, computeBudget, describeDaysLeft } from '../utils/savings'
 import type { CategoryAmountNode } from '../api/types'
 
 const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
@@ -462,15 +463,7 @@ export default function DashboardPage() {
   const tone = BUDGET_TONES[budget.status]
   const RING = 276.46
 
-  // Senza un giorno di accredito configurato il periodo è il mese di calendario
-  // e parlare di "prossimo stipendio" sarebbe fuorviante.
-  const periodEndLabel = salaryDay != null ? 'al prossimo stipendio' : 'alla fine del periodo'
-  const daysLeftLabel =
-    budget.daysLeft === 0
-      ? salaryDay != null
-        ? 'Domani arriva lo stipendio'
-        : 'Ultimo giorno del periodo'
-      : `${budget.daysLeft} ${budget.daysLeft === 1 ? 'giorno' : 'giorni'} ${periodEndLabel}`
+  const daysLeftLabel = describeDaysLeft(budget.daysLeft, salaryDay != null)
 
   // Quota di budget ancora disponibile: l'anello si svuota man mano che si
   // spende, al contrario di quello del risparmio che si riempie.
@@ -1117,7 +1110,7 @@ export default function DashboardPage() {
               <div>
                 <p>{t.description || t.categoryName}</p>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  {t.occurredOn} · {t.categoryName}
+                  {formatDay(t.occurredOn)} · {t.categoryName}
                 </p>
               </div>
               <span className={t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}>

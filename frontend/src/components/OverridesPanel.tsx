@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { formatDay } from '../utils/cadence'
 import { recurringApi } from '../api/endpoints'
 import { useInvalidateAll } from '../api/queries'
 import type { RecurringOverride } from '../api/types'
@@ -83,7 +84,7 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
           {overrides.map((o) => (
             <li key={o.id} className="flex items-center justify-between text-sm">
               <span>
-                {o.occurrenceDate} {o.note && <span className="text-slate-400 dark:text-slate-500">· {o.note}</span>}
+                {formatDay(o.occurrenceDate)} {o.note && <span className="text-slate-400 dark:text-slate-500">· {o.note}</span>}
               </span>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{currency.format(o.overrideAmount)}</span>
@@ -154,7 +155,7 @@ export default function OverridesPanel({ recurringTransactionId }: OverridesPane
             Per quella data la regola tornerà a usare il suo importo abituale.
           </p>
           <p className="mt-2 rounded border border-slate-200 dark:border-slate-800 px-3 py-2">
-            <span className="font-medium text-slate-900 dark:text-white">{pendingDelete.occurrenceDate}</span>
+            <span className="font-medium text-slate-900 dark:text-white">{formatDay(pendingDelete.occurrenceDate)}</span>
             <br />
             {currency.format(pendingDelete.overrideAmount)}
             {pendingDelete.note ? ` · ${pendingDelete.note}` : ''}

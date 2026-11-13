@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { formatDay } from '../utils/cadence'
 import { bankImportApi, categoriesApi } from '../api/endpoints'
 import { useInvalidateAll } from '../api/queries'
 import FilePicker from './FilePicker'
@@ -482,7 +483,7 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
                           <div className="min-w-0 flex-1">
                             <p className="truncate dark:text-white">{row.description}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {row.occurredOn} · {row.type === 'INCOME' ? '+' : '-'}
+                              {formatDay(row.occurredOn)} · {row.type === 'INCOME' ? '+' : '-'}
                               {currency.format(row.amount)}
                             </p>
                             {/* La descrizione viene dalla colonna Operazione, che sui
@@ -563,7 +564,7 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
         <Stat label="Già in archivio" value={alreadyImported.length} />
       </div>
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        Periodo del file: dal {preview.summary.firstDate} al {preview.summary.lastDate}.
+        Periodo del file: dal {formatDay(preview.summary.firstDate)} al {formatDay(preview.summary.lastDate)}.
       </p>
 
       {preview.suggestedExclusions.length > 0 && (
@@ -642,7 +643,7 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {row.occurredOn} · {row.bankCategory} · {categoryName(row.categoryId)}
+                      {formatDay(row.occurredOn)} · {row.bankCategory} · {categoryName(row.categoryId)}
                       {row.provisional && ' · non ancora contabilizzato'}
                     </p>
                     {row.conflictDescription && (

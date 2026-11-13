@@ -443,6 +443,13 @@ describe('la categoria della banca si può riportare a "nessuna"', () => {
    * Il carico finale controlla anche il lato che non si vede: la corrispondenza
    * parte vuota, quindi il backend non la ricorda per gli import futuri.
    */
+  // D1 del test end-to-end del 13/11/2026: le date erano in formato ISO.
+  it('mostra il periodo del file con le date gg/mm/aaaa', async () => {
+    await analizza(anteprima({ summary: { ...anteprima().summary, firstDate: '2026-11-01', lastDate: '2026-11-12' } }))
+
+    expect(await screen.findByText(/dal 01\/11\/2026 al 12\/11\/2026/)).toBeInTheDocument()
+  })
+
   // D9 del test end-to-end del 13/11/2026: "Vedi i 1 movimento".
   it('con un movimento solo il pulsante dice "Vedi il movimento"', async () => {
     await analizza(

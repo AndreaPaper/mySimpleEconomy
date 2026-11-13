@@ -88,6 +88,16 @@ async function apriSelettoreDi(nome: string) {
   return riga
 }
 
+describe('le date dell anteprima', () => {
+  // D1 del test end-to-end del 13/11/2026: "3000,00 € al 2026-08-27".
+  it('sono gg/mm/aaaa', async () => {
+    await analizza(anteprima({ balanceCheckpoints: [{ checkpointDate: '2026-08-27', balance: 3000 }] }))
+
+    expect(await screen.findByText('al 27/08/2026')).toBeInTheDocument()
+    expect(screen.getByText(/02\/03\/2026 · Ekom/)).toBeInTheDocument()
+  })
+})
+
 describe('la scelta della categoria per riga', () => {
   /**
    * Le righe del diario sono spese: scegliere una categoria di entrata le trasformava

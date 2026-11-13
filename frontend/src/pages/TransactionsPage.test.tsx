@@ -25,12 +25,14 @@ describe('elenco e paginazione', () => {
   it('mostra le transazioni del primo caricamento', async () => {
     server.use(
       http.get('*/api/transactions', () =>
-        HttpResponse.json(pagina([transazione({ id: 't-1', description: 'Ekom', amount: 42.5 })])),
+        HttpResponse.json(pagina([transazione({ id: 't-1', description: 'Ekom', amount: 42.5, occurredOn: '2026-03-04' })])),
       ),
     )
     mountPage(<TransactionsPage />, { profile: { salaryDay: 27 } })
 
     expect(await screen.findByText('Ekom')).toBeInTheDocument()
+    // La data come nel resto dell'app, non 2026-03-04 (D1 del test end-to-end del 13/11/2026).
+    expect(screen.getByText(/04\/03\/2026/)).toBeInTheDocument()
   })
 
   it('"Carica altro" accoda la pagina successiva invece di sostituirla', async () => {

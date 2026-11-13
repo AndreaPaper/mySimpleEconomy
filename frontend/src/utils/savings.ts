@@ -133,6 +133,23 @@ export function computeBudget(
   }
 }
 
+/**
+ * La riga sotto il budget della Dashboard. `daysLeft` sono i giorni del periodo dopo
+ * oggi; lo stipendio arriva il giorno dopo la fine del periodo, quindi mancano
+ * `daysLeft + 1` giorni. Prima si mostrava `daysLeft`: "13 giorni al prossimo
+ * stipendio" il 13 con lo stipendio il 27 (D6 del test end-to-end del 13/11/2026).
+ *
+ * Senza un giorno di accredito il periodo è il mese di calendario, e parlare di
+ * "prossimo stipendio" sarebbe fuorviante: si contano i giorni rimasti nel periodo.
+ */
+export function describeDaysLeft(daysLeft: number, hasSalaryDay: boolean): string {
+  if (hasSalaryDay) {
+    return daysLeft === 0 ? 'Domani arriva lo stipendio' : `${daysLeft + 1} giorni al prossimo stipendio`
+  }
+  if (daysLeft === 0) return 'Ultimo giorno del periodo'
+  return `${daysLeft} ${daysLeft === 1 ? 'giorno rimasto' : 'giorni rimasti'} nel periodo`
+}
+
 export interface PeriodSavings {
   /** Chiave del periodo (stessa di periodKeyOf), es. "2026-08". */
   periodKey: string

@@ -32,7 +32,7 @@ describe('elenco', () => {
     )
     monta()
 
-    expect(await screen.findByText('2026-04-01')).toBeInTheDocument()
+    expect(await screen.findByText('01/04/2026')).toBeInTheDocument()
     expect(screen.getByText(/830,00/)).toBeInTheDocument()
     expect(screen.getByText(/aumento/)).toBeInTheDocument()
   })
@@ -71,7 +71,7 @@ describe('aggiunta', () => {
     await waitFor(() => expect(inviato).not.toBeNull())
     expect(inviato).toMatchObject({ occurrenceDate: '2026-05-01', overrideAmount: 830, note: 'aumento' })
     // L'elenco si ricarica da solo: l'eccezione appena creata compare.
-    expect(await screen.findByText('2026-05-01')).toBeInTheDocument()
+    expect(await screen.findByText('01/05/2026')).toBeInTheDocument()
   })
 
   /**
