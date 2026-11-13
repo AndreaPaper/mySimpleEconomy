@@ -97,7 +97,7 @@ richiesta non c'è nessun suo dato. E Android installa un aggiornamento solo se
 è firmato con la tua chiave, quindi nessun altro può pubblicarne uno al posto
 tuo.
 
-Si può ancora mandare l'APK a mano (`.\scriptsuild-apk.ps1 -Release`):
+Si può ancora mandare l'APK a mano (`.\scripts\build-apk.ps1 -Release`):
 anche così si installa sopra la versione vecchia.
 
 Il numero di versione cresce da solo: è il numero di commit del ramo. Costruisci
