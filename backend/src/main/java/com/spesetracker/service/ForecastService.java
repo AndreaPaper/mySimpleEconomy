@@ -501,7 +501,8 @@ public class ForecastService {
         for (Debt debt : withInstalment) {
             BigDecimal paidFromTransactions = paymentsByCategory
                     .getOrDefault(debt.getCategory().getId(), List.of()).stream()
-                    .filter(t -> debt.getAlreadyPaidAsOf() == null || t.getOccurredOn().isAfter(debt.getAlreadyPaidAsOf()))
+                    // La stessa regola della pagina Debiti: due conti diversi direbbero due residui.
+                    .filter(t -> DebtService.countsAsPayment(t, debt))
                     .map(Transaction::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             BigDecimal remaining = DebtResponse.from(debt, paidFromTransactions).remainingAmount();

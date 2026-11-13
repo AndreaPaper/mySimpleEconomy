@@ -181,6 +181,29 @@ class DebtApiTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Il caso del form, che mette come data del "già pagato" oggi: la rata pagata oggi e
+     * registrata dopo aver creato il debito conta, quella registrata prima no (era già nel
+     * "già pagato"). Prima del 13/11/2026 la prima veniva ignorata, e il residuo non scendeva.
+     */
+    @Test
+    void laSpesaDelGiornoRegistrataDopoIlDebitoConta() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        LocalDate oggi = LocalDate.now();
+
+        api.createTransaction(token, category, oggi, "50.00", "EXPENSE"); // prima del debito: già inclusa
+        postDebt(token, """
+                {"categoryId":"%s","name":"Auto","totalAmount":1000.00,"monthlyPaymentAmount":150.00,                "alreadyPaidAmount":200.00,"alreadyPaidAsOf":"%s"}
+                """.formatted(category, oggi))
+                .andExpect(status().isCreated());
+        api.createTransaction(token, category, oggi, "150.00", "EXPENSE"); // dopo il debito: conta
+
+        JsonNode debito = debts(token).get(0);
+        assertThat(debito.get("paidAmount").decimalValue()).isEqualByComparingTo("350.00");
+        assertThat(debito.get("remainingAmount").decimalValue()).isEqualByComparingTo("650.00");
+    }
+
+    /**
      * Il debito che si salda da solo: quando il residuo arriva a zero si disattiva, il che
      * libera la categoria per un nuovo debito. Nessuna azione manuale.
      */

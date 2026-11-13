@@ -354,6 +354,16 @@ describe('debiti', () => {
     expect((await debtsApi.list())[0]).toMatchObject({ paidAmount: 1200, remainingAmount: 3800 })
   })
 
+  // DebtApiTest.laSpesaDelGiornoRegistrataDopoIlDebitoConta: con la data di oggi (quella
+  // del form), conta la rata registrata dopo il debito, non quella registrata prima.
+  it('la spesa del giorno registrata dopo il debito conta, quella prima no', async () => {
+    const cat = await expense()
+    await tx(cat, OGGI, 50)
+    await debt(cat, 1000, 150, { alreadyPaidAmount: 200, alreadyPaidAsOf: OGGI })
+    await tx(cat, OGGI, 150)
+    expect((await debtsApi.list())[0]).toMatchObject({ paidAmount: 350, remainingAmount: 650 })
+  })
+
   it('un debito saldato si disattiva da solo e libera la categoria', async () => {
     const cat = await expense()
     await debt(cat, 500, 250)

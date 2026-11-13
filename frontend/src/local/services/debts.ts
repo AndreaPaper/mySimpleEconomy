@@ -21,13 +21,19 @@ export interface DebtRow {
   created_at: string
 }
 
-/** Quanto è stato pagato con le spese della categoria, dopo alreadyPaidAsOf. */
+/**
+ * Quanto è stato pagato con le spese della categoria, dopo alreadyPaidAsOf
+ * (DebtService.countsAsPayment). Quelle del giorno stesso contano se registrate dopo il
+ * debito: il form mette come data oggi, e la rata di oggi registrata dopo non è dentro
+ * il "già pagato".
+ */
 export function paidFromTransactions(db: LocalDatabase, debt: DebtRow): Cents {
   return (
     db.get<{ total: number | null }>(
       `SELECT SUM(amount) AS total FROM transactions
-       WHERE category_id = :category AND type = 'EXPENSE' AND (:asOf IS NULL OR occurred_on > :asOf)`,
-      { category: debt.category_id, asOf: debt.already_paid_as_of },
+       WHERE category_id = :category AND type = 'EXPENSE'
+         AND (:asOf IS NULL OR occurred_on > :asOf OR (occurred_on = :asOf AND created_at > :debtCreatedAt))`,
+      { category: debt.category_id, asOf: debt.already_paid_as_of, debtCreatedAt: debt.created_at },
     )?.total ?? 0
   )
 }

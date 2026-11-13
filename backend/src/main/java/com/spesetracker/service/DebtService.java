@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -91,13 +92,25 @@ public class DebtService {
         debtRepository.delete(debt);
     }
 
+    // Le transazioni fino ad alreadyPaidAsOf si considerano già incluse in
+    // alreadyPaidAmount, per non contarle due volte. Quelle proprio del giorno di
+    // alreadyPaidAsOf però contano se registrate dopo il debito: il form mette come
+    // data oggi, e la rata pagata oggi e registrata dopo aver creato il debito non è
+    // dentro il "già pagato" (prima veniva ignorata). Lo stesso ragionamento dei saldi
+    // di riferimento (CheckpointRules).
+    public static boolean countsAsPayment(Transaction t, Debt debt) {
+        LocalDate asOf = debt.getAlreadyPaidAsOf();
+        if (asOf == null || t.getOccurredOn().isAfter(asOf)) return true;
+        return t.getOccurredOn().isEqual(asOf)
+                && t.getCreatedAt() != null && debt.getCreatedAt() != null
+                && t.getCreatedAt().isAfter(debt.getCreatedAt());
+    }
+
     private DebtResponse toResponseAndSyncActive(Debt debt) {
         BigDecimal paidFromTransactions = transactionRepository
                 .findByUserIdAndCategoryIdAndType(debt.getUser().getId(), debt.getCategory().getId(), TransactionType.EXPENSE)
                 .stream()
-                // Le transazioni fino ad alreadyPaidAsOf (compreso) si considerano già
-                // incluse in alreadyPaidAmount, per non contarle due volte.
-                .filter(t -> debt.getAlreadyPaidAsOf() == null || t.getOccurredOn().isAfter(debt.getAlreadyPaidAsOf()))
+                .filter(t -> countsAsPayment(t, debt))
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
