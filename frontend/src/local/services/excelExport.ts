@@ -110,7 +110,7 @@ export async function exportExcel(
   for (const [period, list] of periods) writePeriodSheet(workbook, period, list, salaryDay, savingsOn, savingsPercent)
   writeCategoriesSheet(workbook, transactions)
   writeRecurringAndDebtsSheet(workbook, db)
-  writeBalanceTrendSheet(workbook, db, periods, salaryDay)
+  writeBalanceTrendSheet(workbook, db, periods, salaryDay, to ?? today)
 
   const buffer = await workbook.xlsx.writeBuffer()
   return new Blob([buffer], { type: XLSX_MIME })
@@ -358,6 +358,7 @@ function writeBalanceTrendSheet(
   db: LocalDatabase,
   periods: [string, ExportTransaction[]][],
   salaryDay: number | null,
+  exportTo: IsoDate,
 ) {
   const sheet = new SheetWriter(workbook.addWorksheet('Andamento del saldo'))
   let r = sheet.title(0, 'Andamento del saldo per periodo')
@@ -377,14 +378,30 @@ function writeBalanceTrendSheet(
     sheet.text(r, 0, sheetName(period))
     sheet.date(r, 1, start)
     sheet.date(r, 2, end)
-    sheet.money(r, 3, balanceAt(db, plusDays(start, -1)))
+    sheet.money(r, 3, balanceAtStartOf(db, start))
     sheet.money(r, 4, sumByType(list, 'INCOME'))
     sheet.money(r, 5, -sumByType(list, 'EXPENSE'))
-    sheet.money(r, 6, balanceAt(db, end), STYLES.boldCurrency)
+    // Fino alla fine dell'export, come le colonne: per il periodo in corso, oggi.
+    sheet.money(r, 6, balanceAt(db, end > exportTo ? exportTo : end), STYLES.boldCurrency)
     r++
   }
   sheet.freeze(headerRow + 1)
   sheet.autoSize(7)
+}
+
+/**
+ * Il saldo all'inizio di un giorno (balanceAtStartOf del backend): quello della fine del
+ * giorno prima, oppure, se il saldo registrato cade proprio quel giorno, lui meno quello
+ * che era già dentro il numero.
+ */
+function balanceAtStartOf(db: LocalDatabase, day: IsoDate): Cents {
+  const checkpoint = latestCheckpointOnOrBefore(db, day)
+  if (!checkpoint || checkpoint.checkpoint_date < day) return balanceAt(db, plusDays(day, -1))
+  const alreadyIncluded = db
+    .all<TransactionRow>('SELECT * FROM transactions WHERE occurred_on = :day', { day })
+    .filter((t) => !countsAfterCheckpoint(t, checkpoint))
+    .reduce((s, t) => s + signed(t), 0)
+  return checkpoint.balance - alreadyIncluded
 }
 
 /** Il saldo a una data, come la Dashboard: l'ultimo saldo registrato più quello che conta dopo. */

@@ -136,6 +136,46 @@ class ExcelExportContentTest extends AbstractIntegrationTest {
         assertThat(riga.getCell(6).getNumericCellValue()).isEqualTo(850.00);    // saldo finale
     }
 
+    /**
+     * Ogni riga dell'andamento torna: saldo iniziale + entrate + uscite = saldo finale (D7 e
+     * D8 del test end-to-end del 13/11/2026). Il saldo registrato cade il primo giorno del
+     * periodo, con una spesa di quel giorno gia' dentro il numero (prima il saldo iniziale
+     * risultava 0); nel periodo in corso c'e' una spesa futura, che l'export fino a oggi non
+     * conta nelle colonne e prima contava nel saldo finale.
+     */
+    @Test
+    void ogniRigaDellAndamentoDelSaldoTorna() throws Exception {
+        String token = api.registerAndLogin();
+        mockMvc.perform(put("/api/profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"salaryDay\":27}"))
+                .andExpect(status().isOk());
+        String uscite = api.createExpenseCategory(token);
+        String entrate = api.createIncomeCategory(token);
+        api.createTransaction(token, uscite, LocalDate.of(2026, 8, 27), "50.00", "EXPENSE");
+        api.createCheckpoint(token, LocalDate.of(2026, 8, 27), "3000.00");
+        api.createTransaction(token, entrate, LocalDate.of(2026, 8, 27), "1800.00", "INCOME");
+        api.createTransaction(token, uscite, LocalDate.of(2026, 9, 10), "100.00", "EXPENSE");
+        api.createTransaction(token, uscite, LocalDate.now(), "20.00", "EXPENSE");
+        api.createTransaction(token, uscite, LocalDate.now().plusDays(2), "999.00", "EXPENSE");
+
+        Sheet andamento = esporta(token).getSheet("Andamento del saldo");
+
+        Row prima = primaRigaDati(andamento, "Periodo");
+        assertThat(prima.getCell(3).getNumericCellValue()).isEqualTo(3050.00);
+        assertThat(prima.getCell(6).getNumericCellValue()).isEqualTo(4700.00);
+        for (int i = prima.getRowNum(); i <= andamento.getLastRowNum(); i++) {
+            Row r = andamento.getRow(i);
+            if (r == null || r.getCell(3) == null) continue;
+            double somma = r.getCell(3).getNumericCellValue() + r.getCell(4).getNumericCellValue()
+                    + r.getCell(5).getNumericCellValue();
+            assertThat(Math.round(somma * 100))
+                    .as("riga %s", r.getCell(0).getStringCellValue())
+                    .isEqualTo(Math.round(r.getCell(6).getNumericCellValue() * 100));
+        }
+    }
+
     // ------------------------------------------------------------------
     // Filtri
     // ------------------------------------------------------------------

@@ -103,7 +103,7 @@ public class ExcelExportService {
             }
             writeCategoriesSheet(workbook, styles, transactions);
             writeRecurringAndDebtsSheet(workbook, styles, userId);
-            writeBalanceTrendSheet(workbook, styles, byPeriod, salaryDay, userId);
+            writeBalanceTrendSheet(workbook, styles, byPeriod, salaryDay, userId, effectiveTo);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
@@ -386,7 +386,7 @@ public class ExcelExportService {
 
     private void writeBalanceTrendSheet(
             Workbook workbook, ExcelExportStyles styles,
-            Map<YearMonth, List<Transaction>> byPeriod, Integer salaryDay, UUID userId) {
+            Map<YearMonth, List<Transaction>> byPeriod, Integer salaryDay, UUID userId, LocalDate effectiveTo) {
         Sheet sheet = workbook.createSheet("Andamento del saldo");
         int rowIndex = writeTitle(sheet, styles, 0, "Andamento del saldo per periodo");
         rowIndex = writeNote(sheet, styles, rowIndex,
@@ -409,7 +409,11 @@ public class ExcelExportService {
             // sommare a catena dal primo periodo: un saldo scritto a meta'
             // dell'intervallo esportato altrimenti non conterebbe nulla, e il
             // foglio finirebbe per contraddire il saldo della Dashboard.
-            BigDecimal opening = balanceAt(userId, start.minusDays(1));
+            BigDecimal opening = balanceAtStartOf(userId, start);
+            // Il saldo finale fino alla fine dell'export, come le colonne di entrate e
+            // uscite: per il periodo in corso, oggi. Prima arrivava a fine periodo e
+            // contava le spese future che le colonne escludono, e la riga non tornava.
+            LocalDate closingDate = end.isAfter(effectiveTo) ? effectiveTo : end;
 
             Row row = sheet.createRow(rowIndex++);
             row.createCell(0).setCellValue(sheetName(entry.getKey()));
@@ -418,7 +422,7 @@ public class ExcelExportService {
             writeCurrency(row.createCell(3), opening, styles.currency);
             writeCurrency(row.createCell(4), income, styles.currency);
             writeCurrency(row.createCell(5), expense.negate(), styles.currency);
-            writeCurrency(row.createCell(6), balanceAt(userId, end), styles.boldCurrency);
+            writeCurrency(row.createCell(6), balanceAt(userId, closingDate), styles.boldCurrency);
         }
 
         sheet.createFreezePane(0, headerRow + 1);
@@ -428,6 +432,25 @@ public class ExcelExportService {
     // ------------------------------------------------------------------
     // Utilita'
     // ------------------------------------------------------------------
+
+    // Il saldo all'inizio di un giorno. Di solito e' quello della fine del giorno
+    // prima; ma se il saldo registrato cade proprio quel giorno, il saldo di partenza
+    // e' lui, meno quello che era gia' dentro il numero (le transazioni del giorno che
+    // non contano dopo di lui, vedi CheckpointRules). Prima si guardava solo il giorno
+    // prima: con il saldo registrato il primo giorno del periodo il saldo iniziale
+    // risultava 0, e la riga non tornava.
+    private BigDecimal balanceAtStartOf(UUID userId, LocalDate day) {
+        Optional<BalanceCheckpoint> checkpoint = checkpointRepository
+                .findFirstByUserIdAndCheckpointDateLessThanEqualOrderByCheckpointDateDesc(userId, day);
+        if (checkpoint.isEmpty() || checkpoint.get().getCheckpointDate().isBefore(day)) {
+            return balanceAt(userId, day.minusDays(1));
+        }
+        BigDecimal alreadyIncluded = transactionRepository.findByUserIdAndOccurredOnBetween(userId, day, day).stream()
+                .filter(t -> !CheckpointRules.counts(t, checkpoint.get()))
+                .map(this::signed)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return checkpoint.get().getBalance().subtract(alreadyIncluded);
+    }
 
     // Il saldo a una certa data, con lo stesso ragionamento della Dashboard:
     // il saldo registrato piu' recente non successivo a quella data, piu' tutto

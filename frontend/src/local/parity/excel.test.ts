@@ -791,6 +791,35 @@ describe("l'export (ExcelExportContentTest)", () => {
     expect(riga[6]).toBe(850)
   })
 
+  /**
+   * Ogni riga dell'andamento torna: saldo iniziale + entrate + uscite = saldo finale (D7 e
+   * D8 del test end-to-end del 13/11/2026). Il saldo registrato cade il primo giorno del
+   * periodo, con una spesa di quel giorno già dentro il numero; e nel periodo in corso c'è
+   * una spesa futura, che l'export (fino a oggi) non conta.
+   */
+  it("ogni riga dell'andamento del saldo torna", async () => {
+    await profileApi.update({ salaryDay: 27 })
+    const uscite = await expenseCategory()
+    const entrate = await incomeCategory()
+    await tx(uscite, '2026-08-27', 50) // registrata prima del saldo: già dentro i 3000
+    await checkpointsApi.upsert({ checkpointDate: '2026-08-27', balance: 3000 })
+    await tx(entrate, '2026-08-27', 1800, 'INCOME')
+    await tx(uscite, '2026-09-10', 100)
+    const oggi = new Date().toLocaleDateString('sv-SE')
+    await tx(uscite, oggi, 20)
+    const [y, m, d] = oggi.split('-').map(Number)
+    await tx(uscite, new Date(Date.UTC(y, m - 1, d + 2)).toISOString().slice(0, 10), 999) // futura
+
+    const andamento = rows(sheet(await esporta(), 'Andamento del saldo'))
+    const righe = andamento.slice(andamento.findIndex((r) => r[0] === 'Periodo') + 1).filter((r) => typeof r[3] === 'number')
+
+    expect(righe[0].slice(3)).toEqual([3050, 1800, -150, 4700])
+    for (const r of righe) {
+      const [iniziale, entrateR, usciteR, finale] = r.slice(3) as number[]
+      expect(Math.round((iniziale + entrateR + usciteR) * 100)).toBe(Math.round(finale * 100))
+    }
+  })
+
   it('il filtro per data restringe il contenuto', async () => {
     const uscite = await expenseCategory()
     await tx(uscite, '2026-01-10', 10)
