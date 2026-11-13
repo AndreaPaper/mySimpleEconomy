@@ -114,6 +114,7 @@ public class ExcelImportCommitService {
                             .name(suggestion.name())
                             .type(suggestion.type())
                             .color(suggestion.color())
+                            .icon(suggestion.icon())
                             .build()));
             tempIdToId.put(suggestion.tempId(), category.getId());
         }

@@ -11,6 +11,7 @@ public record CategorySuggestion(
         @NotBlank String tempId,
         @NotBlank String name,
         @NotNull CategoryType type,
-        String color
+        String color,
+        String icon
 ) {
 }

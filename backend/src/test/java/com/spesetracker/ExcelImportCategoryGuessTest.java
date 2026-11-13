@@ -52,6 +52,29 @@ class ExcelImportCategoryGuessTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Le categorie proposte arrivano con un colore della palette, diverso per ciascuna, e
+     * un'icona. Prima erano senza: grigio di default, e nel grafico a torta tre grigi uno
+     * accanto all'altro (D3 del test end-to-end del 13/11/2026).
+     */
+    @Test
+    void leCategorieProposteHannoColoriDiversiEUnIcona() throws Exception {
+        String token = api.registerAndLogin();
+
+        JsonNode preview = analizza(token, diarioConFisse(List.of(
+                new Fissa("Spotify", 11.00),
+                new Fissa("Iliad", 9.99),
+                new Fissa("Affitto garage", 60.00))));
+
+        List<String> colori = new ArrayList<>();
+        for (JsonNode c : preview.get("newCategorySuggestions")) {
+            assertThat(c.get("color").isNull()).as("colore di %s", c.get("name")).isFalse();
+            assertThat(c.get("icon").asText()).as("icona di %s", c.get("name")).isEqualTo("Tag");
+            colori.add(c.get("color").asText());
+        }
+        assertThat(colori).hasSizeGreaterThanOrEqualTo(3).doesNotHaveDuplicates();
+    }
+
+    /**
      * Quando una categoria con quel nome esiste già, l'importazione la riusa
      * invece di proporne una nuova. È il caso normale di chi importa nella
      * struttura che ha già costruito, e non era mai stato eseguito: senza quel

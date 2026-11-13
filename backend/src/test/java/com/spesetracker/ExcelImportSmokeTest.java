@@ -90,6 +90,8 @@ class ExcelImportSmokeTest extends AbstractIntegrationTest {
 
         // Aggiunge una categoria "Varie" per le voci senza colore (Gennaio/300, Bolletta enel/172).
         var newCategories = (com.fasterxml.jackson.databind.node.ArrayNode) preview.get("newCategorySuggestions");
+        java.util.Set<String> proposte = new java.util.HashSet<>();
+        newCategories.forEach(c -> proposte.add(c.get("name").asText()));
         var varieCategory = objectMapper.createObjectNode()
                 .put("tempId", "new-varie").put("name", "Varie").put("type", "EXPENSE");
         newCategories.add(varieCategory);
@@ -113,6 +115,19 @@ class ExcelImportSmokeTest extends AbstractIntegrationTest {
         assertThat(commitJson.get("recurringTransactionsCreated").asInt()).isEqualTo(2);
         assertThat(commitJson.get("checkpointsCreated").asInt()).isEqualTo(3);
         assertThat(commitJson.get("transactionsCreated").asInt()).isGreaterThanOrEqualTo(10);
+
+        // Le categorie proposte nascono col colore e l'icona dell'anteprima (D3 del test
+        // end-to-end del 13/11/2026).
+        JsonNode categorie = objectMapper.readTree(mockMvc.perform(get("/api/categories")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertThat(streamOf(categorie).filter(c -> proposte.contains(c.get("name").asText())))
+                .hasSize(proposte.size())
+                .allSatisfy(c -> {
+                    assertThat(c.get("color").isNull()).isFalse();
+                    assertThat(c.get("icon").isNull()).isFalse();
+                });
 
         MvcResult recurringResult = mockMvc.perform(get("/api/recurring-transactions")
                         .header("Authorization", "Bearer " + token))

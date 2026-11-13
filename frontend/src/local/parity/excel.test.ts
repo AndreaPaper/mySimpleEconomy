@@ -476,10 +476,11 @@ describe("l'import del diario (ExcelImportSmokeTest)", () => {
     const daAssegnare = { needsCategory: true, existingCategoryId: null, newCategoryTempId: null }
     expect(preview).toEqual({
       newCategorySuggestions: [
-        { tempId: 'new-abbonamenti', name: 'Abbonamenti', type: 'EXPENSE', color: null },
-        { tempId: 'new-spese-cibo', name: 'Spese cibo', type: 'EXPENSE', color: null },
-        { tempId: 'new-farmacia', name: 'Farmacia', type: 'EXPENSE', color: null },
-        { tempId: 'new-stipendio', name: 'Stipendio', type: 'INCOME', color: null },
+        // Colori della palette, diversi per ciascuna, e un'icona (D3 del test end-to-end del 13/11/2026).
+        { tempId: 'new-abbonamenti', name: 'Abbonamenti', type: 'EXPENSE', color: '#F5A3A3', icon: 'Tag' },
+        { tempId: 'new-spese-cibo', name: 'Spese cibo', type: 'EXPENSE', color: '#F8C39A', icon: 'Tag' },
+        { tempId: 'new-farmacia', name: 'Farmacia', type: 'EXPENSE', color: '#F8D6A0', icon: 'Tag' },
+        { tempId: 'new-stipendio', name: 'Stipendio', type: 'INCOME', color: '#F1E29C', icon: 'Wallet' },
       ],
       recurringTransactions: [
         // La data più vecchia del gruppo; senza date, il primo del mese del foglio.
@@ -514,7 +515,7 @@ describe("l'import del diario (ExcelImportSmokeTest)", () => {
 
   it('la conferma scrive tutto, e le regole recuperano subito lo storico', async () => {
     const preview = await analizza(diarioCompleto())
-    preview.newCategorySuggestions.push({ tempId: 'new-varie', name: 'Varie', type: 'EXPENSE', color: null })
+    preview.newCategorySuggestions.push({ tempId: 'new-varie', name: 'Varie', type: 'EXPENSE', color: null, icon: null })
     for (const item of preview.oneOffTransactions) if (item.needsCategory) item.newCategoryTempId = 'new-varie'
 
     const result = await excelImportApi.commit(preview)
@@ -633,6 +634,26 @@ describe('le categorie proposte (ExcelImportCategoryGuessTest)', () => {
     )
 
     expect(preview.newCategorySuggestions.map((c) => c.name)).toEqual(['Abbonamenti', 'Utenze', 'Fisso'])
+  })
+
+  // Il colore già usato da una categoria dell'utente non si ripropone (D3).
+  it('le categorie proposte saltano i colori già usati e nascono con colore e icona', async () => {
+    await categoriesApi.create({ name: 'Casa', type: 'EXPENSE', color: '#F5A3A3' })
+
+    const preview = await analizza(diarioConFisse([['Spotify', 11], ['Iliad', 9.99]]))
+    expect(preview.newCategorySuggestions.map((c) => [c.name, c.color, c.icon])).toEqual([
+      ['Abbonamenti', '#F8C39A', 'Tag'],
+      ['Utenze', '#F8D6A0', 'Tag'],
+    ])
+    await excelImportApi.commit(preview)
+
+    const create = (await categoriesApi.list()).filter((c) => c.name !== 'Casa')
+    expect(create.map((c) => [c.name, c.color, c.icon])).toEqual(
+      expect.arrayContaining([
+        ['Abbonamenti', '#F8C39A', 'Tag'],
+        ['Utenze', '#F8D6A0', 'Tag'],
+      ]),
+    )
   })
 
   // Anche con le maiuscole diverse, e solo fra quelle non archiviate.

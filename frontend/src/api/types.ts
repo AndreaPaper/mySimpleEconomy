@@ -119,6 +119,8 @@ export interface CategorySuggestion {
   name: string
   type: CategoryType
   color: string | null
+  // Facoltativa: le proposte create a mano nella schermata dell'import non ce l'hanno.
+  icon?: string | null
 }
 
 export interface RecurringImportItem {

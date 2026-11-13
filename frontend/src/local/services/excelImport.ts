@@ -8,6 +8,7 @@ import { badRequest } from '../router'
 import { bodyOf, optionalString, requiredDate, requiredEnum, requiredNumber, requiredString, type Body } from '../validate'
 import { findCategory, findCategoryByName, insertCategory, type CategoryRow, type CategoryType } from './categories'
 import { processDueRule } from './recurringGeneration'
+import { CATEGORY_COLORS } from '../../constants/colors'
 
 // Porting di ExcelImportAnalysisService ed ExcelImportCommitService: l'import del diario
 // spese. L'analisi propone, la conferma scrive.
@@ -19,11 +20,27 @@ interface CategorySuggestion {
   name: string
   type: CategoryType
   color: string | null
+  icon: string | null
 }
 
 interface CategoryRef {
   existingCategoryId: string | null
   newCategoryTempId: string | null
+}
+
+/**
+ * Un colore e un'icona per ogni categoria proposta (withColorsAndIcons del backend). Prima
+ * restavano senza, e nel grafico a torta finivano grigie una accanto all'altra (D3 del test
+ * end-to-end del 13/11/2026). Il colore è il primo della palette non ancora usato; finita
+ * la palette si ricomincia dal primo. L'icona è generica, una per tipo.
+ */
+function withColorsAndIcons(suggestions: CategorySuggestion[], existing: CategoryRow[]): CategorySuggestion[] {
+  const used = new Set(existing.flatMap((c) => (c.color ? [c.color.toUpperCase()] : [])))
+  return suggestions.map((s, i) => {
+    const color = CATEGORY_COLORS.find((c) => !used.has(c)) ?? CATEGORY_COLORS[i % CATEGORY_COLORS.length]
+    used.add(color)
+    return { ...s, color, icon: s.type === 'INCOME' ? 'Wallet' : 'Tag' }
+  })
 }
 
 /** Legge il file arrivato come FormData ('file'), come il @RequestParam del controller. */
@@ -57,7 +74,7 @@ export async function analyzeExcelImport(db: LocalDatabase, body: unknown, today
     if (existingId) return { existingCategoryId: existingId, newCategoryTempId: null }
     let suggestion = newCategoriesByName.get(key)
     if (!suggestion) {
-      suggestion = { tempId: 'new-' + key.replace(/[^a-z0-9]+/g, '-'), name: categoryName.trim(), type, color: null }
+      suggestion = { tempId: 'new-' + key.replace(/[^a-z0-9]+/g, '-'), name: categoryName.trim(), type, color: null, icon: null }
       newCategoriesByName.set(key, suggestion)
     }
     return { existingCategoryId: null, newCategoryTempId: suggestion.tempId }
@@ -129,7 +146,10 @@ export async function analyzeExcelImport(db: LocalDatabase, body: unknown, today
   const balanceCheckpoints = [...checkpointsByDate.values()]
 
   return {
-    newCategorySuggestions: [...newCategoriesByName.values()],
+    newCategorySuggestions: withColorsAndIcons(
+      [...newCategoriesByName.values()],
+      db.all<CategoryRow>('SELECT * FROM categories WHERE archived = 0'),
+    ),
     recurringTransactions,
     oneOffTransactions: oneOff,
     balanceCheckpoints,
@@ -217,6 +237,7 @@ export function commitExcelImport(db: LocalDatabase, raw: unknown, today: IsoDat
     name: requiredString(s, 'name'),
     type: requiredEnum(s, 'type', ['INCOME', 'EXPENSE'] as const),
     color: optionalString(s, 'color'),
+    icon: optionalString(s, 'icon'),
   }))
   const recurring = list(body, 'recurringTransactions').map((i) => ({
     name: requiredString(i, 'name'),
@@ -245,7 +266,7 @@ export function commitExcelImport(db: LocalDatabase, raw: unknown, today: IsoDat
     for (const s of suggestions) {
       const category =
         findCategoryByName(db, s.name) ??
-        insertCategory(db, { name: s.name, type: s.type, color: s.color, icon: null, parentId: null })
+        insertCategory(db, { name: s.name, type: s.type, color: s.color, icon: s.icon, parentId: null })
       tempIdToCategoryId.set(s.tempId, category.id)
     }
     const resolveCategoryId = (ref: CategoryRef): CategoryRow => {

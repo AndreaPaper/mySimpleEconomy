@@ -108,7 +108,7 @@ public class ExcelImportAnalysisService {
                 newCategoriesByName.size(), (int) itemsNeedingCategory, checkpoints.size());
 
         return new ExcelImportPreviewResponse(
-                new ArrayList<>(newCategoriesByName.values()), recurringItems, oneOffItems, checkpoints, summary);
+                withColorsAndIcons(newCategoriesByName.values(), existingCategories), recurringItems, oneOffItems, checkpoints, summary);
     }
 
     private Map<String, List<ParsedWorkbook.FisseRow>> groupFisseRows(List<ParsedWorkbook.FisseRow> rows) {
@@ -159,6 +159,55 @@ public class ExcelImportAnalysisService {
         return false;
     }
 
+    // La palette delle categorie (frontend/src/constants/colors.ts): il selettore del
+    // colore propone solo questi.
+    static final List<String> CATEGORY_COLORS = List.of(
+            "#F5A3A3",
+            "#F8C39A",
+            "#F8D6A0",
+            "#F1E29C",
+            "#CFE49E",
+            "#A9DFB4",
+            "#9FDCC4",
+            "#9FD8D3",
+            "#A0D8E6",
+            "#A6CFEA",
+            "#AFC6F0",
+            "#B6BAEE",
+            "#C3B4F0",
+            "#CFB2ED",
+            "#E2B0EA",
+            "#F0AFCB",
+            "#F4AEB9",
+            "#C0CAD6",
+            "#CCC6BF");
+    static final String EXPENSE_ICON = "Tag";
+    static final String INCOME_ICON = "Wallet";
+
+    /**
+     * Un colore e un'icona per ogni categoria proposta. Prima restavano senza, e nel
+     * grafico a torta finivano grigie una accanto all'altra (D3 del test end-to-end del
+     * 13/11/2026). Il colore e' il primo della palette non ancora usato da una categoria
+     * dell'utente o da una proposta precedente; finita la palette si ricomincia dal
+     * primo. L'icona e' generica, una per tipo: l'utente la cambia quando vuole.
+     */
+    static List<CategorySuggestion> withColorsAndIcons(
+            Collection<CategorySuggestion> suggestions, List<Category> existingCategories) {
+        Set<String> used = new HashSet<>();
+        existingCategories.forEach(c -> {
+            if (c.getColor() != null) used.add(c.getColor().toUpperCase(Locale.ROOT));
+        });
+        List<CategorySuggestion> result = new ArrayList<>();
+        for (CategorySuggestion s : suggestions) {
+            String color = CATEGORY_COLORS.stream().filter(c -> !used.contains(c))
+                    .findFirst().orElse(CATEGORY_COLORS.get(result.size() % CATEGORY_COLORS.size()));
+            used.add(color);
+            String icon = s.type() == CategoryType.INCOME ? INCOME_ICON : EXPENSE_ICON;
+            result.add(new CategorySuggestion(s.tempId(), s.name(), s.type(), color, icon));
+        }
+        return result;
+    }
+
     private record CategoryRef(UUID existingId, String tempId) {
     }
 
@@ -173,7 +222,7 @@ public class ExcelImportAnalysisService {
         }
 
         CategorySuggestion suggestion = newCategoriesByName.computeIfAbsent(key,
-                k -> new CategorySuggestion("new-" + k.replaceAll("[^a-z0-9]+", "-"), categoryName.trim(), type, null));
+                k -> new CategorySuggestion("new-" + k.replaceAll("[^a-z0-9]+", "-"), categoryName.trim(), type, null, null));
         return new CategoryRef(null, suggestion.tempId());
     }
 }
