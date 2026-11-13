@@ -1,20 +1,26 @@
-import { Capacitor } from '@capacitor/core'
-import { StatusBar, Style } from '@capacitor/status-bar'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 
 /**
- * La barra di stato di Android (ora, batteria) con il colore dello sfondo dell'app, e
- * icone scure su sfondo chiaro, chiare su sfondo scuro. Senza, Android la lasciava con
- * le icone bianche anche sul tema chiaro, e l'ora quasi non si leggeva.
+ * Le fasce di sistema di Android (barra di stato con ora e batteria, barra dei gesti)
+ * con il colore dello sfondo dell'app, e icone scure su sfondo chiaro, chiare su sfondo
+ * scuro. Lo fa SystemBarsPlugin (android/.../SystemBarsPlugin.java): da Android 15 le
+ * fasce sono lo sfondo della finestra, che il plugin ufficiale della barra di stato non
+ * tocca, e nel tema scuro restavano bianche.
  *
  * Riceve il colore che ThemeColorSync legge dal CSS ("rgb(r, g, b)"). Fuori da Android
  * non fa niente: nel browser ci pensa il meta theme-color.
  */
+interface SystemBarsPlugin {
+  setColors(options: { color: string; light: boolean }): Promise<void>
+}
+
+const SystemBars = registerPlugin<SystemBarsPlugin>('SystemBars')
+
 export async function syncStatusBar(cssColor: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
   const rgb = parseRgb(cssColor)
   if (!rgb) return
-  await StatusBar.setStyle({ style: isLight(rgb) ? Style.Light : Style.Dark })
-  await StatusBar.setBackgroundColor({ color: toHex(rgb) })
+  await SystemBars.setColors({ color: toHex(rgb), light: isLight(rgb) })
 }
 
 export function parseRgb(css: string): [number, number, number] | null {

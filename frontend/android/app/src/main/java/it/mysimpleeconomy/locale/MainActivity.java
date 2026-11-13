@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // I plugin scritti nell'app (non presi da npm) si registrano a mano, prima che
         // parta il bridge.
         registerPlugin(ApkInstallerPlugin.class);
+        registerPlugin(SystemBarsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
