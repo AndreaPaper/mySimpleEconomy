@@ -90,6 +90,42 @@ async function apriSelettoreDi(nome: string) {
 
 describe('la scelta della categoria per riga', () => {
   /**
+   * Le righe del diario sono spese: scegliere una categoria di entrata le trasformava
+   * in entrate alla conferma (D2 del test end-to-end del 13/11/2026). Lo stipendio,
+   * già risolto dall'analisi su una categoria di entrata, la tiene.
+   */
+  it('propone solo categorie di uscita, tranne quella già scelta', async () => {
+    vi.mocked(categoriesApi.list).mockResolvedValue([
+      ...categorie,
+      { id: 'cat-stipendio', name: 'Stipendio', type: 'INCOME', color: null, icon: null, parentId: null } as Category,
+      { id: 'cat-regali', name: 'Regali', type: 'INCOME', color: null, icon: null, parentId: null } as Category,
+    ])
+    await analizza(
+      anteprima({
+        newCategorySuggestions: [
+          { tempId: 'tmp-1', name: 'Psicologa', type: 'EXPENSE', color: null },
+          { tempId: 'tmp-2', name: 'Bonus', type: 'INCOME', color: null },
+        ],
+        oneOffTransactions: [
+          { occurredOn: '2026-03-02', name: 'Ekom', amount: 42.5, needsCategory: true, existingCategoryId: null, newCategoryTempId: null },
+          { occurredOn: '2026-02-27', name: 'Stipendio', amount: 1800, needsCategory: false, existingCategoryId: 'cat-stipendio', newCategoryTempId: null },
+        ],
+      }),
+    )
+
+    await apriSelettoreDi('Ekom')
+    expect(screen.getByRole('option', { name: /Casa/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Psicologa/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Stipendio/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Regali/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Bonus/ })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+
+    await apriSelettoreDi('1.800')
+    expect(screen.getByRole('option', { name: /Stipendio/ })).toBeInTheDocument()
+  })
+
+  /**
    * Il caso che le due funzioni gemelle possono sbagliare: cambiare la seconda
    * voce di un elenco deve toccare <em>solo</em> quella. Scrivere sull'indice
    * sbagliato assegnerebbe la categoria a un'altra spesa, e nulla lo direbbe.

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { Category, ExpenseReminder, IntervalUnit } from '../api/types'
 import CategoryCombobox from './CategoryCombobox'
+import { isLocalMode } from '../local/mode'
 
 interface ExpenseReminderFormProps {
   categories: Category[]
@@ -207,7 +208,8 @@ export default function ExpenseReminderForm({ categories, initial, onSubmit, onC
           className="w-full rounded border border-slate-300 dark:border-slate-700 bg-brand-300 dark:bg-black px-3 py-2 text-sm text-slate-900 dark:text-white"
         />
         <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
-          Se vuoto, non riceverai email per questo promemoria.
+          {/* Sul telefono l'avviso è una notifica, non un'email (non c'è un server che la mandi). */}
+          {`Se vuoto, non riceverai ${isLocalMode ? 'notifiche' : 'email'} per questo promemoria.`}
         </span>
       </div>
       <div className="flex justify-end gap-2 pt-2">

@@ -466,7 +466,7 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
                   >
                     {isExpanded
                       ? 'Nascondi i movimenti'
-                      : `Vedi i ${mappingRows.length} ${mappingRows.length === 1 ? 'movimento' : 'movimenti'}`}
+                      : mappingRows.length === 1 ? 'Vedi il movimento' : `Vedi i ${mappingRows.length} movimenti`}
                   </button>
                 )}
 
@@ -692,7 +692,7 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
           onClick={handleCommit}
           className="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:opacity-50"
         >
-          {committing ? 'Importazione in corso...' : `Importa ${toImport.length} movimenti`}
+          {committing ? 'Importazione in corso...' : `Importa ${toImport.length} ${toImport.length === 1 ? 'movimento' : 'movimenti'}`}
         </button>
         <button type="button" onClick={resetAll} className="rounded border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm">
           Annulla
@@ -700,7 +700,9 @@ export default function BankImportFlow({ categories: loadedCategories, onCategor
       </div>
       {missingCategory.length > 0 && (
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          {missingCategory.length} movimenti selezionati non hanno una categoria.
+          {missingCategory.length === 1
+            ? '1 movimento selezionato non ha una categoria.'
+            : `${missingCategory.length} movimenti selezionati non hanno una categoria.`}
         </p>
       )}
       {newCategoryModal}

@@ -33,15 +33,22 @@ export default function CategoryPicker({
     onChange({ existingCategoryId: next || null, newCategoryTempId: null })
   }
 
+  // Le righe del diario sono spese: proporre Stipendio o Regali trasformerebbe la spesa
+  // in un'entrata, perché alla conferma il tipo viene dalla categoria. Resta visibile
+  // solo la categoria già scelta, anche se di entrata: è lo stipendio, che l'analisi
+  // risolve da sé.
+  const expenseCategories = existingCategories.filter((c) => c.type === 'EXPENSE' || c.id === existingCategoryId)
+  const expenseSuggestions = newCategorySuggestions.filter((c) => c.type === 'EXPENSE' || c.tempId === newCategoryTempId)
+
   return (
     <div className="w-56 shrink-0">
       <CategoryCombobox
-        categories={existingCategories}
+        categories={expenseCategories}
         value={value}
         onChange={handleChange}
         onCreateNew={onRequestNewCategory}
         placeholder="Seleziona categoria..."
-        extraOptions={newCategorySuggestions.map((c) => ({
+        extraOptions={expenseSuggestions.map((c) => ({
           value: `${NEW_PREFIX}${c.tempId}`,
           label: c.name,
           color: c.color,

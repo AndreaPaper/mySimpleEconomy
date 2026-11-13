@@ -111,7 +111,7 @@ describe('il carico mandato al commit', () => {
   it('porta le righe da importare con la categoria scelta', async () => {
     await analizza(anteprima())
 
-    await userEvent.click(await screen.findByRole('button', { name: /Importa 1 movimenti/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Importa 1 movimento' }))
 
     await waitFor(() => expect(commit).toHaveBeenCalledTimes(1))
     const carico = commit.mock.calls[0][0]
@@ -139,7 +139,7 @@ describe('il carico mandato al commit', () => {
       }),
     )
 
-    await userEvent.click(await screen.findByRole('button', { name: /Importa 1 movimenti/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Importa 1 movimento' }))
 
     await waitFor(() => expect(commit).toHaveBeenCalled())
     expect(commit.mock.calls[0][0].rows[0].updateTransactionId).toBe('tx-esistente')
@@ -150,7 +150,7 @@ describe('il carico mandato al commit', () => {
   it('una riga nuova non porta nessun id da sostituire', async () => {
     await analizza(anteprima())
 
-    await userEvent.click(await screen.findByRole('button', { name: /Importa 1 movimenti/i }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Importa 1 movimento' }))
 
     await waitFor(() => expect(commit).toHaveBeenCalled())
     expect(commit.mock.calls[0][0].rows[0].updateTransactionId).toBeNull()
@@ -198,7 +198,7 @@ describe('il carico mandato al commit', () => {
     // Si toglie la prima dalla selezione.
     const caselle = await screen.findAllByRole('checkbox')
     await userEvent.click(caselle[0])
-    await userEvent.click(screen.getByRole('button', { name: /Importa 1 movimenti/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Importa 1 movimento' }))
 
     await waitFor(() => expect(commit).toHaveBeenCalled())
     expect(commit.mock.calls[0][0].rows).toHaveLength(1)
@@ -244,7 +244,7 @@ describe('la mappatura da risolvere', () => {
   it('senza categorie da mappare si passa direttamente all anteprima', async () => {
     await analizza(anteprima())
 
-    expect(await screen.findByRole('button', { name: /Importa 1 movimenti/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Importa 1 movimento' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Continua' })).not.toBeInTheDocument()
   })
 })
@@ -443,6 +443,19 @@ describe('la categoria della banca si può riportare a "nessuna"', () => {
    * Il carico finale controlla anche il lato che non si vede: la corrispondenza
    * parte vuota, quindi il backend non la ricorda per gli import futuri.
    */
+  // D9 del test end-to-end del 13/11/2026: "Vedi i 1 movimento".
+  it('con un movimento solo il pulsante dice "Vedi il movimento"', async () => {
+    await analizza(
+      anteprima({
+        rows: [riga({ categoryId: null })],
+        unmappedCategories: [mappatura({ categoryId: null, rowCount: 1 })],
+        summary: { ...anteprima().summary, categorieDaMappare: 1 },
+      }),
+    )
+
+    expect(await screen.findByRole('button', { name: 'Vedi il movimento' })).toBeInTheDocument()
+  })
+
   it('tolta la categoria, ogni movimento prende la sua e niente eredita quella tolta', async () => {
     await analizza(dueMovimenti())
 
