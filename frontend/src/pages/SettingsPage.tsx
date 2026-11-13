@@ -1,5 +1,5 @@
 import { lazy, Suspense, useRef, useState, type KeyboardEvent } from 'react'
-import { dataCleanupApi } from '../api/endpoints'
+import { dataCleanupApi, transactionsApi } from '../api/endpoints'
 import { useInvalidateAll } from '../api/queries'
 import type { DataCleanupResult } from '../api/types'
 import Modal from '../components/Modal'
@@ -9,6 +9,7 @@ import { useCaseStyle } from '../context/CaseStyleContext'
 import { usePalette } from '../context/PaletteContext'
 import { UI_PALETTES } from '../constants/uiPalettes'
 import { isLocalMode } from '../local/mode'
+import { formatDay } from '../utils/cadence'
 
 // Il backup esiste solo nell'app per il telefono, dove i dati non stanno su un server.
 // Caricato a parte e solo lì: la versione web non contiene il suo codice.
@@ -54,6 +55,10 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [fullWipeResult, setFullWipeResult] = useState<DataCleanupResult | null>(null)
   const [rangeResult, setRangeResult] = useState<DataCleanupResult | null>(null)
+  // La conferma dell'eliminazione per periodo: prima cancellava al primo clic, e un
+  // periodo sbagliato portava via mesi di transazioni senza ritorno. Il conteggio è
+  // quello delle transazioni che spariranno (null finché non è arrivato).
+  const [rangeConfirm, setRangeConfirm] = useState<{ count: number | null } | null>(null)
   const [tab, setTab] = useState<SettingsTab>('aspetto')
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
@@ -95,8 +100,23 @@ export default function SettingsPage() {
     }
   }
 
+  const openRangeConfirm = async () => {
+    if (!from && !to) return
+    setError(null)
+    setRangeConfirm({ count: null })
+    try {
+      const page = await transactionsApi.list({ from: from || undefined, to: to || undefined })
+      setRangeConfirm((current) => (current ? { count: page.content.length } : current))
+    } catch {
+      // Senza conteggio la conferma resta valida: dice il periodo, non il numero.
+    }
+  }
+
+  const rangeLabel = [from && `dal ${formatDay(from)}`, to && `al ${formatDay(to)}`].filter(Boolean).join(' ')
+
   const handleRangeDelete = async () => {
     if (!from && !to) return
+    setRangeConfirm(null)
     setError(null)
     setBusy(true)
     try {
@@ -290,7 +310,7 @@ export default function SettingsPage() {
             <button
               type="button"
               disabled={(!from && !to) || busy}
-              onClick={handleRangeDelete}
+              onClick={() => void openRangeConfirm()}
               className="rounded bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
               Elimina nel periodo
@@ -339,6 +359,40 @@ export default function SettingsPage() {
             <BackupPanel />
           </Suspense>
         </div>
+      )}
+
+      {rangeConfirm && (
+        <Modal title="Conferma eliminazione" onClose={() => setRangeConfirm(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Stai per eliminare{' '}
+              <strong>
+                {rangeConfirm.count === null
+                  ? 'le transazioni'
+                  : `${rangeConfirm.count} ${rangeConfirm.count === 1 ? 'transazione' : 'transazioni'}`}
+              </strong>{' '}
+              e i saldi di partenza {rangeLabel}. Categorie, regole ricorrenti e promemoria non vengono toccati. Non
+              si può annullare.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleRangeDelete()}
+                className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                Elimina
+              </button>
+              <button
+                type="button"
+                onClick={() => setRangeConfirm(null)}
+                className="rounded border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm dark:text-white"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {fullWipeOpen && (

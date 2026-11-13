@@ -101,11 +101,49 @@ describe('il cancello della parola digitata', () => {
     await utente.type(screen.getByLabelText('Da'), '2026-01-01')
     await utente.type(screen.getByLabelText('A'), '2026-03-31')
     await utente.click(pulsante)
+    await utente.click(await screen.findByRole('button', { name: 'Elimina' }))
 
     await waitFor(() => expect(inviate).not.toBeNull())
     expect(inviate!.get('from')).toBe('2026-01-01')
     expect(inviate!.get('to')).toBe('2026-03-31')
     expect(await screen.findByText(/4/)).toBeInTheDocument()
+  })
+
+  /**
+   * Prima l'eliminazione per periodo partiva al primo clic: un periodo scritto male
+   * portava via mesi di transazioni, e sul telefono non c'è un server da cui
+   * recuperarle. Ora chiede conferma, dicendo il periodo e quante transazioni.
+   */
+  it('l eliminazione per periodo chiede conferma, e Annulla non cancella niente', async () => {
+    let chiamate = 0
+    server.use(
+      http.get('*/api/transactions', () =>
+        HttpResponse.json({ content: [{ id: '1' }, { id: '2' }, { id: '3' }], hasNext: false }),
+      ),
+      http.delete('*/api/data-cleanup', () => {
+        chiamate++
+        return HttpResponse.json({
+          transactionsDeleted: 3,
+          recurringTransactionsDeleted: 0,
+          balanceCheckpointsDeleted: 0,
+          expenseRemindersDeleted: 0,
+        })
+      }),
+    )
+    const utente = userEvent.setup()
+    mountPage(<SettingsPage />, { route: '/impostazioni' })
+    await vaiAllaScheda(utente)
+    await utente.type(screen.getByLabelText('Da'), '2026-01-01')
+    await utente.type(screen.getByLabelText('A'), '2026-03-31')
+
+    await utente.click(screen.getByRole('button', { name: 'Elimina nel periodo' }))
+
+    expect(await screen.findByText('3 transazioni')).toBeInTheDocument()
+    expect(screen.getByText(/dal 01\/01\/2026 al 31\/03\/2026/)).toBeInTheDocument()
+    expect(chiamate).toBe(0)
+    await utente.click(screen.getByRole('button', { name: 'Annulla' }))
+    expect(screen.queryByText('Conferma eliminazione')).not.toBeInTheDocument()
+    expect(chiamate).toBe(0)
   })
 
   it('scritta la parola, cancella e mostra il riepilogo', async () => {
