@@ -75,8 +75,30 @@ le chiede di permettere l'installazione da quella app ("origini sconosciute").
 
 ## Aggiornamenti
 
-Stesso comando, stesso file da mandare. Si installa sopra la versione vecchia e
-**i dati restano**.
+```powershell
+.\scripts\publish-apk.ps1
+```
+
+Costruisce l'APK firmato e lo pubblica come release di GitHub
+(`android-v<numero>`, file `myeconomy.apk`), con le novità prese dai titoli dei
+commit. Alla prossima apertura l'app sul telefono mostra "È disponibile la
+versione…": con "Aggiorna" lo scarica e apre l'installazione di Android. La
+prima volta Android le chiede di permettere a MyEconomy di installare app.
+**I dati restano.**
+
+Prima di lanciarlo:
+- una volta sola, collega GitHub CLI al tuo account: `gh auth login`;
+- fai commit e push: lo script si ferma se ci sono modifiche non committate o
+  se il commit non è ancora su GitHub, e se la versione è già pubblicata
+  (serve almeno un commit nuovo).
+
+L'app chiede a GitHub l'elenco delle release, al massimo una volta l'ora: nella
+richiesta non c'è nessun suo dato. E Android installa un aggiornamento solo se
+è firmato con la tua chiave, quindi nessun altro può pubblicarne uno al posto
+tuo.
+
+Si può ancora mandare l'APK a mano (`.\scriptsuild-apk.ps1 -Release`):
+anche così si installa sopra la versione vecchia.
 
 Il numero di versione cresce da solo: è il numero di commit del ramo. Costruisci
 sempre dall'ultimo `develop`: un APK costruito da un commit più vecchio avrebbe

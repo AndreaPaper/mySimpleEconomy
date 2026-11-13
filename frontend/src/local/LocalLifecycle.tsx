@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { App } from '@capacitor/app'
 import { localBackend } from './adapter'
+import AppUpdatePrompt from './AppUpdatePrompt'
 import { requestNotificationPermission } from './notifications'
 
 /**
@@ -31,5 +32,7 @@ export default function LocalLifecycle() {
     }
   }, [queryClient])
 
-  return null
+  // L'avviso degli aggiornamenti dell'app vive qui: come il resto di questo file,
+  // esiste solo nella build per il telefono.
+  return <AppUpdatePrompt />
 }

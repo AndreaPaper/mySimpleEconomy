@@ -38,4 +38,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Per installare gli aggiornamenti dell'app scaricati da GitHub (ApkInstallerPlugin).
+         Android lo concede solo se chi usa il telefono lo autorizza per questa app. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>
