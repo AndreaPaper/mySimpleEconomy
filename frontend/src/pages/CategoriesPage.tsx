@@ -377,10 +377,11 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      {/* Il pannello delle archiviate esiste solo su desktop e solo se ce n'è
-          almeno una: chi non archivia mai non vede nulla di nuovo. Su mobile
-          resta fuori — la lista lì è un'altra, con il foglio azioni. */}
-      {!isMobile && archivedCategories.length > 0 && (
+      {/* Il pannello delle archiviate compare solo se ce n'è almeno una: chi non
+          archivia mai non vede nulla di nuovo. Anche su mobile: prima restava
+          fuori, e lì (nell'app per il telefono, sempre) una categoria archiviata
+          spariva senza un punto da cui riattivarla. */}
+      {archivedCategories.length > 0 && (
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-brand-300 dark:border-slate-800 dark:bg-black">
           <button
             type="button"

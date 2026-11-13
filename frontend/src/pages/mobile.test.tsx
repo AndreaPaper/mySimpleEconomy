@@ -223,6 +223,31 @@ describe('Categorie', () => {
     expect(await screen.findByText(/Archivia categoria/)).toBeInTheDocument()
   })
 
+  // Prima il pannello delle archiviate c'era solo su desktop: sul telefono una
+  // categoria archiviata non si poteva più riattivare.
+  it('le categorie archiviate si vedono e si riattivano anche su mobile', async () => {
+    const archiviata = categoria({ id: 'c9', name: 'Palestra', archived: true })
+    let riattivata: string | null = null
+    server.use(
+      http.get('*/api/categories/archived', () => HttpResponse.json([archiviata])),
+      http.post('*/api/categories/:id/unarchive', ({ params }) => {
+        riattivata = params.id as string
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const u = utente()
+    montaConUnaCategoria()
+
+    await u.click(await screen.findByRole('button', { name: /Categorie archiviate/i }))
+    await screen.findByText('Palestra')
+    await u.click(screen.getByRole('button', { name: 'Riattiva' }))
+    // La conferma ha il suo pulsante Riattiva: l'ultimo comparso.
+    await screen.findByText(/Riattiva categoria/)
+    await u.click(screen.getAllByRole('button', { name: 'Riattiva' }).at(-1)!)
+
+    await waitFor(() => expect(riattivata).toBe('c9'))
+  })
+
   it('Modifica apre il modulo di quella categoria', async () => {
     const u = utente()
     montaConUnaCategoria()
