@@ -175,6 +175,37 @@ describe('backend irraggiungibile', () => {
   })
 })
 
+/**
+ * 502/503/504 li manda il proxy davanti al backend (Render durante un deploy, Vite a
+ * backend spento): il backend non c'è, come in un errore di rete. Prima passavano per
+ * errori applicativi e la spesa nuova non andava nella coda offline (D11 del test
+ * end-to-end del 13/11/2026).
+ */
+describe('il backend dietro un proxy che risponde 502/503/504', () => {
+  it.each([502, 503, 504])('un %i è un backend irraggiungibile', async (status) => {
+    const client = await clientPulito()
+    const avvisi = vi.fn()
+    window.addEventListener('backend:unreachable', avvisi)
+    server.use(http.get('*/api/ok', () => new HttpResponse(null, { status })))
+
+    const errore = await client.get('/ok').catch((e) => e)
+
+    expect(errore.response).toBeUndefined()
+    expect(avvisi).toHaveBeenCalledTimes(1)
+    window.removeEventListener('backend:unreachable', avvisi)
+    // E il fail-fast si accende: la chiamata dopo non tocca la rete.
+    let chiamate = 0
+    server.use(
+      http.get('*/api/ok', () => {
+        chiamate++
+        return HttpResponse.json({ ok: true })
+      }),
+    )
+    await expect(client.get('/ok')).rejects.toThrow()
+    expect(chiamate).toBe(0)
+  })
+})
+
 describe('la sessione scaduta', () => {
   // La finta `window.location` è installata una volta per tutti i test in
   // src/test/setup.ts: qui basta portarla dove serve. (Prima ne viveva una copia

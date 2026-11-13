@@ -31,6 +31,9 @@ if (import.meta.env.VITE_DATA_MODE === 'local') {
 // immediatamente coi dati offline mentre il polling continua in background.
 let backendUnreachable = false
 
+// Le risposte di un proxy o gateway quando il backend dietro non risponde.
+const GATEWAY_STATUSES = [502, 503, 504]
+
 client.interceptors.request.use((config) => {
   if (backendUnreachable && !config.skipUnreachableCheck) {
     // Stessa forma di un errore di rete axios (response === undefined), così
@@ -56,6 +59,22 @@ client.interceptors.response.use(
     return response
   },
   (error) => {
+    if (GATEWAY_STATUSES.includes(error.response?.status)) {
+      // 502/503/504 non li manda il backend ma chi gli sta davanti (il proxy di
+      // Render durante un deploy o un riavvio, quello di Vite a backend spento): il
+      // backend non c'è, come in un errore di rete. Si rifiuta con la stessa forma,
+      // così la spesa va nella coda offline invece di "Salvataggio non riuscito".
+      backendUnreachable = true
+      window.dispatchEvent(new Event('backend:unreachable'))
+      return Promise.reject(
+        Object.assign(new Error(`Backend non disponibile (HTTP ${error.response.status})`), {
+          code: 'ERR_BACKEND_UNAVAILABLE',
+          config: error.config,
+          response: undefined,
+          cause: error,
+        }),
+      )
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('email')
