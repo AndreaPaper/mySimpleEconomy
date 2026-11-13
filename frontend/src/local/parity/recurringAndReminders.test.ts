@@ -102,6 +102,20 @@ describe('regole ricorrenti', () => {
     expect((await apiError(recurringApi.deleteOverride(r.id, o.id))).status).toBe(404)
   })
 
+  // RecurringTransactionApiTest.lElencoDaLImportoDellaProssimaScadenza (D5).
+  it("l'elenco dà l'importo della prossima scadenza, con l'eccezione se c'è", async () => {
+    const due = plusMonths(OGGI, 1)
+    const r = await rule((await expenseCategory()).id, due)
+    expect((await recurringApi.list())[0]).toMatchObject({ defaultAmount: r.defaultAmount, nextDueAmount: r.defaultAmount })
+
+    const o = await recurringApi.createOverride(r.id, { occurrenceDate: due, overrideAmount: 12.99 })
+    expect((await recurringApi.list())[0]).toMatchObject({ defaultAmount: r.defaultAmount, nextDueAmount: 12.99 })
+    // Un'eccezione su un'altra scadenza non cambia la prossima.
+    await recurringApi.deleteOverride(r.id, o.id)
+    await recurringApi.createOverride(r.id, { occurrenceDate: plusMonths(due, 1), overrideAmount: 50 })
+    expect((await recurringApi.list())[0]).toMatchObject({ nextDueAmount: r.defaultAmount })
+  })
+
   it("l'importo dell'eccezione vale quando la modifica fa recuperare quella scadenza", async () => {
     const cat = await expenseCategory()
     const due = plusMonths(OGGI, -1)

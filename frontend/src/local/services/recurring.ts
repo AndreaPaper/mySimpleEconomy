@@ -26,10 +26,14 @@ interface RecurringWithCategory extends RecurringRow {
   category_type: string
   category_icon: string | null
   category_color: string | null
+  next_due_override: number | null
 }
 
+// next_due_override: l'eccezione sulla prossima scadenza, se c'è (nextDueAmount).
 const SELECT = `
-  SELECT r.*, c.name AS category_name, c.type AS category_type, c.icon AS category_icon, c.color AS category_color
+  SELECT r.*, c.name AS category_name, c.type AS category_type, c.icon AS category_icon, c.color AS category_color,
+    (SELECT o.override_amount FROM recurring_overrides o
+     WHERE o.recurring_transaction_id = r.id AND o.occurrence_date = r.next_due_date) AS next_due_override
   FROM recurring_transactions r JOIN categories c ON c.id = r.category_id`
 
 function response(row: RecurringWithCategory) {
@@ -48,6 +52,7 @@ function response(row: RecurringWithCategory) {
     nextDueDate: row.next_due_date,
     endDate: row.end_date,
     active: row.active === 1,
+    nextDueAmount: toEuros(row.next_due_override ?? row.default_amount),
   }
 }
 

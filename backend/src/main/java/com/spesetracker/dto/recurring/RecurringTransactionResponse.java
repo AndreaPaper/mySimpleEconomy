@@ -22,9 +22,18 @@ public record RecurringTransactionResponse(
         LocalDate startDate,
         LocalDate nextDueDate,
         LocalDate endDate,
-        boolean active
+        boolean active,
+        // L'importo della prossima scadenza: quello dell'eccezione, se ce n'è una per
+        // quella data, altrimenti defaultAmount. La Dashboard lo mostra fra le
+        // prossime scadenze (prima mostrava sempre defaultAmount).
+        BigDecimal nextDueAmount
 ) {
     public static RecurringTransactionResponse from(RecurringTransaction rt) {
+        return from(rt, null);
+    }
+
+    /** @param nextDueOverride l'importo dell'eccezione sulla prossima scadenza, o null. */
+    public static RecurringTransactionResponse from(RecurringTransaction rt, BigDecimal nextDueOverride) {
         return new RecurringTransactionResponse(
                 rt.getId(),
                 rt.getCategory().getId(),
@@ -39,7 +48,8 @@ public record RecurringTransactionResponse(
                 rt.getStartDate(),
                 rt.getNextDueDate(),
                 rt.getEndDate(),
-                Boolean.TRUE.equals(rt.getActive())
+                Boolean.TRUE.equals(rt.getActive()),
+                nextDueOverride != null ? nextDueOverride : rt.getDefaultAmount()
         );
     }
 }

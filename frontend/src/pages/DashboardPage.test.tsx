@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DashboardPage from './DashboardPage'
-import { previsioneVuota, transazione } from '../test/handlers'
+import { previsioneVuota, ricorrente, transazione } from '../test/handlers'
 import { mountPage } from '../test/mountPage'
 import { server, setupApiMocks } from '../test/server'
 
@@ -396,5 +396,25 @@ describe("l'ipotesi sotto il grafico", () => {
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/la previsione toglie/)).not.toBeInTheDocument()
+  })
+})
+
+// Le prossime scadenze ricorrenti mostravano sempre l'importo base della regola, anche
+// con un'eccezione sulla prossima scadenza (test end-to-end del 13/11/2026, D5): la
+// previsione contava 12,99 e la card diceva 9,99.
+describe('prossime scadenze ricorrenti', () => {
+  it("mostrano l'importo dell'eccezione sulla prossima scadenza", async () => {
+    server.use(
+      http.get('*/api/recurring-transactions', () =>
+        HttpResponse.json([
+          ricorrente({ name: 'Netflix', defaultAmount: 9.99, nextDueAmount: 12.99, nextDueDate: '2026-03-30' }),
+        ]),
+      ),
+    )
+    mountPage(<DashboardPage />, { profile: { salaryDay: 27 } })
+
+    expect(await screen.findByText('Netflix')).toBeInTheDocument()
+    expect(screen.getByText(/12,99\s*€/)).toBeInTheDocument()
+    expect(screen.queryByText(/9,99\s*€/)).not.toBeInTheDocument()
   })
 })

@@ -101,6 +101,7 @@ export const ricorrente = (over: Partial<RecurringTransaction> = {}): RecurringT
   nextDueDate: '2026-04-01',
   endDate: null,
   active: true,
+  nextDueAmount: over.defaultAmount ?? 500,
   ...over,
 })
 

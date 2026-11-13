@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -143,6 +144,33 @@ class RecurringTransactionApiTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/recurring-transactions/" + id + "/overrides")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    /**
+     * L'elenco dà l'importo della prossima scadenza, eccezione compresa: la Dashboard lo
+     * mostra fra le prossime scadenze, che prima dicevano sempre l'importo base (D5 del
+     * test end-to-end del 13/11/2026). Un'eccezione su un'altra scadenza non conta.
+     */
+    @Test
+    void lElencoDaLImportoDellaProssimaScadenza() throws Exception {
+        String token = api.registerAndLogin();
+        String category = api.createExpenseCategory(token);
+        LocalDate due = LocalDate.now().plusMonths(1);
+        String id = createRule(token, category, due, null);
+
+        for (LocalDate data : List.of(due.plusMonths(1), due)) {
+            mockMvc.perform(post("/api/recurring-transactions/" + id + "/overrides")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"occurrenceDate":"%s","overrideAmount":%s}
+                                    """.formatted(data, data.equals(due) ? "12.99" : "50.00")))
+                    .andExpect(status().isCreated());
+        }
+
+        mockMvc.perform(get("/api/recurring-transactions").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nextDueAmount").value(12.99));
     }
 
     @Test

@@ -1094,7 +1094,9 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-400 dark:text-slate-500">{fullDate(r.nextDueDate)}</p>
                   </div>
                 </div>
-                <span className="shrink-0 text-sm font-medium">{currency.format(r.defaultAmount)}</span>
+                {/* nextDueAmount tiene conto dell'eccezione sulla prossima scadenza. Il ripiego
+                    copre i minuti in cui Vercel ha già il frontend nuovo e Render il backend vecchio. */}
+                <span className="shrink-0 text-sm font-medium">{currency.format(r.nextDueAmount ?? r.defaultAmount)}</span>
               </li>
             )
           })}

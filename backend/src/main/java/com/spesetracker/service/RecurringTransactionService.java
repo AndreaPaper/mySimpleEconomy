@@ -20,7 +20,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +36,18 @@ public class RecurringTransactionService {
 
     @Transactional(readOnly = true)
     public List<RecurringTransactionResponse> list(UUID userId) {
-        return recurringTransactionRepository.findByUserIdOrderByNextDueDateAsc(userId).stream()
-                .map(RecurringTransactionResponse::from)
+        List<RecurringTransaction> rules = recurringTransactionRepository.findByUserIdOrderByNextDueDateAsc(userId);
+        // Le eccezioni di tutte le regole in una query, non una per regola.
+        Map<UUID, List<RecurringOverride>> overridesByRule = recurringOverrideRepository
+                .findByRecurringTransactionIdIn(rules.stream().map(RecurringTransaction::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(o -> o.getRecurringTransaction().getId()));
+        return rules.stream()
+                .map(rt -> RecurringTransactionResponse.from(rt, overridesByRule.getOrDefault(rt.getId(), List.of()).stream()
+                        .filter(o -> o.getOccurrenceDate().equals(rt.getNextDueDate()))
+                        .map(RecurringOverride::getOverrideAmount)
+                        .findFirst()
+                        .orElse(null)))
                 .toList();
     }
 
@@ -60,7 +72,14 @@ public class RecurringTransactionService {
         // passato), invece di aspettare il job notturno delle 05:00.
         generationService.processDueRule(rt.getId(), LocalDate.now());
 
-        return RecurringTransactionResponse.from(rt);
+        return withNextDueOverride(rt);
+    }
+
+    private RecurringTransactionResponse withNextDueOverride(RecurringTransaction rt) {
+        return RecurringTransactionResponse.from(rt, recurringOverrideRepository
+                .findByRecurringTransactionIdAndOccurrenceDate(rt.getId(), rt.getNextDueDate())
+                .map(RecurringOverride::getOverrideAmount)
+                .orElse(null));
     }
 
     @Transactional
@@ -79,7 +98,7 @@ public class RecurringTransactionService {
 
         generationService.processDueRule(rt.getId(), LocalDate.now());
 
-        return RecurringTransactionResponse.from(rt);
+        return withNextDueOverride(rt);
     }
 
     @Transactional

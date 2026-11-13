@@ -47,6 +47,8 @@ export interface RecurringTransaction {
   nextDueDate: string
   endDate: string | null
   active: boolean
+  // L'importo della prossima scadenza, con l'eventuale eccezione.
+  nextDueAmount: number
 }
 
 export interface RecurringOverride {
