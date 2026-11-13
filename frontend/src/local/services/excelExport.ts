@@ -365,7 +365,7 @@ function writeBalanceTrendSheet(
   r = sheet.note(
     r,
     'Il saldo iniziale del primo periodo viene dal saldo registrato più recente non successivo al suo ' +
-      "inizio, piu' tutto quello che e' stato registrato da li' in avanti: e' lo stesso " +
+      "inizio, più tutto quello che è stato registrato da lì in avanti: è lo stesso " +
       'calcolo del saldo che vedi in Dashboard, valutato alla fine di ogni periodo.',
   )
   r++

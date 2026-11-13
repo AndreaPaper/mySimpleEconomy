@@ -48,6 +48,8 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
     // recuperare subito (create -> processDueRule), e la scadenza scapperebbe via dalla
     // finestra di confronto prima ancora che il test cominci.
     private static final LocalDate DATA = LocalDate.now().plusDays(10);
+    private static final java.time.format.DateTimeFormatter GIORNO =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** Una riga dell'estratto conto, con quel poco che serve a costruirla. */
     private record Movimento(LocalDate data, String operazione, String dettagli, boolean contabilizzato,
@@ -172,7 +174,7 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
 
         assertThat(esiti(preview)).containsExactly("SOSPETTO_MANUALE");
         assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
-                .contains("Gia' presente, scritta a mano");
+                .contains("Già presente, scritta a mano: " + GIORNO.format(DATA) + " · 57,40 €");
     }
 
     /**
@@ -215,7 +217,7 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
 
         assertThat(esiti(preview)).containsExactly("SOSPETTO_MANUALE");
         assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
-                .contains("versione provvisoria di un movimento gia' definitivo");
+                .contains("versione provvisoria di un movimento già definitivo");
     }
 
     // ------------------------------------------------------------------
@@ -238,7 +240,9 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
 
         assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");
         assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
-                .contains("Sta per generarla la regola ricorrente");
+                .contains("Sta per generarla la regola ricorrente")
+                // Date e importi all'italiana (D10 del test end-to-end del 13/11/2026).
+                .contains("60,00 € del " + GIORNO.format(DATA.plusDays(2)));
     }
 
     /**
@@ -284,7 +288,7 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
         // Il messaggio distingue i due casi: "l'ha già generata" invece di "sta
         // per generarla". Chi legge deve sapere se la spesa è già in archivio.
         assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
-                .contains("gia' generata da una regola ricorrente");
+                .contains("già generata da una regola ricorrente");
     }
 
     /**
@@ -634,7 +638,7 @@ class BankImportOutcomesTest extends AbstractIntegrationTest {
 
         assertThat(esiti(preview)).containsExactly("SOSPETTO_RICORRENTE");
         assertThat(preview.get("rows").get(0).get("conflictDescription").asText())
-                .contains("promemoria ha gia' registrato");
+                .contains("promemoria ha già registrato");
     }
 
     // ------------------------------------------------------------------

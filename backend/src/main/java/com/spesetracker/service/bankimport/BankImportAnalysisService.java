@@ -23,8 +23,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -144,7 +146,7 @@ public class BankImportAnalysisService {
                     // versione definitiva, con un'altra impronta. Senza questo
                     // controllo rientrerebbe come nuova e sarebbe un doppione.
                     outcome = BankImportOutcome.SOSPETTO_MANUALE;
-                    conflict = "Sembra la versione provvisoria di un movimento gia' definitivo in archivio: "
+                    conflict = "Sembra la versione provvisoria di un movimento già definitivo in archivio: "
                             + describeTransaction(settledVersion(inRange, row.date(), amount, type).get());
                 } else {
                     // La categoria con cui confrontare la riga: quella mappata o, per una
@@ -181,12 +183,12 @@ public class BankImportAnalysisService {
                             claimedRecurring.add(occurrence.reminder().getId());
                             matchedReminderId = occurrence.reminder().getId();
                             conflict = "È la spesa fissa del promemoria " + occurrence.reminder().getName()
-                                    + " per " + YearMonth.from(row.date())
+                                    + " per " + MONTH_FORMAT.format(YearMonth.from(row.date()))
                                     + ": entra legata al promemoria, che non la conterà una seconda volta";
                         } else {
                             claimedRecurring.add(occurrence.rule().getId());
                             matchedRecurringId = occurrence.rule().getId();
-                            conflict = "È la scadenza del " + occurrence.rule().getNextDueDate()
+                            conflict = "È la scadenza del " + DAY_FORMAT.format(occurrence.rule().getNextDueDate())
                                     + " della regola " + occurrence.rule().getName()
                                     + ": entra al suo posto, e la regola non la genererà una seconda volta";
                         }
@@ -195,7 +197,7 @@ public class BankImportAnalysisService {
                         }
                     } else if (manual.isPresent()) {
                         outcome = BankImportOutcome.SOSPETTO_MANUALE;
-                        conflict = "Gia' presente, scritta a mano: " + describeTransaction(manual.get());
+                        conflict = "Già presente, scritta a mano: " + describeTransaction(manual.get());
                     } else if (recurringConflict != null) {
                         outcome = BankImportOutcome.SOSPETTO_RICORRENTE;
                         conflict = recurringConflict;
@@ -430,7 +432,7 @@ public class BankImportAnalysisService {
                         t.getAmount(), t.getCategory().getId(), t.getRecurringTransaction().getName()))
                 .findFirst();
         if (generated.isPresent()) {
-            return "L'app l'ha gia' generata da una regola ricorrente: " + describeTransaction(generated.get());
+            return "L'app l'ha già generata da una regola ricorrente: " + describeTransaction(generated.get());
         }
 
         // La spesa fissa di un promemoria, registrata il primo del mese: la stessa
@@ -444,7 +446,7 @@ public class BankImportAnalysisService {
                         t.getAmount(), t.getCategory().getId(), t.getExpenseReminder().getName()))
                 .findFirst();
         if (reminderPlaceholder.isPresent()) {
-            return "Il promemoria ha gia' registrato questa spesa fissa: " + describeTransaction(reminderPlaceholder.get());
+            return "Il promemoria ha già registrato questa spesa fissa: " + describeTransaction(reminderPlaceholder.get());
         }
 
         CategoryType categoryType = type == TransactionType.EXPENSE ? CategoryType.EXPENSE : CategoryType.INCOME;
@@ -455,7 +457,7 @@ public class BankImportAnalysisService {
                         r.getDefaultAmount(), r.getCategory().getId(), r.getName()))
                 .findFirst()
                 .map(r -> "Sta per generarla la regola ricorrente " + r.getName() + " · "
-                        + r.getDefaultAmount() + " € del " + r.getNextDueDate())
+                        + euros(r.getDefaultAmount()) + " del " + DAY_FORMAT.format(r.getNextDueDate()))
                 .orElse(null);
     }
 
@@ -494,8 +496,20 @@ public class BankImportAnalysisService {
         return exclusions.stream().anyMatch(e -> text.contains(e.getPattern().toUpperCase(Locale.ITALIAN)));
     }
 
+    // I testi delle righe "da controllare" li legge l'utente: date e importi all'italiana
+    // (prima "2026-11-20" e "4.50 €", D10 del test end-to-end del 13/11/2026).
+    private static final DateTimeFormatter DAY_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("MM/yyyy");
+
+    private static String euros(BigDecimal amount) {
+        NumberFormat format = NumberFormat.getNumberInstance(Locale.ITALY);
+        format.setMinimumFractionDigits(2);
+        format.setMaximumFractionDigits(2);
+        return format.format(amount) + " €";
+    }
+
     private String describeTransaction(Transaction transaction) {
-        return transaction.getOccurredOn() + " · " + transaction.getAmount() + " € · "
+        return DAY_FORMAT.format(transaction.getOccurredOn()) + " · " + euros(transaction.getAmount()) + " · "
                 + (transaction.getDescription() == null ? "(senza descrizione)" : transaction.getDescription());
     }
 

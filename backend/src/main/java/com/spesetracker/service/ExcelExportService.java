@@ -391,7 +391,7 @@ public class ExcelExportService {
         int rowIndex = writeTitle(sheet, styles, 0, "Andamento del saldo per periodo");
         rowIndex = writeNote(sheet, styles, rowIndex,
                 "Il saldo iniziale del primo periodo viene dal saldo registrato più recente non successivo al suo "
-                        + "inizio, piu' tutto quello che e' stato registrato da li' in avanti: e' lo stesso "
+                        + "inizio, più tutto quello che è stato registrato da lì in avanti: è lo stesso "
                         + "calcolo del saldo che vedi in Dashboard, valutato alla fine di ogni periodo.");
         rowIndex++;
 
